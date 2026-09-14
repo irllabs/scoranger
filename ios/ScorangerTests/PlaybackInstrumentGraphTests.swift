@@ -60,6 +60,20 @@ final class PlaybackInstrumentGraphTests: XCTestCase {
                                                    maximumFrameCount: block)
         try graph.load(midi: try fixture("quartet-playback"),
                        timeline: timeline(parts: parts), instruments: instruments)
+        // THIS BUNDLE MEASURES GAIN, SO IT STATES ITS OWN GAIN.
+        //
+        // Every assertion below is "this program is louder than silence", read
+        // out of a buffer rendered through the main mixer. `load` turns that
+        // mixer down when it believes it is under the UI-test harness, and what
+        // it believes is decided outside this file -- today an argument and an
+        // environment variable, tomorrow whatever stops music reaching a
+        // loudspeaker. Any of those arriving here would make every RMS zero and
+        // every one of these tests pass by measuring nothing.
+        //
+        // Offline rendering never reaches a speaker, so there is nothing here
+        // to silence. Set it explicitly and the question cannot be reopened by
+        // a change made somewhere else for a good reason.
+        graph.engine.mainMixerNode.outputVolume = 1
         return graph
     }
 

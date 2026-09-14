@@ -765,5 +765,18 @@ schemes:
       # scripts/gate.sh, because XcodeGen's skippedTests produced an empty
       # SkippedTests block here and a skip that silently does not skip is worse
       # than none.
+      environmentVariables:
+        # NO TEST PLAYS OUT OF THE SPEAKERS. XCTest strips the TEST_RUNNER_
+        # prefix on the way into the app under test, so the app sees
+        # SCORANGER_SILENT_AUDIO and PlaybackGraph turns the master output
+        # down -- see the note on `silencedForTesting`.
+        #
+        # It lives HERE, in the scheme, rather than in each test's
+        # launchArguments, because the previous rule (every UI test passes
+        # -seedTestLibrary) was a convention three tests already break. A
+        # convention that has to be remembered will eventually be forgotten,
+        # and the cost of forgetting lands on whoever is in the room: music
+        # out of the loudspeakers, in the middle of their work.
+        TEST_RUNNER_SCORANGER_SILENT_AUDIO: "1"
     archive:
       config: Release

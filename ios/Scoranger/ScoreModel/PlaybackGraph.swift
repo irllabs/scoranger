@@ -82,11 +82,32 @@ final class PlaybackGraph {
     /// to be part of a running graph for the sequencer to accept it.
     /// True when the app was launched by the UI-test harness.
     ///
-    /// `-seedTestLibrary` is passed by every UI test and by nothing else, so it
-    /// identifies the harness without inventing a second flag that a future
-    /// test could forget to pass.
+    /// TWO SIGNALS, AND THE ENVIRONMENT IS THE ONE THAT HOLDS.
+    ///
+    /// This read `-seedTestLibrary` alone, on the reasoning that every UI test
+    /// passes it and nothing else does. That was true when it was written and
+    /// is not true now: `ScreenStaysLit`, `SetlistFromTheScore` and
+    /// `SignInReachable` launch the app without it, and a test written tomorrow
+    /// can forget it just as easily. The failure mode is not a red test -- it
+    /// is music coming out of the machine's speakers while somebody is working,
+    /// which is how this was found.
+    ///
+    /// So the deciding signal is `SCORANGER_SILENT_AUDIO`, set once in the
+    /// scheme's test action as `TEST_RUNNER_SCORANGER_SILENT_AUDIO` (XCTest
+    /// strips that prefix on the way into the app under test) and therefore
+    /// carried by every `xcodebuild test` through this scheme, including
+    /// `-only-testing:` runs and the gate's `test-without-building`. No
+    /// individual test can forget what no individual test has to remember.
+    /// The launch argument stays as a second path for an app started outside
+    /// the scheme.
+    ///
+    /// This deliberately does not reach `ScorangerTests`, which measures real
+    /// gain through `enableManualRenderingMode`; that bundle sets its own
+    /// output volume explicitly so a silencing rule cannot quietly turn its
+    /// assertions into `0 == 0`.
     static let silencedForTesting: Bool =
-        ProcessInfo.processInfo.arguments.contains("-seedTestLibrary")
+        ProcessInfo.processInfo.environment["SCORANGER_SILENT_AUDIO"] == "1"
+        || ProcessInfo.processInfo.arguments.contains("-seedTestLibrary")
 
     func load(midi: URL, timeline: PlaybackTimeline,
               instruments: PlaybackInstruments = PlaybackInstruments()) throws {
