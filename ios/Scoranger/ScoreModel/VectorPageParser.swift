@@ -97,6 +97,31 @@ enum VectorPageParser {
         /// Characters gathered inside the innermost `<text>`/`<tspan>`.
         private var pendingText = ""
         private var inText = 0
+        /// `<title>` also holds characters, is nested INSIDE `<text>`, and is
+        /// a tooltip rather than notation. Verovio puts one on every page
+        /// number.
+        private var inTitle = 0
+
+        /// One styled run of a text chunk.
+        private struct Run {
+            let text: String
+            let family: String
+            let size: Double
+            let bold: Bool
+            let italic: Bool
+        }
+
+        /// SVG text FLOWS, and an anchor applies to the WHOLE flow.
+        ///
+        /// Two sibling tspans with no x of their own are one line: Verovio
+        /// writes the composer and the arranger that way, and a page number as
+        /// "–", "2", "–" under one `text-anchor="middle"`. Drawing each run at
+        /// the `<text>` element's own x stacks them on top of each other, and
+        /// anchoring only the first run puts the rest off centre. So runs are
+        /// banked until the chunk ends, measured together, and then placed.
+        private var chunk: [Run] = []
+        private var chunkOrigin: CGPoint?
+        private var chunkAnchor: SVGTextPath.Anchor = .start
 
         private var undrawn: [String: Int] = [:]
         private var missingCharacters: Set<Character> = []
@@ -208,7 +233,13 @@ enum VectorPageParser {
                 push(attrs, local: .identity)
 
             case "tspan":
-                flushText()
+                bankRun()
+                // A tspan that carries its own x starts a new chunk.
+                if attrs["x"] != nil { drawChunk() }
+                push(attrs, local: .identity)
+
+            case "title", "desc":
+                inTitle += 1
                 push(attrs, local: .identity)
 
             case "style":
@@ -236,10 +267,15 @@ enum VectorPageParser {
                 defsID = nil
                 defsPath = CGMutablePath()
             case "text":
-                flushText()
+                bankRun()
+                drawChunk()
                 inText = max(inText - 1, 0)
             case "tspan":
-                flushText()
+                bankRun()
+            case "title", "desc":
+                // Whatever it held is a label, not notation.
+                pendingText = ""
+                inTitle = max(inTitle - 1, 0)
             default:
                 break
             }
@@ -247,8 +283,7 @@ enum VectorPageParser {
         }
 
         func parser(_ parser: XMLParser, foundCharacters string: String) {
-            // `<title>` also holds characters and is not drawn.
-            guard inText > 0 else { return }
+            guard inText > 0, inTitle == 0 else { return }
             pendingText += string
         }
 
@@ -327,8 +362,8 @@ enum VectorPageParser {
             items.append(VectorPage.Item(path: placed, paint: paint, owner: owner))
         }
 
-        /// Bank the characters gathered so far as outlines, then forget them.
-        private func flushText() {
+        /// Bank the characters gathered so far as one run of the open chunk.
+        private func bankRun() {
             defer { pendingText = "" }
             let text = pendingText.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !text.isEmpty else { return }
@@ -346,16 +381,40 @@ enum VectorPageParser {
                 record("text with no position or size")
                 return
             }
-            guard let built = SVGTextPath.outline(
-                text, family: family ?? "Times, serif", size: size,
-                bold: isBold, italic: isItalic,
-                origin: CGPoint(x: x, y: y),
-                anchor: SVGTextPath.Anchor(rawValue: anchor ?? "start") ?? .start)
-            else { return }
-            missingCharacters.formUnion(built.missing)
+            if chunkOrigin == nil {
+                chunkOrigin = CGPoint(x: x, y: y)
+                chunkAnchor = SVGTextPath.Anchor(rawValue: anchor ?? "start") ?? .start
+            }
+            chunk.append(Run(text: text, family: family ?? "Times, serif",
+                             size: size, bold: isBold, italic: isItalic))
+        }
+
+        /// Measure the banked runs together, then lay them out left to right.
+        private func drawChunk() {
+            defer { chunk = []; chunkOrigin = nil; chunkAnchor = .start }
+            guard let origin = chunkOrigin, !chunk.isEmpty else { return }
+            let total = chunk.reduce(CGFloat.zero) {
+                $0 + SVGTextPath.advance(of: $1.text, family: $1.family,
+                                         size: $1.size, bold: $1.bold, italic: $1.italic)
+            }
+            var pen = origin.x
+            switch chunkAnchor {
+            case .start:  break
+            case .middle: pen -= total / 2
+            case .end:    pen -= total
+            }
             var t = ctm
-            guard let placed = built.path.copy(using: &t), !placed.isEmpty else { return }
-            items.append(VectorPage.Item(path: placed, paint: .fill, owner: owner))
+            for run in chunk {
+                guard let built = SVGTextPath.outline(
+                    run.text, family: run.family, size: run.size,
+                    bold: run.bold, italic: run.italic,
+                    origin: CGPoint(x: pen, y: origin.y), anchor: .start)
+                else { continue }
+                missingCharacters.formUnion(built.missing)
+                pen += built.advance
+                guard let placed = built.path.copy(using: &t), !placed.isEmpty else { continue }
+                items.append(VectorPage.Item(path: placed, paint: .fill, owner: owner))
+            }
         }
 
         /// Verovio's stylesheet, applied from the class chain.

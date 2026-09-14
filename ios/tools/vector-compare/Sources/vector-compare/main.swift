@@ -21,6 +21,9 @@ struct Options {
     var width: CGFloat = 972            // the app's engraved page width in points
     var pixelScale: CGFloat = 2         // as PDFPageImage's floor: 2x for crispness
     var out = URL(fileURLWithPath: "/tmp/scoranger-vector-compare")
+    /// Also write the SVG the bitmap path actually draws, which is not the
+    /// SVG Verovio produced: `SVGForSwiftDraw` rewrites it substantially.
+    var dumpPrepared = false
 }
 
 func parseArguments() throws -> Options {
@@ -40,6 +43,8 @@ func parseArguments() throws -> Options {
                 throw Failure("--pixel-scale needs a number")
             }
             options.pixelScale = CGFloat(value); arguments.removeFirst()
+        case "--dump-prepared":
+            options.dumpPrepared = true
         case "--out":
             guard let value = arguments.first else { throw Failure("--out needs a directory") }
             options.out = URL(fileURLWithPath: value); arguments.removeFirst()
@@ -233,6 +238,11 @@ do {
         let pixels = CGSize(width: (options.width * options.pixelScale).rounded(),
                             height: (options.width * aspect * options.pixelScale).rounded())
 
+        if options.dumpPrepared {
+            try SVGForSwiftDraw.prepare(svg)
+                .write(to: options.out.appending(path: "\(name)-prepared.svg"),
+                       atomically: true, encoding: .utf8)
+        }
         let bitmap = try bitmapPathRaster(svg: svg, pixels: pixels)
         let (vector, page) = try vectorPathRaster(svg: svg, pixels: pixels)
         guard let bitmapImage = bitmap.makeImage(), let vectorImage = vector.makeImage() else {

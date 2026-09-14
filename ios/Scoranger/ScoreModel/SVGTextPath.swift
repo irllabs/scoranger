@@ -23,8 +23,16 @@ enum SVGTextPath {
 
     struct Result {
         let path: CGPath
-        /// Characters the chosen face had no glyph for, in document order.
+        /// Characters the chosen face had no glyph for. They are NOT drawn:
+        /// Core Text answers a missing character with a last-resort box, and a
+        /// box in the middle of a tempo mark is a worse lie than a gap the
+        /// report names.
         let missing: [Character]
+        /// Where the run actually started, after `anchor` was applied.
+        let leftEdge: CGFloat
+        /// How far the pen moved, so the next unpositioned run can continue
+        /// from here.
+        let advance: CGFloat
     }
 
     /// `origin` is SVG's anchor point on the BASELINE, in user units, y down.
@@ -34,54 +42,94 @@ enum SVGTextPath {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, size > 0 else { return nil }
         let font = face(family: family, size: size, bold: bold, italic: italic)
+
+        // Asked of the face we CHOSE, before layout. Core Text's own answer is
+        // not usable for this: it cascades to a last-resort font and hands
+        // back a perfectly valid glyph id for a box, so a page full of
+        // U+ECA5 boxes reports itself as fully drawn.
+        var missing: [Character] = []
+        var drawable = ""
+        for character in trimmed {
+            if has(character, in: font) {
+                drawable.append(character)
+            } else {
+                missing.append(character)
+            }
+        }
+        guard !drawable.isEmpty else {
+            return Result(path: CGMutablePath(), missing: missing,
+                          leftEdge: origin.x, advance: 0)
+        }
+
         let line = CTLineCreateWithAttributedString(
-            NSAttributedString(string: trimmed, attributes: [.font: font]))
-        let width = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+            NSAttributedString(string: drawable, attributes: [Self.fontKey: font]))
+        let advance = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
 
         var startX = origin.x
         switch anchor {
         case .start:  break
-        case .middle: startX -= width / 2
-        case .end:    startX -= width
+        case .middle: startX -= advance / 2
+        case .end:    startX -= advance
         }
 
         let out = CGMutablePath()
-        var missing: [Character] = []
-        let characters = Array(trimmed)
         guard let runs = CTLineGetGlyphRuns(line) as? [CTRun] else { return nil }
         for run in runs {
             let count = CTRunGetGlyphCount(run)
             guard count > 0 else { continue }
             var glyphs = [CGGlyph](repeating: 0, count: count)
             var positions = [CGPoint](repeating: .zero, count: count)
-            var indices = [CFIndex](repeating: 0, count: count)
             CTRunGetGlyphs(run, CFRange(location: 0, length: count), &glyphs)
             CTRunGetPositions(run, CFRange(location: 0, length: count), &positions)
-            CTRunGetStringIndices(run, CFRange(location: 0, length: count), &indices)
             let runFont = unsafeBitCast(
                 CFDictionaryGetValue(
                     CTRunGetAttributes(run),
                     Unmanaged.passUnretained(kCTFontAttributeName).toOpaque()),
                 to: CTFont.self)
-            for i in 0..<count {
+            for i in 0..<count where glyphs[i] != 0 {
                 // The glyph outline is in text space: origin on the baseline,
                 // y UP. SVG's y runs DOWN, so every glyph is mirrored as it is
                 // placed rather than the whole page being drawn upside down.
                 var placement = CGAffineTransform(a: 1, b: 0, c: 0, d: -1,
                                                   tx: startX + positions[i].x,
                                                   ty: origin.y - positions[i].y)
-                guard glyphs[i] != 0,
-                      let glyph = CTFontCreatePathForGlyph(runFont, glyphs[i], &placement)
-                else {
-                    let index = indices[i]
-                    if index >= 0, index < characters.count { missing.append(characters[index]) }
-                    continue
-                }
+                guard let glyph = CTFontCreatePathForGlyph(runFont, glyphs[i], &placement)
+                else { continue }
                 out.addPath(glyph)
             }
         }
-        guard !out.isEmpty || !missing.isEmpty else { return nil }
-        return Result(path: out.copy() ?? out, missing: missing)
+        return Result(path: out.copy() ?? out, missing: missing,
+                      leftEdge: startX, advance: advance)
+    }
+
+    /// How wide this run is, without placing it.
+    ///
+    /// A `<text>` block with `text-anchor="middle"` and several runs -- the
+    /// page number, "– 2 –", is three -- has to be measured WHOLE before the
+    /// first glyph can be positioned, so the measurement is separable from the
+    /// drawing.
+    static func advance(of text: String, family: String, size: CGFloat,
+                        bold: Bool, italic: Bool) -> CGFloat {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, size > 0 else { return 0 }
+        let font = face(family: family, size: size, bold: bold, italic: italic)
+        let drawable = String(trimmed.filter { has($0, in: font) })
+        guard !drawable.isEmpty else { return 0 }
+        let line = CTLineCreateWithAttributedString(
+            NSAttributedString(string: drawable, attributes: [Self.fontKey: font]))
+        return CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
+    }
+
+    /// `.font` is UIKit's and AppKit's sugar for this key, and neither is
+    /// imported here -- the display list has to build in a test bundle with no
+    /// host app as readily as in the app.
+    private static let fontKey = kCTFontAttributeName as NSAttributedString.Key
+
+    /// Does this face have a glyph for `character` itself, without cascading?
+    private static func has(_ character: Character, in font: CTFont) -> Bool {
+        var utf16 = Array(String(character).utf16)
+        var glyphs = [CGGlyph](repeating: 0, count: utf16.count)
+        return CTFontGetGlyphsForCharacters(font, &utf16, &glyphs, utf16.count)
     }
 
     /// The face for an SVG `font-family` list.
