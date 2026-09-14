@@ -37,14 +37,7 @@ attribute anywhere. Colour is `stroke:currentColor` in the stylesheet plus
 `color="black"` on the `definition-scale` element. That is the entire colour
 model.
 
-Command:
-
-```
-engine/.venv/bin/python - <<'PY'   # abbreviated; see §6 for the survey used
-import verovio, re, collections
-...
-PY
-```
+The survey that produced this table is in §6.
 
 ### 1.1 Which SMuFL glyphs the scores use
 
@@ -344,3 +337,40 @@ open /tmp/scoranger-vector-compare
 `Cannot parse JSON std::string` and silently leaves Verovio on its A4 defaults,
 which is a 2100 × 2970 page instead of 972 × 1258 and a survey of the wrong
 engraving.
+
+---
+
+## 7. What was run, and what was not
+
+Run, with the result:
+
+```
+# the six files, against the iOS SDK, without UIKit
+xcrun swiftc -typecheck -swift-version 5 -sdk $(xcrun --sdk iphoneos --show-sdk-path) \
+  -target arm64-apple-ios17.0 Scoranger/ScoreModel/{SVGPathData,SVGTextPath,VectorPage,\
+VectorPageParser,VectorPageRenderer,VectorRendering,SVGGeometryParser}.swift
+  -> clean
+
+cd ios/tools/vector-compare && swift build          -> Build complete
+.build/debug/vector-compare /tmp/{quartet,accordion}-p*.svg   -> §3
+
+xcodebuild test -project Scoranger.xcodeproj -scheme Scoranger \
+  -destination "id=<one idle simulator>" -derivedDataPath DerivedData-Vector \
+  -only-testing:ScorangerTests/VectorPageTests
+  -> Executed 12 tests, with 0 failures. ** TEST SUCCEEDED **
+```
+
+That invocation also builds the app target, so the Settings toggle compiles.
+
+**Not run: `ios/scripts/gate.sh`.** Another build line was on this machine, and
+two concurrent gates poison both. The suite as a whole has not been run against
+this branch.
+
+**Not verified:**
+
+- Anything on hardware. No iPad has drawn a vector page.
+- Redraw cost during a pinch, which is the whole argument for the change.
+- What the bitmap path does with U+ECA5 on iOS (§4.1), and therefore whether
+  the missing metronome note is a regression or a wash.
+- That Verovio's own browser rendering is the standard both paths should be
+  judged against (§4.2). Inferred from its stylesheet, not rendered.
