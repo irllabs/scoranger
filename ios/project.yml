@@ -230,6 +230,32 @@ targets:
         #          asked for as one build: "build all of these necessary
         #          features for sharing playlists into the first 7.0 build."
         #          §11.9 records the difference, including what was left out.
+        #   0.8.3  THE RENDERER, AND WHAT STANDS ON IT. Scope written before
+        #          the work; order in BACKLOG.md "The release plan after
+        #          0.8.1". The version is NOT bumped here: this branch ships
+        #          when the comparison below says it may, and bumping early
+        #          would put a number on a build nobody has read music from.
+        #            1. direct vector rendering BEHIND A FLAG, OFF BY DEFAULT.
+        #               Verovio places SMuFL glyphs by reference, so this
+        #               needs Bravura, the codepoint mapping, and path
+        #               rendering for beams, slurs, staff lines and hairpins.
+        #               SVGGeometryParser gives bounds today, not draw
+        #               instructions -- new work, not a rewiring;
+        #            2. selection re-based on the vector output;
+        #            3. visual/engraving regression tests, which are worth
+        #               building only once the output is vector;
+        #            4. a real-device lane: one iPad with a Pencil, by hand,
+        #               against a checklist -- the simulator has no Pencil;
+        #            5. the OMR pipeline through Audiveris, in its own lane
+        #               because it needs the installed app on the host;
+        #            6. multi-tenancy: rules, per-user OMR quotas, cost
+        #               metering. Firebase touches live infrastructure and
+        #               every deploy waits for Ali's explicit go.
+        #          THE GATE ON THIS BUILD is not a test count. It is Ali
+        #          reading from the vector path beside the bitmap path on his
+        #          own scores, on hardware, and saying which one he would
+        #          rather play from. Until then the flag stays off and this
+        #          branch does not merge.
         #   0.8.1  THE EXTERNAL CANDIDATE (2026-09-13). Scope before the work:
         #          no new behaviour. This is build 196 as gated (1508/1508)
         #          plus the consolidation of every open branch into one line
