@@ -274,10 +274,10 @@ struct SettingsView: View {
                           + "started. For reporting a gesture that is not working.")
                 PanelToggle(title: "Draw the score as vectors",
                             isOn: $drawVectors)
-                PanelNote(text: "Unfinished. Draws the page from Verovio's own outlines "
-                          + "instead of a picture of it, so it stays sharp while a pinch "
-                          + "is moving. Some marks are still missing. Turn it off to go "
-                          + "back to the page you have been reading from.")
+                PanelNote(text: "Unfinished, and it changes nothing yet — the canvas "
+                          + "still draws the page it always has. When it is wired, this "
+                          + "draws from Verovio's own outlines instead of a picture of "
+                          + "them, and some marks will be missing until it is finished.")
                 PerfPanel()
             }
             .padding(Theme.Metric.panelPadding)
