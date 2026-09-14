@@ -2,6 +2,9 @@ import SwiftUI
 
 struct SettingsView: View {
     @AppStorage("touchDiagnostics") private var showTouchDiagnostics = false
+    /// OFF by default and off in every build that has not been compared page
+    /// by page against the bitmap path. See `VectorRendering`.
+    @AppStorage(VectorRendering.defaultsKey) private var drawVectors = false
     @EnvironmentObject var state: AppState
     @State private var urlDraft = ""
     @State private var selfTestResult = ""
@@ -269,6 +272,12 @@ struct SettingsView: View {
                 PanelNote(text: "Prints every touch on the score — pencil or finger, how many "
                           + "are down, how long they were held, and whether a selection "
                           + "started. For reporting a gesture that is not working.")
+                PanelToggle(title: "Draw the score as vectors",
+                            isOn: $drawVectors)
+                PanelNote(text: "Unfinished. Draws the page from Verovio's own outlines "
+                          + "instead of a picture of it, so it stays sharp while a pinch "
+                          + "is moving. Some marks are still missing. Turn it off to go "
+                          + "back to the page you have been reading from.")
                 PerfPanel()
             }
             .padding(Theme.Metric.panelPadding)

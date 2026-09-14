@@ -1,0 +1,1 @@
+../../../../Scoranger/ScoreModel/SVGPathData.swift

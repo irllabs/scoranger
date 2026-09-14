@@ -1,0 +1,1 @@
+../../../../Scoranger/FingeringDiagrams.swift

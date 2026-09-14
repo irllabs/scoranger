@@ -1,0 +1,1 @@
+../../../../Scoranger/ScoreModel/VectorPageParser.swift

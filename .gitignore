@@ -70,3 +70,4 @@ firebase/.firebase/
 
 firebase/functions/node_modules/
 firebase/functions/package-lock.json
+ios/tools/vector-compare/.build/
