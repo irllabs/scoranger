@@ -7,17 +7,13 @@ Amended 2026-09-22 to the code in 0.13.0: the chat no longer sends earlier
 prompts, dictation is on-device only, and the scan log carries no email
 address. Log retention (30 days) and the OpenRouter settings (logging and
 training off) were confirmed that day. Amended 2026-09-23 for 0.15.0: chat
-runs on the reader's own OpenRouter account and the app ships no chat key.*
+runs on the reader's own OpenRouter account and the app ships no chat key.
+Amended 2026-09-27 for 0.16.0: a signed-in account keeps a private copy of its
+library for its other devices, deleted with the account.*
 
 ---
 
-*[Publish with 0.16.0, not before. Amended 2026-09-26 for a signed-in
-library kept on every device: every build through 0.15.0 keeps the library on
-the iPad only, and the live page says so correctly. When 0.16.0 is on
-TestFlight, set the date below, delete this note, and run
-firebase/build_hosting.sh -- which refuses while it is here.]*
-
-**Last updated: 23 September 2026**
+**Last updated: 27 September 2026**
 
 Scoranger is made by IRL Labs LLC. This page says what Scoranger does with your
 music and your information. It is short because Scoranger does very little with
