@@ -77,9 +77,18 @@ final class LibrarySync: ObservableObject {
     }
 
     /// Start or stop with the account. Nil stops, and keeps everything local.
+    ///
+    /// **The account is taken only once every precondition holds.** Every
+    /// other entry point -- `nudge`, `libraryChanged`, the network monitor --
+    /// asks only whether there is an account, and `Firestore.firestore()`
+    /// raises an Objective-C exception when Firebase is not configured, which
+    /// no Swift `catch` can stop. Recording the account before these checks
+    /// crashed the app under the UI tests' pretend account, where Firebase is
+    /// deliberately never brought up (the 0.16.0 gate, four AccountDeletion
+    /// tests).
     func follow(account uid: String?) {
         guard uid != account else { return }
-        account = uid
+        account = nil
         libraryId = nil
         ticker?.cancel()
         guard let uid, SignIn.pretendedAccount == nil, FirebaseApp.app() != nil,
@@ -88,6 +97,7 @@ final class LibrarySync: ObservableObject {
             cellularQuestion = nil
             return
         }
+        account = uid
         nudge()
         // A slow heartbeat for what other devices do; this device's own
         // changes are pushed within seconds of being made (`libraryChanged`).
@@ -147,7 +157,8 @@ final class LibrarySync: ObservableObject {
     private var heldBookBytes = 0
 
     private func cycle() async {
-        guard let account else { return }
+        // Re-checked on every cycle, not only at `follow`: see there.
+        guard let account, FirebaseApp.app() != nil else { return }
         guard network != .offline else {
             let pending = await pendingCount()
             status = .offline(pending)
