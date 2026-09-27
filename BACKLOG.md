@@ -1,5 +1,33 @@
 # Backlog
 
+## Library sync -- what 0.16.0 does NOT do
+
+0.16.0 keeps a signed-in account's library the same on every device
+(`librarysync.py`, `LibrarySync.swift`; proved by check_library_sync.py, the
+rules tests and a two-simulator run against the Firebase emulators). Left out,
+each on purpose and each in the ios/project.yml scope block:
+
+- **Pencil markup on your own library does not sync.** Ink is keyed by score
+  uid and version id already (bundle._ink_files), so it is addressable; it
+  needs a record kind of its own and a merge rule for two devices drawing on
+  one page.
+- **Concurrent edits to ONE document merge by document, not by field.** A
+  document this device still owes wins on the way down (librarysync.apply
+  skips it) and goes up whole. design/FIREBASE.md §7 rule 3 wants per-field
+  last-writer-wins; `SyncMerge.swift` has the rule, unwired.
+- **Every version is downloaded.** No holding policy or eviction (§5.1, §5.4;
+  `HoldingPolicy.swift` exists, unwired). A first sign-in on a new device
+  fetches every version of every arrangement.
+- **No "two libraries" screen** (§9.3). A second device merges; an arrangement
+  imported separately on both shows twice until one is deleted.
+- **Google and Apple sign-in are different accounts** unless Firebase links
+  them by a shared email. Hide My Email on Apple means the iPad signed in with
+  Google and the iPhone with Apple hold two libraries.
+- **No App Check** on Firestore or Storage; the rules are the protection.
+- **Deletes on the device were not driven through the UI in the simulator
+  run** (the simulator panel's access prompt was not answered); they are
+  proved at the engine level, check_library_sync.py scenario 3.
+
 ## Book import: file copies on the main thread -- FIXED in 0.14.1
 
 Found diagnosing the 0.14.0 gate's one failure, and not its cause. Shipped in

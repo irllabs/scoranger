@@ -11,6 +11,12 @@ runs on the reader's own OpenRouter account and the app ships no chat key.*
 
 ---
 
+*[Publish with 0.16.0, not before. Amended 2026-09-26 for a signed-in
+library kept on every device: every build through 0.15.0 keeps the library on
+the iPad only, and the live page says so correctly. When 0.16.0 is on
+TestFlight, set the date below, delete this note, and run
+firebase/build_hosting.sh -- which refuses while it is here.]*
+
 **Last updated: 23 September 2026**
 
 Scoranger is made by IRL Labs LLC. This page says what Scoranger does with your
@@ -27,8 +33,10 @@ things you asked for:
    to a language model run by another company.
 2. **When you tap "Make editable" on a scan**, that page goes to our server to
    be read.
-3. **When you sign in and share a set list**, that set list's music and the
-   marks you make on it go to Google's Firebase.
+3. **When you sign in**, a private copy of your library is kept in your
+   account on Google's Firebase, so it is the same on every device you sign
+   in on; and when you share a set list, that set list's music and the marks
+   you make on it go there too.
 
 If you never sign in, never use the chat and never convert a scan, nothing
 about you or your music ever leaves the iPad. Signed out, Scoranger does not
@@ -118,14 +126,25 @@ name an account only by that random string.
 
 ## An account, and sharing with your band
 
-You never need an account. Sign in only if you want to share a set list with
-other people.
+You never need an account. Sign in only if you want your library on more than
+one device, or to share a set list with other people.
 
 **Signing in.** You can use Sign in with Apple or a Google account. Firebase
 Authentication, which is Google's, then holds your account identifier, your
 email address and the name your provider supplied. If you use Apple's Hide My
 Email, we get the relay address and keep it, because that is the address your
 bandmates have to send an invitation to.
+
+**Your library on your other devices.** While you are signed in, a copy of your
+library is kept in your account on Google's Firebase: your arrangements and
+every version of them, the sources you imported beside them, your pieces, your
+set lists and your books, including the music files and the book files
+themselves. That is what lets your iPhone show what you arranged on your iPad.
+It is readable by your account and by nobody else, not even the people in your
+shared set lists. A change you make on one device reaches the others; a
+delete does too. Your pencil marks on your own library are not part of it yet:
+they stay on the device where you drew them. Signing out stops the syncing and
+leaves the library on the device; it does not delete anything.
 
 **Sharing a set list.** When you share one, the following goes to Google's
 Firebase:
@@ -147,9 +166,10 @@ address, and that invitation can only be claimed by that address. Either way
 the person has to have a Scoranger account: there is no way to read a shared
 set list without one, and nothing in our storage is ever public.
 
-**What is never shared.** Your own library stays on your iPad. Books never
-share. Sources, meaning other editions you have imported for reference, never
-share. Nothing is readable by anyone outside the set list it belongs to.
+**What is never shared.** Your own library is private to your account: it is
+copied between your devices and to nobody else's. Books never share. Sources,
+meaning other editions you have imported for reference, never share. Nothing
+in a shared set list is readable by anyone outside it.
 
 ## What Scoranger does not do
 
@@ -169,6 +189,7 @@ share. Nothing is readable by anyone outside the set list it belongs to.
 | What | How long |
 |---|---|
 | Your library on the iPad | Until you delete it. It is yours and it is local. |
+| The copy of your library kept for your other devices (signed in only) | Until you delete it: a delete on any of your devices removes it from the copy, and deleting your account removes the whole copy. |
 | A page uploaded for scanning | Up to one hour in temporary storage, then deleted. |
 | Scan log lines (an account identifier, never an email address) | 30 days, then deleted. |
 | Your account, set lists, shared files and marks | Until you delete your account or leave the set list. |
@@ -189,12 +210,14 @@ What happens:
 - Set lists you only belonged to carry on without you.
 - **Your pencil marks are removed from every shared set list**, and nobody
   else's are touched.
+- **The copy of your library kept for your other devices is deleted**, with
+  every music file and book file in it.
 - Your account record, your memberships and your profile are deleted.
 - Your Apple sign-in token is revoked with Apple.
 - Finally, your account itself is deleted from Firebase Authentication.
 
 **The music on your iPad is not touched.** Deleting your account deletes the
-account, not your library.
+account and the copy kept in it, not the library on the device in your hand.
 
 Two things we keep, and we would rather tell you than not:
 
@@ -213,7 +236,8 @@ category. It does not ask for anyone's age.
 
 ## Where things are stored
 
-Accounts, set lists, shared files and marks are held by Google Firebase.
+Accounts, the copy of your library kept for your other devices, set lists,
+shared files and marks are held by Google Firebase.
 Scanning runs on Google Cloud Run in the United States. Chat goes to OpenRouter
 and on to the model company you selected, wherever they run. Using Scoranger's
 account and sharing features means your data is processed in the United States.

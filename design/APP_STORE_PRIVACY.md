@@ -549,13 +549,20 @@ is unavailable, so no recording leaves the device and none is collected
 (§3.2). Through 0.11.0 this was Yes / not linked. Judgment call 8.3 is
 therefore moot.
 
-*Other User Content:* three things. The sheet music files uploaded to Cloud
+*Other User Content:* four things. The sheet music files uploaded to Cloud
 Storage for a shared set list (§3.6). The pencil ink drawn on shared pages,
-stored per uid in Firestore (§3.5). And the chat conversation sent to
-OpenRouter (§3.1) together with the score's title, composer, arrangement names
-and part structure. The first two are linked to a uid. The third carries no
+stored per uid in Firestore (§3.5). From 0.16.0, **a signed-in account's whole
+library** -- every arrangement and version, their sources, pieces, set lists
+and books, with the music and book files -- kept under
+`libraries/{libraryId}` in Firestore and Cloud Storage, owned by that uid and
+readable by it alone (firestore.rules, storage.rules), so the library is the
+same on every device the account signs in on; deleted with the account by the
+`deleteAccount` Function. And the chat conversation sent to OpenRouter (§3.1)
+together with the score's title, composer, arrangement names and part
+structure. The first three are linked to a uid. The fourth carries no
 identifier at all but is grouped here because the data type is the same; see
-8.4.
+8.4. **The label does not change for 0.16.0**: Other User Content was already
+Collected, Linked, App Functionality.
 
 ### Browsing History, Search History, Purchases
 

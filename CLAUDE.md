@@ -62,7 +62,10 @@ So:
   IS the Nth bar -- Verovio nests a slur inside the measure it starts in, and a
   group's frame is the union of what it contains, so an unclipped bar can be
   four bars wide and a playhead lands two bars late),
-  `check_identity.py` (an existing library survives the id migration with
+  `check_library_sync.py` (two devices signed in to one account converge on
+one library -- the whole library arrives, edits come back, a delete stays
+deleted, a second device's own library merges in),
+`check_identity.py` (an existing library survives the id migration with
   every reference intact, a rename changes nothing but the slug, and two
   offline devices allocate versions that do not collide), `check_sync.py`
   (a signed-out device pays nothing for sync, and a delete outlives the row it
@@ -756,12 +759,25 @@ service-account credentials, so sync belongs beside it in Swift (§2).
 `workspace.repository_factory` and records what this device owes a server: a
 `rev` on each document, and a per-document journal that survives the row it
 describes -- which is what stops a swept-away delete coming back from another
-device. **It is not installed by default.** Signed out there is no journal
-file, no `rev`, and no Firebase anywhere in the app; that is a product decision
+device. **It is installed at first sign-in** (`librarysync.bind`, 0.16.0) and
+stays on, signed in or out, once `workspace/sync.db` exists. Never signed in
+there is no journal file, no `rev`, and no Firebase anywhere in the app; that
+is a product decision
 (design/FIREBASE.md §2, §9.1), not an accident, and `check_sync.py` asserts it
 first. The Swift half that consumes it -- `VersionGraph`, `SyncMerge`,
 `ArtifactHolding` in `ios/Scoranger/ScoreModel/` -- decides forks, per-field
 merges and what may be evicted, and is pure logic under `ScorangerTests`.
+
+**Library sync (0.16.0)**: `scoranger_engine/librarysync.py` turns the library
+into RECORDS named by uid (translating the slugs documents point at each other
+by) and applies records back; `ios/Scoranger/Account/LibrarySync.swift` carries
+them to `libraries/{libraryId}/{collection}/{uid}` in Firestore (the engine's
+fields as one JSON `payload` string) and their bytes to Storage under
+`libraries/{libraryId}/files/`. Its pull state lives in
+`workspace/.library-sync/`, beside the journal, so it dies with the library.
+After changing engine code, **re-run `ios/scripts/vendor_engine.sh`**: a new
+engine module the bridge imports is absent from the app until you do, and the
+engine then fails to start at all.
 
 **Titles and credits**: a score has exactly one title. It lives in the notation
 (MusicXML `<work-title>` *and* `<movement-title>` — Verovio engraves the
