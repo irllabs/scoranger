@@ -11,6 +11,11 @@ struct ScorangerApp: App {
     /// on it returns early while `FirebaseApp` has not been configured, so a
     /// signed-out launch touches no network and starts no listener (§0.2).
     @StateObject private var shared = SharedSetlists()
+    /// The account's library on every device it signs in on (0.16.0). Also
+    /// inert while signed out: `follow(account:)` is what starts it, and it
+    /// returns at once for nil.
+    @StateObject private var librarySync = LibrarySync()
+    @Environment(\.scenePhase) private var scenePhase
 
     /// The one moment a test's reset can be total.
     ///
@@ -28,6 +33,27 @@ struct ScorangerApp: App {
                 .environmentObject(state)
                 .environmentObject(signIn)
                 .environmentObject(shared)
+                .environmentObject(librarySync)
+                // This device's own edits go up a moment after they are made;
+                // `Manifest` equality ignores the rebuild stamp, so an idle
+                // refresh is not an edit.
+                .onChange(of: state.manifest) { _, _ in librarySync.libraryChanged() }
+                .onChange(of: signIn.account?.uid) { _, uid in librarySync.follow(account: uid) }
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active { librarySync.nudge() }
+                }
+                // Books over cellular are asked about, the way Apple's own
+                // apps ask before a large download (Ali, 2026-09-26).
+                .alert("Download books over cellular?",
+                       isPresented: Binding(get: { librarySync.cellularQuestion != nil },
+                                            set: { if !$0 { librarySync.cellularQuestion = nil } })) {
+                    Button("Download now") { librarySync.allowCellular() }
+                    Button("Wait for Wi-Fi", role: .cancel) { librarySync.waitForWiFi() }
+                } message: {
+                    Text("\(LibrarySyncModel.megabytes(librarySync.cellularQuestion ?? 0)) of "
+                         + "books are waiting to sync. Download them now over cellular, "
+                         + "or wait until this device is on Wi-Fi.")
+                }
                 // Paper & Clay is a single fixed light palette: every surface is
                 // a hard hex value with no dark variant. Left to follow the
                 // system, dark mode kept the light surfaces but handed every
@@ -91,6 +117,14 @@ struct ScorangerApp: App {
                     // the imported library carries no metadata of its own
                     await state.applyBundledMetadataIfNeeded()
                     await state.refresh()
+                    // After the engine is up and the library read: a device
+                    // that was signed in last time picks sync back up here.
+                    librarySync.attach(state)
+                    #if DEBUG
+                    // The two-simulator sync test signs in to local emulators.
+                    await signIn.signInToEmulatorIfRequested()
+                    #endif
+                    librarySync.follow(account: signIn.account?.uid)
                     // needs a manifest in hand, so it follows the first refresh
                     await state.migrateSeededSetlistName()
                     #if DEBUG

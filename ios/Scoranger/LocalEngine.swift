@@ -221,4 +221,31 @@ struct LocalEngine {
     func call(op: String, args: [String: Any]) async throws -> [String: Any] {
         try await result(op: op, args: args)
     }
+
+    // MARK: - the account's library on every device (0.16.0, librarysync.py)
+
+    /// Tie the journal to this account, starting it if it never ran. A
+    /// different account from last time is owed the whole library.
+    func librarySyncBind(account: String) async throws -> [String: Any] {
+        try await result(op: "library-sync-bind", args: ["account": account])
+    }
+
+    /// What this device owes the server, as records, oldest first.
+    func librarySyncOutbox(limit: Int) async throws -> [String: Any] {
+        try await result(op: "library-sync-outbox", args: ["limit": limit])
+    }
+
+    /// The server has these; stop owing them.
+    func librarySyncAck(_ acks: [[String: Any]]) async throws -> [String: Any] {
+        try await result(op: "library-sync-ack", args: ["acks": acks])
+    }
+
+    /// Write what other devices did into this one. Returns what was deferred.
+    func librarySyncApply(_ records: [[String: Any]]) async throws -> [String: Any] {
+        try await result(op: "library-sync-apply", args: ["records": records])
+    }
+
+    func librarySyncStatus() async throws -> [String: Any] {
+        try await result(op: "library-sync-status")
+    }
 }

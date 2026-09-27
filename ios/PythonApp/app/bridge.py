@@ -70,6 +70,19 @@ def _place_element(a, op, duplicate):
 
 
 def _dispatch(op, a):
+    # -- the account's library on every device (0.16.0, librarysync) -------
+    if op.startswith("library-sync-"):
+        from scoranger_engine import librarysync
+        if op == "library-sync-bind":
+            return librarysync.bind(a["account"])
+        if op == "library-sync-outbox":
+            return librarysync.outbox(limit=int(a.get("limit") or 200))
+        if op == "library-sync-ack":
+            return librarysync.acknowledge(a.get("acks") or [])
+        if op == "library-sync-apply":
+            return librarysync.apply(a.get("records") or [])
+        if op == "library-sync-status":
+            return librarysync.status()
     if op == "manifest":
         return workspace.rebuild_manifest()
     if op == "selftest":
@@ -689,6 +702,13 @@ def handle(request):
         if op == "configure":
             os.environ["SCORANGER_WORKSPACE"] = args["workspace"]
             _ensure_engine()
+            # A device that has signed in to sync keeps journaling across
+            # launches, signed in or not, so what it does while signed out
+            # still reaches the account (librarysync.is_on). One that never
+            # has, never starts: no journal file exists to find.
+            from scoranger_engine import librarysync
+            if librarysync.is_on():
+                librarysync.start()
             import music21
             return json.dumps({"ok": True, "python": sys.version.split()[0],
                                "music21": music21.__version__})

@@ -137,8 +137,10 @@ enum AccountDeletionPlan {
     /// library".
     static let keepsLocalLibrary =
         "Your library stays on this iPad. Deleting your account removes you "
-        + "from Scoranger's servers and from every shared set list; it does "
-        + "not touch the music, the arrangements or the markup held here."
+        + "from Scoranger's servers, deletes the copy of your library kept "
+        + "there for your other devices, and takes you off every shared set "
+        + "list; it does not touch the music, the arrangements or the markup "
+        + "held here."
 
     /// Names, in prose. Two get named; after that it is a count, because a
     /// confirm that lists nine set lists is one nobody reads.

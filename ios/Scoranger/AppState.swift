@@ -1485,6 +1485,16 @@ final class AppState: ObservableObject {
                                                 "score": score.slug])
             }
             print("SCORANGER-SEED imported \(files.count) sample score(s)")
+            // A book in the seeded library, for the library sync test: books
+            // sync like everything else (0.16.0).
+            if ProcessInfo.processInfo.arguments.contains("-seedTestBook") {
+                let url = FileManager.default.temporaryDirectory
+                    .appending(path: "Seeded Tunebook.pdf")
+                if BigBookFixture.write(to: url, pages: 4) {
+                    _ = try? await local.call(op: "import-book",
+                                              args: ["path": url.path, "name": "Seeded Tunebook"])
+                }
+            }
             // A version-less arrangement, for the test that proves such a thing
             // explains itself instead of spinning on "Opening…". It cannot be
             // made through the normal path any more -- create_score rolls back

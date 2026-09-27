@@ -2,6 +2,10 @@ import AuthenticationServices
 import CryptoKit
 import FirebaseAuth
 import FirebaseCore
+#if DEBUG
+import FirebaseFirestore
+import FirebaseStorage
+#endif
 import Foundation
 import GoogleSignIn
 
@@ -370,6 +374,42 @@ final class SignIn: ObservableObject {
                        displayName: user.displayName,
                        provider: provider)
     }
+
+    #if DEBUG
+    /// `-emulatorAccount <email>`: sign in to the LOCAL Firebase emulators on
+    /// 127.0.0.1, for the two-simulator library sync test (0.16.0). Debug
+    /// builds only, and only when asked for by launch argument.
+    ///
+    /// Nothing about it reaches the real project: the emulators are pointed
+    /// at before the first Auth, Firestore or Storage call, the password is a
+    /// fixed test value that exists only in the emulator, and the session is
+    /// NOT remembered, so the next ordinary launch does not try to restore an
+    /// emulator user against production.
+    func signInToEmulatorIfRequested() async {
+        let args = ProcessInfo.processInfo.arguments
+        guard let at = args.firstIndex(of: "-emulatorAccount"), at + 1 < args.count else { return }
+        let email = args[at + 1]
+        let password = "emulator-only-test-password"
+        state = .working
+        do {
+            try startFirebaseIfNeeded()
+            Auth.auth().useEmulator(withHost: "127.0.0.1", port: 9099)
+            let settings = Firestore.firestore().settings
+            settings.host = "127.0.0.1:8181"
+            settings.isSSLEnabled = false
+            settings.cacheSettings = MemoryCacheSettings()
+            Firestore.firestore().settings = settings
+            Storage.storage().useEmulator(withHost: "127.0.0.1", port: 9199)
+            _ = try? await Auth.auth().createUser(withEmail: email, password: password)
+            let result = try await Auth.auth().signIn(withEmail: email, password: password)
+            state = .signedIn(account(from: result.user, provider: .google))
+            print("SCORANGER-EMULATOR signed in \(result.user.uid)")
+        } catch {
+            state = .failed(readable(error))
+            print("SCORANGER-EMULATOR sign-in failed: \(error)")
+        }
+    }
+    #endif
 
     /// Signing out keeps everything. The library is local and stays local
     /// (§9.2), and the confirmation says so in those words.

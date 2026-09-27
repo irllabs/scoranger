@@ -249,6 +249,13 @@ do("sweep")
 do("delete-piece", piece="Misty", with_arrangements=True)
 do("tidy-pieces")
 
+# -- the account's library on every device (librarysync) ---------------------
+do("library-sync-status")
+do("library-sync-bind", account="u-coverage")
+box = do("library-sync-outbox", limit=500)
+do("library-sync-ack", acks=[a for r in box.get("records", []) for a in r["acks"]])
+do("library-sync-apply", records=[])
+
 print("RESULT" + json.dumps({"configured": configured, "steps": STEPS},
                             default=str))
 '''

@@ -15,6 +15,8 @@ struct AccountSection: View {
     /// front of the same "You've been invited" band, claimed by the same
     /// button. One entrance, two doors into it.
     @EnvironmentObject var state: AppState
+    /// Where the account's library stands on this device (0.16.0).
+    @EnvironmentObject var librarySync: LibrarySync
 
     @State private var pasteNote: String?
     @State private var confirmingDelete = false
@@ -218,6 +220,25 @@ struct AccountSection: View {
                   identifier: "account-identity") {}
             .disabled(true)
 
+        // One line, never a spinner (design/FIREBASE.md §5.3): whether what
+        // this device shows is the account's library as it stands.
+        HStack(alignment: .firstTextBaseline, spacing: Theme.Metric.s12) {
+            Text(LibrarySyncModel.sentence(librarySync.status))
+                .typeRole(.data).foregroundStyle(Theme.Ink.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("account-library-sync")
+            if case .askCellular = librarySync.status {
+                PanelButton(title: "Download now", identifier: "account-sync-cellular") {
+                    librarySync.allowCellular()
+                }
+            } else {
+                PanelButton(title: "Sync now", identifier: "account-sync-now") {
+                    librarySync.nudge()
+                }
+            }
+        }
+
         if let email = account.email, account.isPrivateRelay {
             // §12.10, and the copy that used to be here pointed at an "invite
             // code" this app has never had. The address itself is the answer:
@@ -263,7 +284,8 @@ struct AccountSection: View {
         }
 
         // The promise, in the place a person would worry about it.
-        Text("Signing out keeps your library on this iPad. Nothing is deleted.")
+        Text("Signing out keeps your library on this iPad. Nothing is deleted; "
+             + "it stops syncing with your other devices until you sign in again.")
             .typeRole(.data).foregroundStyle(Theme.Ink.ink3)
             .fixedSize(horizontal: false, vertical: true)
             .accessibilityIdentifier("account-signout-keeps")

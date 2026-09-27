@@ -98,6 +98,11 @@ class JournalingRepository:
                 " at TEXT NOT NULL)")
             self._conn.execute(
                 "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)")
+            # Every uid ever deleted here, from either side. The journal row
+            # saying so is pruned once the server has it; this is what still
+            # answers "is that arrangement gone" when a version of it turns up
+            # later (librarysync.apply).
+            self._conn.execute("CREATE TABLE IF NOT EXISTS gone (uid TEXT PRIMARY KEY)")
             self._conn.commit()
         self._adopt()
 
@@ -140,6 +145,30 @@ class JournalingRepository:
         with self._lock:
             self._conn.execute(
                 "INSERT INTO meta (key, value) VALUES ('adopted', ?)", (_now(),))
+            self._conn.commit()
+
+    def readopt(self) -> None:
+        """Owe everything again, as if this journal had never met the library.
+
+        For a device whose journal was acknowledged by a DIFFERENT account:
+        those acknowledgements say nothing about what the new one holds.
+        """
+        with self._lock:
+            self._conn.execute("DELETE FROM changes")
+            self._conn.execute("DELETE FROM synced")
+            self._conn.execute("DELETE FROM meta WHERE key = 'adopted'")
+            self._conn.commit()
+        self._adopt()
+
+    def meta(self, key: str) -> str | None:
+        row = self._conn.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
+        return row[0] if row else None
+
+    def set_meta(self, key: str, value: str) -> None:
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO meta (key, value) VALUES (?, ?)"
+                " ON CONFLICT(key) DO UPDATE SET value = excluded.value", (key, value))
             self._conn.commit()
 
     # -- the journal -------------------------------------------------------
@@ -212,7 +241,19 @@ class JournalingRepository:
 
     def _erase(self, key: str, previous: dict | None, deleter) -> None:
         deleter()
-        self._record(key, "delete", (previous or {}).get("uid"), None)
+        uid = (previous or {}).get("uid")
+        self._record(key, "delete", uid, None)
+        if uid:
+            self.mark_gone([uid])
+
+    def mark_gone(self, uids: list[str]) -> None:
+        with self._lock:
+            self._conn.executemany("INSERT OR IGNORE INTO gone (uid) VALUES (?)",
+                                   [(u,) for u in uids])
+            self._conn.commit()
+
+    def gone(self) -> set[str]:
+        return {r[0] for r in self._conn.execute("SELECT uid FROM gone")}
 
     # -- scores ------------------------------------------------------------
 

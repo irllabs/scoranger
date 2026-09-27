@@ -12,6 +12,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import {
   doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs,
+  query, where, orderBy, limit, writeBatch, serverTimestamp, Timestamp,
 } from 'firebase/firestore';
 import { ref, getBytes, uploadBytes } from 'firebase/storage';
 
@@ -208,6 +209,53 @@ await check("the owner reads their own library's files",
   assertSucceeds(getBytes(ref(as(OWNER).storage(), 'libraries/lib-ali/scores/s1/v1.musicxml.gz'))));
 await check("nobody else reads the owner's library files",
   assertFails(getBytes(ref(as(MEMBER).storage(), 'libraries/lib-ali/scores/s1/v1.musicxml.gz'))));
+// ---- library sync, as LibrarySync.swift does it (0.16.0) -------------------
+{
+  const mine = as(OWNER).firestore();
+  const theirs = as(STRANGER).firestore();
+  await check('a signed-in user creates a library they own',
+    assertSucceeds(setDoc(doc(mine, 'libraries', 'lib-new'), { owner: OWNER })));
+  await check('and cannot create one owned by somebody else',
+    assertFails(setDoc(doc(theirs, 'libraries', 'lib-forged'), { owner: OWNER })));
+  await check("a user records their library on their own user document",
+    assertSucceeds(setDoc(doc(mine, 'users', OWNER), { libraryId: 'lib-new' }, { merge: true })));
+  await check("and not on somebody else's",
+    assertFails(setDoc(doc(theirs, 'users', OWNER), { libraryId: 'lib-forged' }, { merge: true })));
+  const record = { payload: '{"name":"Reel"}', deleted: false, device: 'ipad',
+                   updatedAt: serverTimestamp() };
+  await check('the owner writes a record into their library',
+    assertSucceeds(setDoc(doc(mine, 'libraries', 'lib-ali', 'scores', 'u-reel'), record)));
+  await check('the owner batch-writes records, as a push does',
+    assertSucceeds((async () => {
+      const batch = writeBatch(mine);
+      batch.set(doc(mine, 'libraries', 'lib-ali', 'versions', 'v-1'), record);
+      batch.set(doc(mine, 'libraries', 'lib-ali', 'pieces', 'p-1'), record);
+      await batch.commit();
+    })()));
+  const since = query(collection(mine, 'libraries', 'lib-ali', 'scores'),
+    where('updatedAt', '>', Timestamp.fromMillis(0)), orderBy('updatedAt'), limit(300));
+  await check("the owner pulls what changed since a cursor, as a pull does",
+    assertSucceeds(getDocs(since)));
+  await check("a stranger cannot pull it",
+    assertFails(getDocs(query(collection(theirs, 'libraries', 'lib-ali', 'scores'),
+      where('updatedAt', '>', Timestamp.fromMillis(0)), orderBy('updatedAt'), limit(300)))));
+  await check("a stranger cannot write into it",
+    assertFails(setDoc(doc(theirs, 'libraries', 'lib-ali', 'scores', 'u-planted'), record)));
+  await check("a stranger cannot tombstone it",
+    assertFails(setDoc(doc(theirs, 'libraries', 'lib-ali', 'scores', 'u-reel'),
+      { deleted: true, device: 'x', updatedAt: serverTimestamp(), payload: '{}' })));
+  await check("the owner uploads a version's file",
+    assertSucceeds(uploadBytes(ref(as(OWNER).storage(), 'libraries/lib-ali/files/versions/v-1.musicxml'),
+      new Uint8Array([1]))));
+  await check("and a book",
+    assertSucceeds(uploadBytes(ref(as(OWNER).storage(), 'libraries/lib-ali/files/books/b-1.pdf'),
+      new Uint8Array([2]))));
+  await check("a stranger cannot upload into it",
+    assertFails(uploadBytes(ref(as(STRANGER).storage(), 'libraries/lib-ali/files/books/b-2.pdf'),
+      new Uint8Array([2]))));
+  await check("or download from it",
+    assertFails(getBytes(ref(as(STRANGER).storage(), 'libraries/lib-ali/files/versions/v-1.musicxml'))));
+}
 await check('no path outside those two is readable at all',
   assertFails(getBytes(ref(as(OWNER).storage(), 'anything/else.pdf'))));
 
