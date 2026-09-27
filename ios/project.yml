@@ -241,6 +241,48 @@ targets:
         #          asked for as one build: "build all of these necessary
         #          features for sharing playlists into the first 7.0 build."
         #          §11.9 records the difference, including what was left out.
+        #   0.16.0 YOUR LIBRARY ON EVERY DEVICE YOU SIGN IN ON (2026-09-26).
+        #          Scope written before the work. One feature, so the minor
+        #          bumps. Ali: "if i signin as google on my ipad ... when i
+        #          sign in with google on my iphone, I expect to see all the
+        #          same pieces/setlists/books. Same with apple sign in."
+        #
+        #          In this build:
+        #            1. Signed in (Google or Apple), the library is the
+        #               account's: arrangements with their whole version
+        #               history and sources, pieces, set lists and books, on
+        #               every device signed in to that account. The first
+        #               device's library becomes the account's; a device that
+        #               already has a library of its own MERGES it in (Ali's
+        #               decision), so nothing on either device is lost.
+        #            2. Changes go both ways while online, within about a
+        #               minute and at once on returning to the app; work done
+        #               offline waits and goes when there is a connection. A
+        #               delete stays deleted: a device that was offline cannot
+        #               bring it back.
+        #            3. Books sync like everything else. On cellular the app
+        #               asks first -- download now, or wait for Wi-Fi -- the
+        #               way Apple's own apps do (Ali's decision).
+        #            4. Settings › Account says where sync is: synced, how
+        #               many changes are waiting, or what failed.
+        #            5. The privacy policy says what is stored for a
+        #               signed-in account, and that deleting the account
+        #               deletes it.
+        #          NOT in this build, and said before it starts:
+        #            - Pencil markup does not sync yet; it stays on the device
+        #              it was drawn on;
+        #            - the same document edited on two devices while BOTH were
+        #              offline keeps one device's whole edit, not a merge of
+        #              the two field by field (design/FIREBASE.md §7 rule 3);
+        #              two arrangements' version histories never conflict;
+        #            - no "two libraries" screen (FIREBASE.md §9.3): a second
+        #              device merges;
+        #            - every version is downloaded, not only the latest: no
+        #              holding policy or eviction (§5.1, §5.4);
+        #            - signing out keeps the library on the device and stops
+        #              syncing; it does not remove anything;
+        #            - no App Check on Firestore or Storage;
+        #            - NO OTHER CHANGE.
         #   0.15.0 CHAT BRINGS ITS OWN KEY, AND EVERY LICENCE TRAVELS WITH THE
         #          APP (2026-09-23). Scope written before the gate. One feature
         #          and two fixes, so the minor bumps once. 0.14.1 was scoped
@@ -1024,7 +1066,7 @@ targets:
         # has no Firebase configuration". deploy_testflight.sh now refuses such
         # an archive outright.
         CURRENT_PROJECT_VERSION: 204
-        MARKETING_VERSION: 0.15.0
+        MARKETING_VERSION: 0.16.0
         SWIFT_VERSION: 5.10
         SWIFT_OBJC_BRIDGING_HEADER: Scoranger/PythonBridge/PythonBridge.h
         # BeeWare's install_python copies lib-$ARCHS, which requires single-arch builds
