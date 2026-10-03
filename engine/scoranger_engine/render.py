@@ -132,6 +132,74 @@ def parse_spacing_value(value: str) -> dict:
     return out
 
 
+# MEASURE NUMBERS: where the page numbers its bars, written by
+# `ops.measure_numbers` as <miscellaneous-field name="scoranger-measure-numbers">
+# and read here and in ios/Scoranger/ScoreModel/MeasureNumbers.swift, which
+# must stay in step (check_measure_numbers.py holds the two together).
+#
+#   (no field)   the engraver's default: the first bar of every line but the
+#                first. Verovio's `mnumInterval` 0.
+#   every=N      every Nth bar -- `mnumInterval` N, which numbers the bars
+#                whose number divides by N (every=1 is every bar).
+#   none         no numbers at all. Verovio has no OPTION for that: it reads
+#                MEI's `mnum.visible="false"` on the score definition, so the
+#                renderers write that attribute onto the MEI and reload.
+#
+# The interval is a Verovio option, so it is named in EVERY option set for the
+# reason spacing is: setOptions merges, and one score's numbering would
+# otherwise be the next score's.
+MEASURE_NUMBERS_FIELD = "scoranger-measure-numbers"
+MEASURE_NUMBERS_EVERY_RANGE = (1, 64)          # Verovio's accepted mnumInterval
+_MEASURE_NUMBERS_RE = re.compile(
+    r'<miscellaneous-field[^>]*name="' + MEASURE_NUMBERS_FIELD
+    + r'"[^>]*>([^<]*)</miscellaneous-field>')
+
+
+def parse_measure_numbers(value: str) -> tuple[str, int]:
+    """The field's text as (mode, every): ("system", 0), ("every", N), ("none", 0).
+
+    Lenient, like the spacing parser: anything unreadable is the default rather
+    than a page that will not draw. `ops.measure_numbers` is the strict side.
+    """
+    text = (value or "").strip()
+    if text == "none":
+        return ("none", 0)
+    key, _, raw = text.partition("=")
+    if key.strip() == "every":
+        try:
+            n = int(raw.strip())
+        except ValueError:
+            return ("system", 0)
+        lo, hi = MEASURE_NUMBERS_EVERY_RANGE
+        if lo <= n <= hi:
+            return ("every", n)
+    return ("system", 0)
+
+
+def measure_numbers_from_musicxml(text: str) -> tuple[str, int]:
+    match = _MEASURE_NUMBERS_RE.search(text or "")
+    return parse_measure_numbers(match.group(1) if match else "")
+
+
+def measure_number_options(numbering: tuple[str, int]) -> dict:
+    """Verovio's `mnumInterval` for a numbering. Named every time; see above."""
+    mode, every = numbering
+    return {"mnumInterval": every if mode == "every" else 0}
+
+
+def mei_with_measure_numbers_hidden(mei: str) -> str | None:
+    """`mnum.visible="false"` on the first score definition, or None if it is
+    already there. Verovio draws no bar number at all under it."""
+    match = re.search(r"<scoreDef\b[^>]*>", mei)
+    if match is None or 'mnum.visible="false"' in match.group(0):
+        return None
+    tag = match.group(0)
+    tag = re.sub(r'\smnum\.visible="[^"]*"', "", tag)
+    opened = tag[:-2] + ' mnum.visible="false"/>' if tag.endswith("/>") \
+        else tag[:-1] + ' mnum.visible="false">'
+    return mei[:match.start()] + opened + mei[match.end():]
+
+
 #: Mirrors ops.PAGINATION_FIELD -- the mark a reader's own pagination carries.
 PAGINATION_FIELD = "scoranger-pagination"
 _PAGINATION_RE = re.compile(
@@ -139,7 +207,14 @@ _PAGINATION_RE = re.compile(
 
 
 def breaks_for(text: str) -> str:
-    """Verovio's `breaks` for this score: `encoded` if the READER paginated it.
+    """Verovio's `breaks` for this score: `line` if the READER paginated it.
+
+    `line`, not `encoded` (0.17.0): `encoded` breaks pages ONLY where the
+    notation says, and a reader's pagination writes line breaks and no page
+    breaks -- so through 0.16.0 every line of a long paginated score was drawn
+    on ONE page, running off its foot (the 167-bar quartet: 35 systems on one
+    sheet). `line` keeps the encoded LINE breaks and lets Verovio turn the
+    pages: the same quartet is 12 pages of the lines the reader asked for.
 
     Measured: `auto` ignores encoded breaks outright and `encoded` breaks only
     where the notation says. A score's breaks are honoured only when they are
@@ -148,7 +223,7 @@ def breaks_for(text: str) -> str:
     the string-quartet fixture from 8 pages to its publisher's 4 at eight and a
     half bars a line. Unmarked, a score lays out as it always has.
     """
-    return "encoded" if _PAGINATION_RE.search(text or "") else "auto"
+    return "line" if _PAGINATION_RE.search(text or "") else "auto"
 
 
 def spacing_options(spacing: dict) -> dict:
@@ -185,6 +260,8 @@ def page_options() -> dict:
             **spacing_options({"staff": DEFAULT_SPACING_STAFF,
                                "system": DEFAULT_SPACING_SYSTEM,
                                "rows": DEFAULT_FINGERING_ROWS}),
+            # and the default numbering, for the same reason
+            **measure_number_options(("system", 0)),
             "pageWidth": PAGE_WIDTH_TENTHS_MM,
             "pageHeight": PAGE_HEIGHT_TENTHS_MM}
 
@@ -1760,6 +1837,7 @@ def render_pdf(musicxml_path, out_path, parts: list[str] | None = None,
     with open(src, encoding="utf-8") as fh:
         notation = fh.read()
     spacing = spacing_from_musicxml(notation)
+    numbering = measure_numbers_from_musicxml(notation)
     with _tk_lock:
         tk = _toolkit()
         # The page geometry rides along with every setOptions call: a partial
@@ -1767,6 +1845,7 @@ def render_pdf(musicxml_path, out_path, parts: list[str] | None = None,
         # quietly bring back the trimmed, uneven pages -- and the spacing is
         # named in full so one score's wide staves are not the next score's.
         tk.setOptions({**page_options(), **spacing_options(spacing),
+                       **measure_number_options(numbering),
                        "breaks": breaks_for(notation),
                        "lyricSize": lyric_size_for(fingerings=False)})
         if not tk.loadFile(src):
@@ -1823,6 +1902,12 @@ def render_pdf(musicxml_path, out_path, parts: list[str] | None = None,
             mei = deduped
             if not tk.loadData(mei):
                 raise RuntimeError("Verovio could not reload MEI with deduped rehearsals")
+        if numbering[0] == "none":
+            hidden = mei_with_measure_numbers_hidden(mei)
+            if hidden is not None:
+                mei = hidden
+                if not tk.loadData(mei):
+                    raise RuntimeError("Verovio could not reload MEI with measure numbers hidden")
         n_pages = tk.getPageCount()
         svgs = [_tab_staff(_chord_diagrams(_fingering_diagrams(
                     apply_lyric_sizes(apply_element_sizes(

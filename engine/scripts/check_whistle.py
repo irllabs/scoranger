@@ -339,6 +339,25 @@ whole_bars = [u["bar"] for u in whole_first_report["unplayable"]]
 note(f"a FULL bar numbered 0 is not a pickup and is not called one: {whole_bars}",
      whole_bars == ["0"])
 
+print("\na part with no name is found by the name the refusal offers (0.17.0)")
+# Ali's Molly Ban: the chat asked for fingerings "under Part", was told "No part
+# matches 'Part'. Available parts: ['Part']", and had to fall back to #0. A
+# part with no name is LISTED as "Part" (ops.part_label), so it must answer to it.
+from music21 import stream as m21stream  # noqa: E402
+nameless = m21stream.Score()
+nameless_part = m21stream.Part()
+nameless_measure = m21stream.Measure(number=1)
+nameless_measure.append(m21note.Note("D5", quarterLength=4))
+nameless_part.append(nameless_measure)
+nameless.insert(0, nameless_part)
+offered = ops.list_part_labels(nameless)
+note(f"the refusal lists it as {offered}", offered == ["Part"])
+try:
+    found = ops.find_parts(nameless, offered)
+    note("...and that name finds it", found == [nameless.parts[0]])
+except ValueError as exc:
+    note(f"...and that name finds it: {exc}", False)
+
 if FAILURES:
     print(f"FAIL: {len(FAILURES)} fingering(s) wrong")
     for line in FAILURES:

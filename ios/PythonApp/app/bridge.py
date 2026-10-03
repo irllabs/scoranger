@@ -401,12 +401,21 @@ def _dispatch(op, a):
                                measures_per_line=a.get("measures_per_line"),
                                break_at=a.get("break_at"),
                                remove_at=a.get("remove_at"),
-                               clear=bool(a.get("clear")))
+                               clear=bool(a.get("clear")),
+                               end_at=a.get("end_at"))
         entry = workspace.add_version(a["score"], score, "paginate",
                                       {"measures_per_line": a.get("measures_per_line"),
                                        "break_at": a.get("break_at"),
+                                       "end_at": a.get("end_at"),
                                        "remove_at": a.get("remove_at"),
                                        "clear": bool(a.get("clear"))})
+        return {"version": entry["id"], "details": details}
+    if op == "measure-numbers":
+        score = _load(a["score"], None)
+        args = {"every": a.get("every"), "system": bool(a.get("system")),
+                "none": bool(a.get("none")), "reset": bool(a.get("reset"))}
+        details = ops.measure_numbers(score, **args)
+        entry = workspace.add_version(a["score"], score, "measure-numbers", args)
         return {"version": entry["id"], "details": details}
     if op == "set-structure":
         score = _load(a["score"], None)

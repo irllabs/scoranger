@@ -49,14 +49,14 @@ final class EngravingOptionsTests: XCTestCase {
     /// never encoded, the reader's own pagination would be invisible.
     func testBreaksDifferByLayout() {
         XCTAssertEqual(EngravingOptions.breaks(continuous: false), "auto")
-        XCTAssertEqual(EngravingOptions.breaks(continuous: false, readerPaginated: true), "encoded")
+        XCTAssertEqual(EngravingOptions.breaks(continuous: false, readerPaginated: true), "line")
         XCTAssertEqual(EngravingOptions.breaks(continuous: true), "none")
         XCTAssertEqual(EngravingOptions.breaks(continuous: true, readerPaginated: true), "none",
                        "the strip is one system whoever laid the score out")
         XCTAssertEqual(value("breaks", in: EngravingOptions.json(lyricSize: 4.5,
                                                                 continuous: false)), "auto")
         XCTAssertEqual(value("breaks", in: EngravingOptions.json(lyricSize: 4.5, continuous: false,
-                                                                readerPaginated: true)), "encoded")
+                                                                readerPaginated: true)), "line")
         XCTAssertEqual(value("breaks", in: EngravingOptions.json(lyricSize: 4.5,
                                                                 continuous: true)), "none")
     }

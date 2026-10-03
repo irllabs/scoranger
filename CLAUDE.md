@@ -54,8 +54,11 @@ So:
   a warning only becomes a rejection at beta App Review, which internal
   testing never reaches),
   `check_playback.py` (the MIDI and the bar map describe the same performance),
+  `check_measure_numbers.py` (the bars numbered are the bars the reader asked
+  for, on both renderers),
   `check_pagination.py` (a line break the op writes is a line the page draws --
-  both renderers ask Verovio for `encoded` breaks, which `auto` ignores),
+  both renderers ask Verovio for `line` breaks, which `auto` ignores, and a
+  paginated score longer than a page turns its pages),
   `check_staff_spacing.py` (the whistle band is smaller and every hole is
   exactly where it was; nothing but the whistle verses changes in the MEI),
   `check_bar_frames.py` (the rectangle the geometry reports for measure N
@@ -426,12 +429,13 @@ scor chord-diagrams <score> --part X [--tuning EADGBE] [--clear]
   # grid over a D is worse than nothing); run the op again after.
   # Size and position are adjust-element's business, with --kind diagram.
 scor paginate <score> [--measures-per-line N] [--break-at "17,33"]
-              [--remove-at "17"] [--clear]
+              [--end-at "12"] [--remove-at "17"] [--clear]
   # WHERE THE LINES BREAK, written into the notation as MusicXML
   # <print new-system="yes"/> so it travels with the score. Changes only where
   # the music is DRAWN -- no note moves and no bar is renumbered.
   #   --measures-per-line 4   lay the whole score out four bars to a line
   #   --break-at 17           bar 17 must START a line
+  #   --end-at 12             bar 12 must END a line (how a reader says it)
   #   --remove-at 17          take that break off again
   #   --clear                 remove every break; the engraver lays it out
   # IT ALWAYS WRITES A COMPLETE LAYOUT, and that is forced by Verovio rather
@@ -440,21 +444,40 @@ scor paginate <score> [--measures-per-line N] [--break-at "17,33"]
   # and then fifty-odd bars crushed onto one system -- which Verovio reports as
   # "Justification is highly compressed" and a reader sees as a garbled page.
   # So the stretches between forced breaks are filled at the score's own line
-  # length, read off the pagination already in the notation. A score with none
-  # and no --measures-per-line is REFUSED by name rather than guessed at: a jig
-  # wants four bars a line and a piano reduction does not.
+  # length. FORCED lines are remembered (<miscellaneous-field
+  # name="scoranger-pagination-forced">per=4;starts=11;joins=9) and every other
+  # break is derived again around them each call: the lines before a forced
+  # ending are EVENED OUT (end at bar 10 at four a line gives 4, 3, 3, not
+  # 4, 4, 2), no last line holds one bar alone, and a pickup rides in front of
+  # the first line without counting toward it. With no length written or given
+  # one is CHOSEN (0.17.0; it used to refuse) -- `natural_measures_per_line`,
+  # from notes per bar against NOTES_PER_LINE, rounded down to 8, 4, 3 or 2 so
+  # phrases line up -- and `measures_per_line_chosen` says so. Relay it.
   # ONLY THE READER'S BREAKS ARE HONOURED. `auto` ignores encoded breaks, so a
-  # paginated score needs `encoded` -- but a file from MuseScore, Finale,
+  # paginated score is drawn `line` -- encoded LINE breaks, Verovio's own page
+  # turns. It was `encoded` through 0.16.0, which breaks pages only where the
+  # notation says, and pagination writes none: a paginated score longer than a
+  # page was one page running off its foot. But a file from MuseScore, Finale,
   # Sibelius or Audiveris carries its SOURCE EDITION's breaks, made for another
-  # page, and asking for `encoded` unconditionally took the quartet fixture
+  # page, and honouring the notation unconditionally took the quartet fixture
   # from 8 pages to its publisher's 4 (the 0.13.0 gate caught it). So this op
   # MARKS the score (<miscellaneous-field name="scoranger-pagination">reader),
   # and `render.breaks_for` / `EngravingOptions.breaks(continuous:readerPaginated:)`
-  # ask for `encoded` only on a marked score; every other one lays out as it
+  # ask for `line` only on a marked score; every other one lays out as it
   # always has. Paginating replaces the source's page breaks as well as its
   # lines, and never inherits the source's line length. --clear removes the
   # mark. The strip stays `none`. Proof: check_pagination.py, on the real
   # quartet fixture.
+scor measure-numbers <score> (--every N | --system | --none | --reset)
+  # which bars carry a number: --every 1 is every bar, --every 3 the bars whose
+  # number divides by 3, --system the first bar of each line (the engraver's
+  # default, and what --reset means), --none nothing. Stored as
+  # <miscellaneous-field name="scoranger-measure-numbers">every=3</...>; the
+  # renderers carry it to Verovio's `mnumInterval`, named in EVERY option set
+  # because setOptions merges, and --none is MEI's `mnum.visible="false"`
+  # (render.mei_with_measure_numbers_hidden, MeasureNumbers.meiHidingNumbers --
+  # Verovio has no option for it). Position and size are not adjustable.
+  # Proof: engine/scripts/check_measure_numbers.py counts the numbers drawn.
 scor staff-spacing <score> [--staff N] [--system N] [--fingering-rows N] [--reset]
   # HOW MUCH ROOM the page gives: --staff and --system are the minimum space
   # between staves and between systems in MEI units (0-48; defaults 12 and 4,

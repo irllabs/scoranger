@@ -520,22 +520,40 @@ def staff_spacing(ctx: RunContext[str], staff: int | None = None,
 
 def paginate(ctx: RunContext[str], measures_per_line: int | None = None,
              break_at: list[int] | None = None,
-             remove_at: list[int] | None = None, clear: bool = False) -> dict:
+             remove_at: list[int] | None = None, clear: bool = False,
+             end_at: list[int] | None = None) -> dict:
     """Decide where the lines break. measures_per_line lays the whole score out
-    at that many bars a line ("four bars to a line"). break_at is a list of bar
-    numbers that must START a line ("start a new line at bar 17"). remove_at
-    takes a line break off. clear=True removes every break and hands the layout
-    back to the engraver, which is what "repaginate this automatically" means.
-    Always writes a COMPLETE layout: asking for one break alone would crush
-    every bar after it onto a single line, so the rest is filled at the score's
-    own line length. If the score has none yet and none is given, it says so --
-    pass measures_per_line (4 suits most tunes)."""
+    at that many bars a line ("four bars to a line"). end_at is a list of bars
+    that must END a line ("end the line at bar 12"); the bars after move on.
+    break_at is a list of bars that must START a line ("start a new line at
+    bar 17"). remove_at takes a line break off. clear=True removes every break
+    and hands the layout back to the engraver ("repaginate automatically").
+    Forced lines are remembered and the rest is laid out again around them:
+    the lines before a forced ending are evened out and no line holds one bar
+    alone. With no line length yet and none given, one is CHOSEN from how busy
+    the bars are and the result says measures_per_line_chosen -- relay it."""
     def fn(s):
         return ops.paginate(s, measures_per_line=measures_per_line,
-                            break_at=break_at, remove_at=remove_at, clear=clear)
+                            break_at=break_at, remove_at=remove_at, clear=clear,
+                            end_at=end_at)
     return _apply(ctx.deps, "paginate",
                   {"measures_per_line": measures_per_line, "break_at": break_at,
-                   "remove_at": remove_at, "clear": clear}, fn)
+                   "end_at": end_at, "remove_at": remove_at, "clear": clear}, fn)
+
+
+def measure_numbers(ctx: RunContext[str], every: int | None = None,
+                    system: bool = False, none: bool = False,
+                    reset: bool = False) -> dict:
+    """Decide which bars carry a measure number. every=1 numbers every bar
+    ("add measure numbers"); every=N the bars whose number divides by N
+    ("every third measure" is every=3); system=True the first bar of each line,
+    the engraver's default; none=True takes them all off. Exactly one."""
+    def fn(s):
+        return ops.measure_numbers(s, every=every, system=system, none=none,
+                                   reset=reset)
+    return _apply(ctx.deps, "measure-numbers",
+                  {"every": every, "system": system, "none": none,
+                   "reset": reset}, fn)
 
 
 def set_structure(ctx: RunContext[str], kind: str, measure: int | None = None,
@@ -808,7 +826,7 @@ TOOLS = [get_score_info, list_versions, keep_parts, remove_parts, transpose,
          analyze_harmony, set_chords, chart_style,
          pull_part, set_metadata, penny_whistle_fingerings, guitar_chord_diagrams,
          guitar_tablature,
-         set_structure, paginate, staff_spacing,
+         set_structure, paginate, measure_numbers, staff_spacing,
          add_element, adjust_element, move_element, duplicate_element,
          remove_element,
          assign_to_piece]

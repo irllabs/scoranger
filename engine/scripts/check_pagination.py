@@ -91,7 +91,7 @@ check("render.py lays an unmarked score out itself",
       render.page_options().get("breaks") == "auto" and render.breaks_for("") == "auto",
       str(render.page_options().get("breaks")))
 check("...and a score the reader paginated where its notation says",
-      render.breaks_for(MARK) == "encoded")
+      render.breaks_for(MARK) == "line")
 check("a source edition's breaks alone do not switch it",
       render.breaks_for('<print new-system="yes"/><print new-page="yes"/>') == "auto")
 
@@ -101,7 +101,7 @@ match = re.search(r'static func breaks\(continuous: Bool, readerPaginated: Bool 
                   swift)
 body = match.group(1) if match else ""
 check("EngravingOptions.swift makes the same three-way choice",
-      '"none"' in body and '"encoded"' in body and '"auto"' in body and "readerPaginated" in body,
+      '"none"' in body and '"line"' in body and '"auto"' in body and "readerPaginated" in body,
       body.strip() or "breaks(continuous:readerPaginated:) not found")
 check("...keyed on the same field name",
       f'static let paginationField = "{render.PAGINATION_FIELD}"' in swift
@@ -148,12 +148,17 @@ for part in sourced.parts:
 check("a score with only source breaks draws exactly like one with none",
       drawn_systems(sourced, "sourced") == drawn_systems(a_score(16), "bare"),
       f"{drawn_systems(sourced, 'sourced')} vs {drawn_systems(a_score(16), 'bare')}")
-try:
-    ops.paginate(sourced, break_at=[7])
-    check("a source layout's line length is not taken as the reader's", False)
-except ValueError as exc:
-    check("a source layout's line length is not taken as the reader's",
-          "measures_per_line" in str(exc), str(exc))
+# A source edition's line length (eight bars, 3 to 11) is not the reader's.
+# Until 0.17.0 the op REFUSED here; it now chooses a length from how busy the
+# bars are and says so, and the source's breaks at 3 and 11 do not survive.
+import copy  # noqa: E402
+chosen_from = copy.deepcopy(sourced)
+chosen = ops.paginate(chosen_from, break_at=[7])
+check("a source layout's line length is not taken as the reader's",
+      chosen["measures_per_line_chosen"]
+      and chosen["measures_per_line"] == ops.natural_measures_per_line(chosen_from)
+      and 3 not in chosen["line_starts"] and 11 not in chosen["line_starts"]
+      and 7 in chosen["line_starts"], str(chosen))
 report = ops.paginate(sourced, measures_per_line=4)
 check("paginating marks the score as the reader's", ops.reader_paginated(sourced))
 page_breaks = sum(1 for p in sourced.parts for m in p.getElementsByClass(stream.Measure)
@@ -165,13 +170,39 @@ check("...and the page follows the reader's lines",
       str(drawn_systems(sourced, "resourced")))
 
 # --- and the three modes are not interchangeable ---------------------------
-print("\nthe three modes do different things, which is why a reader's needs encoded")
+print("\nthe modes do different things, which is why a reader's needs line")
 
 paged = a_score(16)
 ops.paginate(paged, measures_per_line=4)
-check("encoded draws the four-bar lines the notation asks for",
-      drawn_systems(paged, "encoded", "encoded") == [4, 4, 4, 4],
-      str(drawn_systems(paged, "encoded", "encoded")))
+check("line draws the four-bar lines the notation asks for",
+      drawn_systems(paged, "line", "line") == [4, 4, 4, 4],
+      str(drawn_systems(paged, "line", "line")))
+
+# Through 0.16.0 a reader's pagination was drawn `encoded`, which breaks PAGES
+# only where the notation says -- and paginating writes none. A score longer
+# than a page was ONE page with every line on it, running off its foot: the
+# 167-bar quartet, 35 systems on one sheet. Short tunes never showed it.
+long_score = a_score(120, parts=4)
+ops.paginate(long_score, measures_per_line=4)
+LONG = SCRATCH / "long.musicxml"
+SCRATCH.mkdir(parents=True, exist_ok=True)
+long_score.write("musicxml", fp=str(LONG))
+
+
+def page_count(breaks: str) -> int:
+    tk = verovio.toolkit()
+    tk.setOptions({**render.page_options(), "breaks": breaks})
+    tk.loadFile(str(LONG))
+    return tk.getPageCount()
+
+
+check("a paginated score longer than a page turns its pages",
+      page_count(render.breaks_for(LONG.read_text(encoding="utf-8"))) > 1,
+      f"{page_count(render.breaks_for(LONG.read_text(encoding='utf-8')))} page(s)")
+check("...which encoded does not: every line on one page, the 0.13-0.16 bug",
+      page_count("encoded") == 1, f"encoded gave {page_count('encoded')}")
+check("...and every line is still the reader's four bars",
+      set(drawn_systems(long_score, "long")) == {4}, str(set(drawn_systems(long_score, "long"))))
 auto = drawn_systems(paged, "auto", "auto")
 check("auto ignores them outright -- the bug this would have shipped",
       auto != [4, 4, 4, 4], f"auto gave {auto}")
@@ -211,7 +242,7 @@ check("and survives a second write, which every op performs",
       again.read_text().count('new-system="yes"') == 3,
       str(again.read_text().count('new-system="yes"')))
 check("the reader's mark survives it too, or the next op would unpaginate",
-      render.breaks_for(again.read_text()) == "encoded")
+      render.breaks_for(again.read_text()) == "line")
 
 # --- clearing hands it back ------------------------------------------------
 print("\nclearing gives the layout back to the engraver")
@@ -238,22 +269,82 @@ check("all three staves break at the same bar",
       per_part == [[5], [5], [5]], str(per_part))
 
 # --- refusals --------------------------------------------------------------
-print("\nit refuses rather than guessing")
+print("\nwith no length written or given, it chooses one and says so (0.17.0)")
 
 bare = a_score(16)
-try:
-    ops.paginate(bare, break_at=[9])
-    check(False, "a score with no line length must refuse a bare break")
-except ValueError as exc:
-    check("with no length written or given, it says so by name",
-          "measures_per_line" in str(exc), str(exc))
+report = ops.paginate(bare, break_at=[9])
+check("a bare break on a score nobody paginated is not refused",
+      report["measures_per_line_chosen"] is True, str(report))
+check("...the length is the one natural_measures_per_line chooses",
+      report["measures_per_line"] == ops.natural_measures_per_line(a_score(16)),
+      str(report["measures_per_line"]))
+check("...and the report says it was chosen, and how to ask for another",
+      "chosen" in report["note"] and "measures_per_line" in report["note"], report["note"])
+check("...and bar 9 starts a line on the page", 9 in report["line_starts"],
+      str(report["line_starts"]))
 
 try:
     ops.paginate(a_score(8), break_at=[99])
-    check(False, "a bar that does not exist must be refused")
+    check("a bar that does not exist must be refused", False)
 except ValueError as exc:
     check("a bar outside the score is refused with the range",
           "99" in str(exc) and "1-8" in str(exc), str(exc))
+try:
+    ops.paginate(a_score(8), end_at=[99])
+    check("a line cannot end at a bar that does not exist", False)
+except ValueError as exc:
+    check("...and so is a line ending at one", "99" in str(exc), str(exc))
+
+print("\na line ends where the reader says, and the rest is laid out sensibly")
+
+s = a_score(16)
+ops.paginate(s, measures_per_line=4)
+r = ops.paginate(s, end_at=[10])
+check("ending a line at bar 10 makes bar 11 start the next", 11 in r["line_starts"],
+      str(r["line_starts"]))
+check("...the lines before it are evened out, not 4, 4 and a stranded 2",
+      r["bars_per_line"][:3] == [4, 3, 3], str(r["bars_per_line"]))
+check("...the old breaks after it are derived again, not kept around it",
+      r["bars_per_line"] == [4, 3, 3, 4, 2], str(r["bars_per_line"]))
+check("...and the PAGE draws those lines",
+      drawn_systems(s, "end-at-10") == r["bars_per_line"],
+      f"{drawn_systems(s, 'end-at-10')} vs {r['bars_per_line']}")
+r = ops.paginate(s, end_at=[3])
+check("a second line ending is remembered beside the first",
+      4 in r["line_starts"] and 11 in r["line_starts"], str(r["line_starts"]))
+r = ops.paginate(s, remove_at=[11])
+check("removing a forced break forgets it", 11 not in ops._read_forced(s)[1],
+      str(ops._read_forced(s)))
+check("...and no line is left holding a single bar", 1 not in r["bars_per_line"],
+      str(r["bars_per_line"]))
+derived = next(b for b in r["line_starts"] if b not in (1, 4))
+r = ops.paginate(s, remove_at=[derived])
+check(f"removing a break the op filled in (bar {derived}) keeps it off",
+      derived not in r["line_starts"], str(r["line_starts"]))
+r = ops.paginate(s, measures_per_line=4)
+check("a fresh length forgets every forced line", r["bars_per_line"] == [4, 4, 4, 4],
+      str(r["bars_per_line"]))
+
+r = ops.paginate(a_score(13), measures_per_line=4)
+check("a last line of one bar is evened out instead (13 bars at 4: 4, 3, 3, 3)",
+      r["bars_per_line"] == [4, 3, 3, 3], str(r["bars_per_line"]))
+
+pickup = a_score(9)
+for index, m in enumerate(pickup.parts[0].getElementsByClass(stream.Measure)):
+    m.number = index                      # an upbeat, then bars 1-8
+pickup.parts[0].getElementsByClass(stream.Measure)[0].paddingLeft = 3.0
+r = ops.paginate(pickup, measures_per_line=4)
+check("a pickup rides in front of the first line without counting toward it",
+      r["line_starts"] == [0, 5], str(r["line_starts"]))
+
+print("\nthe chosen length prefers phrases and follows how busy the bars are")
+
+import fixtures  # noqa: E402
+check("a reel-like line of quavers: 4 bars a line",
+      ops.natural_measures_per_line(fixtures.sax_study(bars=8)) == 4)
+check("a jig fits more than four but is laid out at four, a phrase",
+      ops.natural_measures_per_line(fixtures.jig(bars=16)) == 4)
+check("whole notes: eight a line, not thirty", ops.natural_measures_per_line(a_score(16)) == 8)
 
 import shutil  # noqa: E402
 shutil.rmtree(SCRATCH, ignore_errors=True)

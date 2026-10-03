@@ -58,8 +58,17 @@ enum ChatSteps {
             if flag("clear") { return "Letting the engraver lay it out" }
             if let per = n("measures_per_line") { return "Laying it out \(per) bars to a line" }
             if args["remove_at"] != nil { return "Taking a line break off" }
+            if let ends = args["end_at"] as? [Any], let bar = ends.first {
+                return "Ending the line at bar \(bar)"
+            }
             if args["break_at"] != nil { return "Starting a new line" }
             return "Laying out the lines"
+        case "measure_numbers":
+            if flag("none") { return "Taking the measure numbers off" }
+            if let every = n("every") {
+                return every == "1" ? "Numbering every bar" : "Numbering every \(every) bars"
+            }
+            return "Numbering each line's first bar"
         case "set_structure":
             let what = s("kind") ?? "mark"
             if s("remove") == "true" { return "Removing the \(what)" }

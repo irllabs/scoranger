@@ -547,10 +547,21 @@ def cmd_paginate(a):
                            measures_per_line=a.measures_per_line,
                            break_at=bars(a.break_at),
                            remove_at=bars(a.remove_at),
-                           clear=a.clear)
+                           clear=a.clear,
+                           end_at=bars(a.end_at))
     _mutate(a.score, score, "paginate",
             {"measures_per_line": a.measures_per_line, "break_at": a.break_at,
-             "remove_at": a.remove_at, "clear": a.clear}, details)
+             "end_at": a.end_at, "remove_at": a.remove_at, "clear": a.clear},
+            details)
+
+
+def cmd_measure_numbers(a):
+    score = _load(a.score, None)
+    details = ops.measure_numbers(score, every=a.every, system=a.system,
+                                  none=a.none, reset=a.reset)
+    _mutate(a.score, score, "measure-numbers",
+            {"every": a.every, "system": a.system, "none": a.none,
+             "reset": a.reset}, details)
 
 
 def cmd_set_structure(a):
@@ -1067,11 +1078,24 @@ def main() -> None:
                    help="lay the whole score out at this many bars a line")
     s.add_argument("--break-at", dest="break_at",
                    help="bar numbers that must START a line, comma separated")
+    s.add_argument("--end-at", dest="end_at",
+                   help="bar numbers that must END a line, comma separated")
     s.add_argument("--remove-at", dest="remove_at",
                    help="bar numbers whose line break to take off")
     s.add_argument("--clear", action="store_true",
                    help="remove every break and let the engraver lay it out")
     s.set_defaults(fn=cmd_paginate)
+
+    s = sub.add_parser("measure-numbers",
+                       help="Which bars carry a number: every N, each line's "
+                            "first, or none")
+    s.add_argument("score")
+    s.add_argument("--every", type=int, help="number every Nth bar (1 = every bar)")
+    s.add_argument("--system", action="store_true",
+                   help="number the first bar of each line (the default)")
+    s.add_argument("--none", action="store_true", help="no measure numbers")
+    s.add_argument("--reset", action="store_true", help="back to the default")
+    s.set_defaults(fn=cmd_measure_numbers)
 
     s = sub.add_parser("set-structure",
                        help="Repeats, voltas and navigation marks (add/remove/move)")

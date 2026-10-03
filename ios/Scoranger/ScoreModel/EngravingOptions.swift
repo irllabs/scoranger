@@ -79,7 +79,10 @@ enum EngravingOptions {
     ///
     /// The strip stays `none` -- it is one system by definition.
     static func breaks(continuous: Bool, readerPaginated: Bool = false) -> String {
-        continuous ? "none" : (readerPaginated ? "encoded" : "auto")
+        // `line`, not `encoded`: see render.breaks_for. `encoded` breaks pages
+        // only where the notation says, and a reader's pagination says none,
+        // so a long paginated score was one page running off its foot.
+        continuous ? "none" : (readerPaginated ? "line" : "auto")
     }
 
     /// The mark a reader's own pagination carries. Mirrors ops.PAGINATION_FIELD.
@@ -139,11 +142,13 @@ enum EngravingOptions {
     /// next score, which asked for nothing.
     static func json(lyricSize: Double, continuous: Bool,
                      spacing: StaffSpacing.Values = StaffSpacing.defaults,
-                     readerPaginated: Bool = false) -> String {
+                     readerPaginated: Bool = false,
+                     measureNumbers: MeasureNumbers.Mode = .system) -> String {
         """
         {"scale": \(scale), "footer": "none",
          "breaks": "\(breaks(continuous: continuous, readerPaginated: readerPaginated))",
          "spacingStaff": \(spacing.staff), "spacingSystem": \(spacing.system),
+         "mnumInterval": \(MeasureNumbers.interval(measureNumbers)),
          "adjustPageHeight": \(adjustPageHeight(continuous: continuous)),
          "justifyVertically": \(justifyVertically(continuous: continuous)),
          "pageWidth": \(pageWidthTenthsMM), "pageHeight": \(pageHeightTenthsMM),
@@ -165,5 +170,5 @@ enum EngravingOptions {
     /// The keys that depend on the SCORE rather than the layout, and must be
     /// named in every option set for the same reason: a merge would otherwise
     /// carry one score's spacing to the next.
-    static let scoreDependentKeys = ["spacingStaff", "spacingSystem"]
+    static let scoreDependentKeys = ["spacingStaff", "spacingSystem", "mnumInterval"]
 }

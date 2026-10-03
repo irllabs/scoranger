@@ -162,6 +162,8 @@ JIG_STEPS: list[tuple[str, dict]] = [
                         "ordinal": 0}),
     ("set_structure", {"kind": "repeat-end", "measure": 4}),
     ("paginate", {"measures_per_line": 4}),
+    ("paginate", {"end_at": [3]}),
+    ("measure_numbers", {"every": 1}),
     ("staff_spacing", {"staff": 16, "fingering_rows": 4}),
     ("set_rehearsal", {"measure": 3, "mark": "A"}),
     ("transpose", {"interval": "M2"}),

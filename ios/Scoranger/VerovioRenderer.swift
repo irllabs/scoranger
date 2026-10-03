@@ -82,9 +82,11 @@ actor VerovioRenderer {
     /// continuous mode took pagination away from every paged engrave after it.
     static func options(lyricSize: Double, continuous: Bool = false,
                         spacing: StaffSpacing.Values = StaffSpacing.defaults,
-                        readerPaginated: Bool = false) -> String {
+                        readerPaginated: Bool = false,
+                        measureNumbers: MeasureNumbers.Mode = .system) -> String {
         EngravingOptions.json(lyricSize: lyricSize, continuous: continuous,
-                              spacing: spacing, readerPaginated: readerPaginated)
+                              spacing: spacing, readerPaginated: readerPaginated,
+                              measureNumbers: measureNumbers)
     }
 
     /// One engrave: the pages to draw, and the model to hit-test against.
@@ -121,13 +123,15 @@ actor VerovioRenderer {
         let source = (try? String(contentsOfFile: musicXMLPath, encoding: .utf8)) ?? ""
         let spacing = StaffSpacing.values(inMusicXML: source)
         let paginated = EngravingOptions.readerPaginated(inMusicXML: source)
+        let numbering = MeasureNumbers.mode(inMusicXML: source)
         // BEFORE the load: Verovio lays the document out as it reads it, so
         // options set afterwards do not take until something reloads it -- and
         // on a score with no fingerings and no adjustments nothing does. Set
         // here, the very first continuous engrave is already continuous.
         _ = t.setOptions(Self.options(lyricSize: FingeringDiagrams.defaultLyricSize,
                                       continuous: continuous, spacing: spacing,
-                                      readerPaginated: paginated))
+                                      readerPaginated: paginated,
+                                      measureNumbers: numbering))
         let loaded = PerfMetrics.shared.measure(PerfMetrics.Name.engraveLoad) {
             t.loadFile(musicXMLPath)
         }
@@ -144,7 +148,8 @@ actor VerovioRenderer {
         // name on a fingered score. The diagrams are scaled in our own pass.
         _ = t.setOptions(Self.options(lyricSize: FingeringDiagrams.defaultLyricSize,
                                       continuous: continuous, spacing: spacing,
-                                      readerPaginated: paginated))
+                                      readerPaginated: paginated,
+                                      measureNumbers: numbering))
 
         // The user's adjustments live in the MusicXML, and Verovio's importer
         // drops them, so they are carried across here -- for every kind
@@ -184,6 +189,12 @@ actor VerovioRenderer {
         // itself. render.py does the same on the export side.
         if let deduped = RehearsalMarks.meiWithDedupedMarks(mei) {
             mei = deduped
+            reload = true
+        }
+        // "No measure numbers": Verovio has no option for it, only MEI's own
+        // attribute on the score definition. render.py does the same.
+        if numbering == .none, let hidden = MeasureNumbers.meiHidingNumbers(mei) {
+            mei = hidden
             reload = true
         }
         if reload {

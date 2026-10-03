@@ -262,6 +262,13 @@ targets:
         #            4. Fix: a part with no name could not be addressed by the
         #               name the error itself offered ("No part matches 'Part'.
         #               Available parts: ['Part']").
+        #            5. Fix, found while building this: a paginated score
+        #               longer than one page was drawn as ONE page running off
+        #               its foot, since 0.13.0 -- Verovio's `encoded` breaks
+        #               pages only where the notation says, and pagination
+        #               writes none. Both renderers now ask for `line`: the
+        #               reader's lines, Verovio's page turns. Added to the
+        #               scope after it started, and said so here.
         #          NOT in this build, and said before it starts:
         #            - no control over where a measure number sits or its
         #              size; Verovio places it;

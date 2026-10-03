@@ -135,10 +135,15 @@ def find_parts(score, names: list[str]):
                 if p not in matched:
                     matched.append(p)
             continue
+        # `part_label` too: it is what the refusal below LISTS, and a part
+        # with no name is listed as "Part" -- which the chat then sent back
+        # and was refused ("No part matches 'Part'. Available parts:
+        # ['Part']"). A name the error offers has to be a name it accepts.
         exact = [p for p in score.parts
                  if (p.partName or "").lower() == want
                  or (p.partAbbreviation or "").lower() == want
-                 or (isinstance(p.id, str) and p.id.lower() == want)]
+                 or (isinstance(p.id, str) and p.id.lower() == want)
+                 or part_label(p).lower() == want]
         hits = exact or [p for p in score.parts if want in (p.partName or "").lower()]
         if not hits:
             raise ValueError(f"No part matches '{name}'. Available parts: {list_part_labels(score)}")
@@ -5431,14 +5436,45 @@ def playback_timeline(score) -> tuple:
 # sees as a garbled page. So THIS OP ALWAYS WRITES A COMPLETE PAGINATION:
 # every system's start, from the first bar to the last. There is no way to ask
 # it for a lone break, because there is no way to draw one.
-#: What a system's length is inferred from when the caller does not say and the
-#: score has no pagination to read one off. Refusing is better than guessing: a
-#: jig wants four bars a line and a piano reduction does not, and nothing in
-#: the notation says which this is.
-_PAGINATION_NEEDS_A_LENGTH = (
-    "how many bars to a line is not written anywhere on this score yet, so it "
-    "has to be said: give measures_per_line (4 suits most tunes). After that "
-    "the score remembers, and a break can be added or removed on its own.")
+#: How many notes a line of the page holds comfortably, for choosing a line
+#: length when nobody said one. Read off Verovio's own layout at this app's
+#: page and scale: a reel (eight quavers a bar) comes out four bars to a line,
+#: a jig six or seven -- about thirty-two notes a line either way. This is an
+#: ESTIMATE from note counts, not a measurement of the page, and the report
+#: says what it chose so the reader can ask for another.
+NOTES_PER_LINE = 32
+
+#: Line lengths a musician reads as phrases. Tunes are built of 4- and 8-bar
+#: phrases, so a choice prefers these over the largest number that would fit:
+#: a jig that would fit seven bars a line is laid out at four.
+_PHRASE_LENGTHS = (8, 4, 3, 2, 1)
+
+
+def _notes_per_bar(score) -> list[int]:
+    """Distinct attacks per bar in the busiest part -- what a line's width
+    is mostly made of."""
+    from music21 import harmony as m21harmony
+
+    per_bar: dict[int, int] = {}
+    for part in score.parts:
+        for m in part.getElementsByClass(stream.Measure):
+            # a chord symbol is a Chord in music21, and is not a note anyone plays
+            onsets = {round(float(n.offset), 4) for n in m.recurse().notesAndRests
+                      if not isinstance(n, m21harmony.Harmony)}
+            per_bar[m.number] = max(per_bar.get(m.number, 0), len(onsets))
+    return list(per_bar.values())
+
+
+def natural_measures_per_line(score) -> int:
+    """A reasonable number of bars to a line, chosen from how busy they are.
+
+    The most bars that fit `NOTES_PER_LINE`, rounded DOWN to a phrase length
+    (8, 4, 3, 2) -- never fewer than one.
+    """
+    counts = [c for c in _notes_per_bar(score) if c > 0]
+    mean = (sum(counts) / len(counts)) if counts else 4.0
+    fits = max(1, int(NOTES_PER_LINE // max(mean, 1.0)))
+    return next(n for n in _PHRASE_LENGTHS if n <= fits)
 
 
 #: The mark a reader's own pagination carries, as
@@ -5479,12 +5515,31 @@ def system_break_bars(score) -> list[int]:
     return sorted(bars)
 
 
-def _fill_runs(starts: set[int], numbers: list[int], per_line: int) -> set[int]:
+def _fill_runs(starts: set[int], numbers: list[int], per_line: int,
+               forced: frozenset[int] = frozenset(),
+               joins: frozenset[int] = frozenset(),
+               pickup: int | None = None) -> set[int]:
     """Break any stretch longer than `per_line` until none is.
 
     The forced breaks are kept exactly where they were asked for; only the
     stretches BETWEEN them are subdivided, so "a new line at bar 17" keeps bar
     17 at the head of a line however the rest falls out.
+
+    A stretch that ENDS at a forced break is evened out rather than filled
+    from the left: ending a line at bar 10 of a four-bars-a-line tune gives
+    4, 3, 3 rather than 4, 4 and a stranded 2. The last stretch, which ends
+    with the music, is filled from the left at `per_line`, so only the final
+    line is short.
+
+    A last line of a single bar is evened out the same way, because a bar
+    stranded alone is not a layout anyone would choose.
+
+    `joins` are bars the reader said must NOT start a line; a break that would
+    land on one moves to the next bar that may take it.
+
+    `pickup` is an upbeat bar, which rides in front of the first line without
+    counting toward it -- an engraver sets a four-bar line as the pickup plus
+    bars 1-4, so the lines start on the phrases.
     """
     out = set(starts)
     ordered = [n for n in numbers if n in out] or [numbers[0]]
@@ -5492,26 +5547,104 @@ def _fill_runs(starts: set[int], numbers: list[int], per_line: int) -> set[int]:
         end = ordered[index + 1] if index + 1 < len(ordered) else None
         run = [n for n in numbers
                if n >= start and (end is None or n < end)]
-        for offset in range(per_line, len(run), per_line):
-            out.add(run[offset])
+        lead = 1 if pickup is not None and run and run[0] == pickup else 0
+        if len(run) - lead <= per_line:
+            continue
+        counted = len(run) - lead
+        stranded = end is None and counted % per_line == 1 and per_line >= 3
+        if (end is not None and end in forced) or stranded:
+            lines = -(-counted // per_line)
+            base, extra = divmod(counted, lines)
+            cuts, at = [], lead
+            for line in range(lines - 1):
+                at += base + (1 if line < extra else 0)
+                cuts.append(at)
+        else:
+            cuts = list(range(per_line + lead, len(run), per_line))
+        last = 0
+        for cut in cuts:
+            cut = max(cut, last + 1)
+            while cut < len(run) and run[cut] in joins:
+                cut += 1
+            if cut < len(run):
+                out.add(run[cut])
+                last = cut
     return out
+
+
+#: What the reader ASKED for, kept beside the breaks it produced:
+#: <miscellaneous-field name="scoranger-pagination-forced">per=4;starts=11;joins=9
+#: -- the line length, the bars that must start a line, and the bars that must
+#: not. Without it every break on the page looks alike, and ending a line at
+#: bar 10 of a four-bars-a-line tune kept the old breaks at 5, 9 and 13 around
+#: the new one at 11: lines of 4, 4, 2, 2, 4. With it, the filled-in breaks are
+#: derived again around what was asked for, every time.
+PAGINATION_FORCED_FIELD = "scoranger-pagination-forced"
+
+
+def _pickup_bar(score) -> int | None:
+    """The upbeat's number, if the music opens with one -- a short first bar,
+    as `bar_label` recognises it."""
+    measures = list(score.parts[0].getElementsByClass(stream.Measure)) if score.parts else []
+    if measures and float(getattr(measures[0], "paddingLeft", 0) or 0) > 0:
+        return measures[0].number
+    return None
+
+
+def _read_forced(score) -> tuple[int | None, set[int], set[int]]:
+    md = score.metadata
+    raw = md.getCustom(PAGINATION_FORCED_FIELD) if md is not None else []
+    per, starts, joins = None, set(), set()
+    for part in (str(raw[0]) if raw else "").split(";"):
+        key, _, value = part.partition("=")
+        numbers = [int(x) for x in value.split(",") if x.strip().lstrip("-").isdigit()]
+        if key == "per" and numbers:
+            per = numbers[0]
+        elif key == "starts":
+            starts = set(numbers)
+        elif key == "joins":
+            joins = set(numbers)
+    return per, starts, joins
+
+
+def _write_forced(score, per: int | None, starts: set[int], joins: set[int]) -> None:
+    from music21 import metadata as m21metadata
+    if score.metadata is None:
+        score.metadata = m21metadata.Metadata()
+    if per is None:
+        score.metadata.setCustom(PAGINATION_FORCED_FIELD, [])
+        return
+    text = f"per={per}"
+    if starts:
+        text += ";starts=" + ",".join(str(n) for n in sorted(starts))
+    if joins:
+        text += ";joins=" + ",".join(str(n) for n in sorted(joins))
+    score.metadata.setCustom(PAGINATION_FORCED_FIELD, text)
 
 
 def paginate(score, measures_per_line: int | None = None,
              break_at: list[int] | None = None,
              remove_at: list[int] | None = None,
-             clear: bool = False) -> dict:
+             clear: bool = False,
+             end_at: list[int] | None = None) -> dict:
     """Lay the music out in lines, or hand it back to the engraver.
 
     `clear` takes every encoded break off, which is how a reader asks for the
     automatic layout back -- Verovio then breaks where it judges best, which is
     what an untouched score has always done.
 
-    `measures_per_line` paginates the whole score at that length.
-    `break_at` forces those bars to start a line; `remove_at` takes a break
-    off. Both keep the score's existing length for everything else, read off
-    the pagination already in the notation, and refuse by name when there is
-    none to read and none given -- see `_PAGINATION_NEEDS_A_LENGTH`.
+    `measures_per_line` lays the whole score out at that length, forgetting
+    any line the reader forced before (unless this call forces one too).
+    `break_at` makes those bars START a line; `end_at` makes those bars END
+    one -- "end the line at bar 12" is a new line at 13 -- which is how a
+    reader says it. `remove_at` takes a break off: a forced one is forgotten,
+    and one the op filled in becomes a bar that must not start a line.
+
+    Forced breaks are remembered (PAGINATION_FORCED_FIELD) and every other
+    break is derived again around them each time, at the score's line length:
+    the one it remembers, or failing that the one its existing layout shows,
+    or failing that one CHOSEN from how busy the bars are
+    (`natural_measures_per_line`) -- and the report says when it chose.
 
     The first bar always starts a system and carries no break of its own: a
     `<print new-system="yes"/>` on the first measure is what tells Verovio to
@@ -5527,14 +5660,26 @@ def paginate(score, measures_per_line: int | None = None,
     # Only the READER's breaks are the score's own line length. A score that
     # arrived with its publisher's layout has breaks too, made for another
     # page, and paginating replaces them rather than inheriting their length.
-    existing = system_break_bars(score) if reader_paginated(score) else []
+    mine = reader_paginated(score)
+    existing = system_break_bars(score) if mine else []
+    remembered_per, remembered_starts, remembered_joins = (
+        _read_forced(score) if mine else (None, set(), set()))
     if clear:
         _, removed = _write_system_breaks(score, set())
         _mark_reader_pagination(score, False)
+        _write_forced(score, None, set(), set())
         return {"clear": True, "breaks_removed": removed,
                 "layout": "automatic -- Verovio breaks where it judges best"}
 
     known = [n for n in numbers if n != first]
+    ending: list[int] = []
+    for bar in end_at or []:
+        if bar not in numbers:
+            raise ValueError(
+                f"bar {bar} cannot end a line: this score has bars "
+                f"{numbers[0]}-{numbers[-1]}")
+        if bar != numbers[-1]:          # the last bar ends the last line anyway
+            ending.append(numbers[numbers.index(bar) + 1])
     for bar in (break_at or []) + (remove_at or []):
         if bar not in known:
             raise ValueError(
@@ -5544,24 +5689,34 @@ def paginate(score, measures_per_line: int | None = None,
                  if bar == first else ""))
 
     per_line = measures_per_line
+    chosen = False
     if per_line is None:
-        per_line = _inferred_per_line(existing, numbers)
+        per_line = remembered_per or _inferred_per_line(existing, numbers)
     if per_line is None:
-        raise ValueError(_PAGINATION_NEEDS_A_LENGTH)
+        per_line = natural_measures_per_line(score)
+        chosen = True
     if per_line < 1:
         raise ValueError("a line holds at least one bar")
 
+    asked = set(break_at or []) | set(ending)
     if measures_per_line is not None:
-        starts = {first}
+        forced, joins = set(asked), set()
     else:
-        starts = {first} | set(existing)
-    starts |= set(break_at or [])
-    starts -= set(remove_at or [])
-    starts.add(first)
-    starts = _fill_runs(starts, numbers, per_line)
+        forced, joins = remembered_starts | asked, set(remembered_joins)
+    joins -= asked
+    for bar in remove_at or []:
+        if bar in forced:
+            forced.discard(bar)
+        else:
+            joins.add(bar)
+    forced.discard(first)
+
+    starts = _fill_runs({first} | forced, numbers, per_line,
+                        frozenset(forced), frozenset(joins), _pickup_bar(score))
 
     written, _ = _write_system_breaks(score, starts - {first})
     _mark_reader_pagination(score, True)
+    _write_forced(score, per_line, forced, joins)
     heads = sorted(starts)
     lengths = [((heads[i + 1] if i + 1 < len(heads) else numbers[-1] + 1) - head)
                for i, head in enumerate(heads)]
@@ -5572,11 +5727,17 @@ def paginate(score, measures_per_line: int | None = None,
         "bars_per_line": lengths,
         "breaks_written": written,
         "forced": sorted(set(break_at or [])),
+        "lines_end_at": sorted(set(end_at or [])),
         "removed": sorted(set(remove_at or [])),
+        # said, so a reader who wanted another length knows to ask for it
+        "measures_per_line_chosen": chosen,
         # said so a caller knows the page now follows these lines, and how to
         # hand it back
         "note": ("marked as the reader's own layout, so the page follows these "
-                 "lines; clear hands it back to the engraver"),
+                 "lines; clear hands it back to the engraver"
+                 + (f". Nobody had set a line length, so {per_line} bars a line "
+                    "was chosen from how busy the bars are; ask for another "
+                    "with measures_per_line" if chosen else "")),
     }
 
 
@@ -5628,6 +5789,55 @@ def _write_system_breaks(score, starts: set[int]) -> tuple[int, int]:
 # the only way this can travel with the score: music21 writes MusicXML's own
 # <staff-layout>/<system-layout> correctly and Verovio ignores both, at every
 # value.
+
+def _measure_numbers_described(numbering: tuple[str, int]) -> str:
+    mode, every = numbering
+    if mode == "none":
+        return "no measure numbers"
+    if mode == "every":
+        return "every bar" if every == 1 else f"every {every} bars (the bars whose number divides by {every})"
+    return "the first bar of every line (the engraver's default)"
+
+
+def measure_numbers(score, every: int | None = None, system: bool = False,
+                    none: bool = False, reset: bool = False) -> dict:
+    """Where the page numbers its bars. Exactly one of the four.
+
+    `every` numbers every Nth bar -- 1 is every bar, 3 the bars whose number
+    divides by three; `system` numbers the first bar of each line, which is
+    what an untouched score does; `none` numbers nothing; `reset` is `system`.
+    Stored in the notation (render.MEASURE_NUMBERS_FIELD) so it versions and
+    travels; both renderers draw it. The default is not written at all.
+    """
+    from music21 import metadata as m21metadata
+
+    from . import render
+
+    asked = [name for name, on in (("every", every is not None), ("system", system),
+                                   ("none", none), ("reset", reset)) if on]
+    if len(asked) != 1:
+        raise ValueError("say exactly one of: every N bars, the first bar of "
+                         "each line (system), none, or reset"
+                         + (f" -- got {', '.join(asked)}" if asked else ""))
+    if every is not None:
+        lo, hi = render.MEASURE_NUMBERS_EVERY_RANGE
+        if not lo <= every <= hi:
+            raise ValueError(f"every must be between {lo} and {hi}; {every} is not")
+    if score.metadata is None:
+        score.metadata = m21metadata.Metadata()
+    current = score.metadata.getCustom(render.MEASURE_NUMBERS_FIELD)
+    before = render.parse_measure_numbers(str(current[0]) if current else "")
+    if every is not None:
+        stored, after = f"every={every}", ("every", every)
+    elif none:
+        stored, after = "none", ("none", 0)
+    else:
+        stored, after = "", ("system", 0)
+    score.metadata.setCustom(render.MEASURE_NUMBERS_FIELD, stored if stored else [])
+    return {"measure_numbers": _measure_numbers_described(after),
+            "was": _measure_numbers_described(before),
+            "changed": after != before}
+
 
 def staff_spacing(score, staff: int | None = None, system: int | None = None,
                   fingering_rows: int | None = None, reset: bool = False) -> dict:

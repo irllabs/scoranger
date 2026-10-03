@@ -1,5 +1,21 @@
 # Backlog
 
+## Measure numbers and pagination -- what 0.17.0 does NOT do
+
+- **A measure number's position and size are Verovio's.** `measure-numbers`
+  chooses WHICH bars are numbered; nothing nudges or resizes one.
+- **The chosen line length is an estimate.** `natural_measures_per_line`
+  counts notes per bar against NOTES_PER_LINE (32), read off Verovio's layout
+  for a reel and a jig. It has not been measured against a printed fake book,
+  a piano score or a whistle tune with a guitar tab under it.
+- **Scores paginated by 0.13-0.16 carry no forced-line memory.** Their breaks
+  were all written alike, so the first change after this build re-derives them
+  at the length they show; a line the reader forced then is not remembered.
+- **"every N" numbers the bars whose number divides by N** (Verovio's rule),
+  not every Nth bar counted from the first: with a pickup, or a score starting
+  at bar 5, "every 4" is 8, 12, 16.
+
+
 ## Library sync -- what 0.16.0 does NOT do
 
 0.16.0 keeps a signed-in account's library the same on every device
