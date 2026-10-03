@@ -11,6 +11,16 @@
 - **Scores paginated by 0.13-0.16 carry no forced-line memory.** Their breaks
   were all written alike, so the first change after this build re-derives them
   at the length they show; a line the reader forced then is not remembered.
+- **Print leaves Pencil markup off.** A drawing is stored in the canvas's own
+  points at whatever width the page had when it was drawn, not in the PDF's
+  coordinates, so putting it on paper needs that width recorded (or the ink
+  normalised to the page) first. The engraved pages print in full.
+- **Chords the chat wrote as TEXT marks before 0.17.0 stay text marks.** The
+  op now refuses a chord name as text; existing ones need "replace the Em text
+  marks with chord symbols" (remove_element + set_chords).
+- **The launch renumbering writes a version per affected arrangement.** With
+  library sync on, two devices launching before either has synced can each
+  write one: a harmless fork of two identical versions.
 - **"every N" numbers the bars whose number divides by N** (Verovio's rule),
   not every Nth bar counted from the first: with a pickup, or a score starting
   at bar 5, "every 4" is 8, 12, 16.
@@ -171,7 +181,13 @@ each on purpose:
   choice after the await. What made the handover fail on Whiskey In A Jar in
   the first place was not found.
 
-## Bar numbering: ABC counts from 0, MusicXML from 1
+## Bar numbering: ABC counts from 0, MusicXML from 1 -- RESOLVED in 0.17.0
+
+Ali, 2026-10-03: "when I say put chord measures, it should start at the first
+bar." New imports number the first full bar 1 (`ops.number_bars_from_one`, in
+`workspace.create_score`), and `number_bars_from_one_everywhere` gives every
+arrangement still numbered from 0 one new version at launch. A pickup stays 0.
+check_bar_numbers.py. The original entry:
 
 Found while building `ops.bar_label` and nearly shipped as a bug. music21's ABC
 reader numbers EVERY tune from 0 whether or not it has a pickup, while a

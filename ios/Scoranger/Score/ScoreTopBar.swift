@@ -111,6 +111,17 @@ struct ScoreTopBar: View {
             barButton("bubble.left", label: "Ask", identifier: "score-ask",
                       active: chatOpen, action: onAsk)
             if fit.showsAddToSetlist { addToSetlistTrigger }
+            // Print (0.17.0): on the pages, never on the strip, which is one
+            // endless system a printer cannot take. Present in the fit either
+            // way, so switching layout does not reflow the bar.
+            if fit.showsPrint {
+                barButton("printer", label: "Print", identifier: "score-print") {
+                    ScorePrinting.present(state.pdfDocument, title: title)
+                }
+                .disabled(!ScorePrinting.available(in: state.layoutChoice)
+                          || state.pdfDocument == nil)
+                .opacity(ScorePrinting.available(in: state.layoutChoice) ? 1 : 0.35)
+            }
             // On a phone these three are the second row's (Ph4); everywhere
             // else they are the bar's, as they have always been.
             if !fit.secondRow {

@@ -55,7 +55,8 @@ So:
   testing never reaches),
   `check_playback.py` (the MIDI and the bar map describe the same performance),
   `check_measure_numbers.py` (the bars numbered are the bars the reader asked
-  for, on both renderers),
+  for, on both renderers), `check_bar_numbers.py` (the first full bar is bar 1,
+  a chart starts there, and a chord name is never a text mark),
   `check_pagination.py` (a line break the op writes is a line the page draws --
   both renderers ask Verovio for `line` breaks, which `auto` ignores, and a
   paginated score longer than a page turns its pages),
@@ -228,7 +229,14 @@ scor simplify-rhythm <score> --mode augment|thin [--part X] [--unit eighth]
   # asserts the judgement bar by bar against fixtures.sax_study. check_rhythm.py
   # holds thinning to the part's LENGTH and augmentation to its factor.
 scor analyze <score> [--parts ...]        # per-bar harmony candidates (read-only) — agent adjudicates
-scor set-chords <score> --part X --json chart.json   # [{"measure":1,"symbol":"Fm"},...] -> <harmony> symbols
+scor set-chords <score> --part X --json chart.json   # [{"measure":1,"symbol":"Fm","offset":2},...] -> <harmony> symbols
+  # ADDS to the chart, replacing only a chord at the same spot; `offset` (quarter
+  # notes from the barline) puts one mid-bar. A chord is ALWAYS this, never a
+  # text mark: add-element refuses a chord name as text (0.17.0, Ali's "Em" that
+  # engraved lower and in italics).
+scor number-bars-from-one                # launch pass: an arrangement whose first full bar is
+  # numbered 0 (ABC with no pickup) gets ONE new version numbered from 1, so
+  # "bar 1" means the page's first bar. Imports are numbered from 1 already.
 scor clean-accidentals <score> [--parts "..."]
   # hide accidentals the key signature already implies. Display only -- no
   # pitch, no spelling, no key changes. Each part is judged by the key ON ITS

@@ -3836,6 +3836,17 @@ def add_element(score, name: str, kind: str, measure: int,
             f"A {spec.noun} is added by `{CREATED_BY[kind]}`, not by this op. "
             f"Can add: {sorted(ADDABLE_KINDS)}")
     spec = _element_kind(kind, "add", ADDABLE_KINDS)
+    if kind == "text" and is_chord_symbol_text(value):
+        # Ali, 0.17.0: asked for "E minor in the second half of bar 8", the
+        # chat wrote the word "Em" as a TEXT mark -- engraved lower than the
+        # chart and in italics, because that is what a text mark is. A chord
+        # name is a chord symbol, and set-chords places one mid-bar by offset.
+        raise ValueError(
+            f"'{value}' is a chord symbol, not words: add it with set-chords, "
+            f"which places it at an offset inside the bar like the rest of the "
+            f"chart ({{\"measure\": {measure}, \"symbol\": \"{str(value).strip()}\", "
+            f"\"offset\": {float(offset)}}}). A text mark is engraved in "
+            f"italics, under the chart.")
 
     part = find_parts(score, [name])[0]
     measures = {m.number: m for m in part.getElementsByClass(stream.Measure)}
@@ -4104,6 +4115,15 @@ def _onsets(measure) -> list[float]:
     """Every offset a note begins at in a measure, for an error to name."""
     return sorted({round(float(n.getOffsetInHierarchy(measure)), 6)
                    for n in _sounding_notes(measure)})
+
+
+_CHORD_TEXT_RE = re.compile(r"([A-G])(b|#)?(.*)")
+
+
+def is_chord_symbol_text(value) -> bool:
+    """Is this text a chord name set-chords would write -- "Em", "F#m7", "Bb"?"""
+    match = _CHORD_TEXT_RE.fullmatch(str(value or "").strip())
+    return bool(match) and match.group(3) in QUALITY_KINDS
 
 
 def set_chord_symbols(score, name: str, chords: list[dict]) -> dict:
@@ -5580,6 +5600,34 @@ def _fill_runs(starts: set[int], numbers: list[int], per_line: int,
 #: the new one at 11: lines of 4, 4, 2, 2, 4. With it, the filled-in breaks are
 #: derived again around what was asked for, every time.
 PAGINATION_FORCED_FIELD = "scoranger-pagination-forced"
+
+
+def number_bars_from_one(score) -> int:
+    """Number the first full bar 1, as every page does. Returns the shift (0 or 1).
+
+    music21's ABC reader numbers a tune from 0 whether or not it opens with a
+    pickup, and a MusicXML import is numbered from 1. So in an ABC tune with no
+    upbeat the first FULL bar was bar 0 everywhere -- the chat counted it as
+    "bar 1" and skipped it, and Ali's chords started a bar late: "when I say
+    put chord measures, it should start at the first bar" (0.17.0). A bar 0
+    that IS an upbeat (paddingLeft, as `bar_label` reads it) stays 0: it is
+    "the pickup", and the bar after it is already 1.
+
+    Every part moves together, and the reader's forced line breaks move with
+    their bars.
+    """
+    if not score.parts:
+        return 0
+    first = next(iter(score.parts[0].getElementsByClass(stream.Measure)), None)
+    if first is None or first.number != 0 or float(getattr(first, "paddingLeft", 0) or 0) > 0:
+        return 0
+    for part in score.parts:
+        for m in part.getElementsByClass(stream.Measure):
+            m.number += 1
+    per, starts, joins = _read_forced(score)
+    if per is not None:
+        _write_forced(score, per, {n + 1 for n in starts}, {n + 1 for n in joins})
+    return 1
 
 
 def _pickup_bar(score) -> int | None:

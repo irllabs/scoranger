@@ -3923,6 +3923,14 @@ final class AppState: ObservableObject {
         await refresh()
     }
 
+    /// Number every arrangement's first full bar 1 (0.17.0). ABC tunes with no
+    /// pickup came in numbered from 0, so "bar 1" in chat was the page's
+    /// second bar. A new version per affected arrangement, once.
+    func numberBarsFromOne() async {
+        _ = try? await local.call(op: "number-bars-from-one", args: [:])
+        await refresh()
+    }
+
     func deleteScore(slug: String, undoable: Bool = true) {
         let name = manifest?.scores.first { $0.slug == slug }
             .map { ScoreTitle.arrangementName(title: $0.title, name: $0.name,

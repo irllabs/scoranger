@@ -269,11 +269,32 @@ targets:
         #               writes none. Both renderers now ask for `line`: the
         #               reader's lines, Verovio's page turns. Added to the
         #               scope after it started, and said so here.
+        #          Added by Ali while the build was under way (2026-10-03),
+        #          and said so here:
+        #            6. Print: a button on the score's bar (in More where the
+        #               bar has no room) opens the system print sheet with the
+        #               engraved pages, in single- and two-page view; never on
+        #               the strip.
+        #            7. The chat box keeps one shape when stretched taller:
+        #               its fill was a rectangle under a pill-shaped outline.
+        #            8. Chords start at the first bar: an ABC tune with no
+        #               pickup numbered its first full bar 0, so "bar 1" was
+        #               the page's second. New imports number from 1, and an
+        #               arrangement already numbered from 0 gets one new
+        #               version numbered from 1 at launch.
+        #            9. A chord is always a chord symbol: set_chords takes an
+        #               offset for a change mid-bar ("Em in the second half of
+        #               bar 8"), and a chord name as a text mark -- engraved
+        #               lower and in italics -- is refused.
         #          NOT in this build, and said before it starts:
         #            - no control over where a measure number sits or its
         #              size; Verovio places it;
         #            - the chosen line length is an estimate from note counts,
         #              not a measurement of the engraved page;
+        #            - Pencil markup does not print: ink is kept in the
+        #              coordinates of the page as drawn, not the PDF's;
+        #            - chords already written as text marks stay text marks
+        #              until the reader asks for them to be replaced;
         #            - NO OTHER CHANGE.
         #   0.16.0 YOUR LIBRARY ON EVERY DEVICE YOU SIGN IN ON (2026-09-26).
         #          Scope written before the work. One feature, so the minor

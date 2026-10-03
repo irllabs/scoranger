@@ -463,7 +463,12 @@ def analyze_harmony(ctx: RunContext[str], parts: list[str] | None = None) -> dic
 
 def set_chords(ctx: RunContext[str], part: str, chords: list[dict]) -> dict:
     """Write chord symbols onto a part: [{"measure": 1, "symbol": "Fm"}, ...].
-    Qualities: '', m, 7, m7, maj7, m7b5, 6, m6, dim, dim7, aug; roots may carry b/#."""
+    Qualities: '', m, 7, m7, maj7, m7b5, 6, m6, dim, dim7, aug; roots may carry b/#.
+    Measure numbers are the page's: the first full bar is 1. "offset" puts a
+    chord inside a bar, in quarter notes from the barline ("E minor in the
+    second half of bar 8" in 4/4 is {"measure": 8, "symbol": "Em", "offset": 2}).
+    Each chord is ADDED, replacing only one at the same spot: send one entry
+    for one change. Never write a chord as a text mark."""
     return _apply(ctx.deps, "set-chords", {"part": part, "count": len(chords)},
                   lambda s: ops.set_chord_symbols(s, part, chords))
 

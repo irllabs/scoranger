@@ -906,6 +906,9 @@ def create_score(name: str, m21_score, op: str = "import", args: dict | None = N
         slug = f"{base}-{n}"
         n += 1
     from . import ops
+    # The first full bar is bar 1, whatever the reader of the file thought
+    # (ops.number_bars_from_one: ABC numbers a tune with no pickup from 0).
+    ops.number_bars_from_one(m21_score)
     meta = ops.score_metadata(m21_score)
     repo.set_score(slug, {
         "id": slug, "slug": slug, "uid": ids.new_id(), "name": name,
@@ -1157,6 +1160,57 @@ def set_score_metadata(slug: str, title: str | None = None,
         rebuild_manifest()
     return {"score": slug, "version": entry["id"], "name": repo.get_score(slug)["name"],
             **applied}
+
+
+_BAR_CHECK_FILE = ".bars-numbered-from-one.json"
+
+
+def number_bars_from_one_everywhere() -> dict:
+    """Give every arrangement whose LATEST version numbers its first full bar 0
+    a new version numbered from 1. Run at launch; idempotent.
+
+    A NEW VERSION rather than a change on load, because the page and the ops
+    must agree: a lasso on the page names bars by the numbers drawn, and an op
+    that renumbered as it loaded would act one bar off. Once the latest
+    version is renumbered, what is shown is what is operated on.
+
+    Checking means parsing, so what has been checked is remembered by version
+    id in the workspace (a pickup tune is checked once, not every launch).
+    """
+    import json
+    from music21 import converter
+
+    from . import ops
+
+    repo = _repo()
+    path = WORKSPACE / _BAR_CHECK_FILE
+    try:
+        checked = set(json.loads(path.read_text()))
+    except (OSError, ValueError):
+        checked = set()
+    renumbered = []
+    for doc in repo.list_scores():
+        latest = doc.get("latest")
+        if not latest or latest in checked:
+            continue
+        checked.add(latest)
+        try:
+            notation = resolve_notation_path(doc["slug"])
+        except (FileNotFoundError, NotNotationError):
+            continue          # a scan, or nothing to read: no bars to number
+        head = notation.read_text(encoding="utf-8", errors="replace")[:20000]
+        if not re.search(r'<measure\b[^>]*\bnumber="0"', head):
+            continue
+        score = converter.parse(str(notation), forceSource=True)
+        if ops.number_bars_from_one(score):
+            entry = add_version(doc["slug"], score, "number-bars-from-one", {})
+            checked.add(entry["id"])
+            renumbered.append(doc["slug"])
+    try:
+        path.write_text(json.dumps(sorted(checked)))
+    except OSError:
+        pass
+    return {"renumbered": renumbered}
 
 
 def title_repairs() -> list[dict]:

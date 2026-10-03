@@ -258,6 +258,11 @@ struct ChatView: View {
 
     // MARK: - Input (§7.13)
 
+    /// Half the height of the one-line field (9pt padding above and below a
+    /// line), so one line is exactly a pill and more lines are not a stadium.
+    private static let inputShape = RoundedRectangle(cornerRadius: 9 + lineHeight / 2,
+                                                     style: .continuous)
+
     private var inputBar: some View {
         HStack(spacing: Theme.Metric.s8) {
             TextField(dictation.errorText ?? "Arrange…", text: $draft, axis: .vertical)
@@ -278,9 +283,15 @@ struct ChatView: View {
                 .onSubmit(send)
                 .padding(.vertical, 9)
                 .padding(.horizontal, 10)
-                .background(Theme.Surface.paper)
+                // ONE shape for the fill and the outline, with a radius of
+                // half a single line's height: a pill on one line, a rounded
+                // box when the grip makes it taller. The fill used to be a
+                // plain rectangle under a capsule outline (rCtl is 999), so a
+                // tall box showed square paper corners outside a stadium-
+                // shaped ring -- Ali's "messy" (0.17.0).
+                .background(Theme.Surface.paper, in: Self.inputShape)
                 .overlay {
-                    RoundedRectangle(cornerRadius: Theme.Metric.rCtl)
+                    Self.inputShape
                         .stroke(inputFocused ? Theme.Accent.clay : Color.clear, lineWidth: 1.5)
                 }
                 .onChange(of: state.pendingChatInsert) { _, _ in consumePendingInsert() }

@@ -56,11 +56,16 @@ final class ScoreBarLayoutTests: XCTestCase {
         XCTAssertTrue(seenTransportDrop)
     }
 
+    /// Everything, Print included (0.17.0).
+    private var wholeBar: ScoreBarLayout.Fit {
+        var fit = ScoreBarLayout.Fit(showsVersions: true, showsAddToSetlist: true,
+                                     layoutCells: 3)
+        fit.showsPrint = true
+        return fit
+    }
+
     func testAnIPadShowsTheWholeBar() {
-        let fit = ScoreBarLayout.fit(barWidth: iPadLandscape)
-        XCTAssertEqual(fit, ScoreBarLayout.Fit(showsVersions: true,
-                                               showsAddToSetlist: true,
-                                               layoutCells: 3))
+        XCTAssertEqual(ScoreBarLayout.fit(barWidth: iPadLandscape), wholeBar)
     }
 
     /// The stated order: the version count yields before the switches, and the
@@ -138,10 +143,7 @@ final class ScoreBarLayoutTests: XCTestCase {
     /// Before the bar has been measured, show everything: a stripped bar that
     /// fills in on the second frame reads as a glitch.
     func testAnUnmeasuredBarShowsEverything() {
-        XCTAssertEqual(ScoreBarLayout.fit(barWidth: 0),
-                       ScoreBarLayout.Fit(showsVersions: true,
-                                          showsAddToSetlist: true,
-                                          layoutCells: 3))
+        XCTAssertEqual(ScoreBarLayout.fit(barWidth: 0), wholeBar)
     }
 
     // MARK: - The two switches (0.6.8)
@@ -265,7 +267,8 @@ final class ScoreBarLayoutTests: XCTestCase {
             + ScoreBarLayout.titleMinimum
             + ScoreBarLayout.numeralWidth + ScoreBarLayout.threeCells
             + ScoreBarLayout.versionsWidth + ScoreBarLayout.switchesWidth
-            + ScoreBarLayout.addToSetlistWidth + ScoreBarLayout.originNameWidth
+            + ScoreBarLayout.addToSetlistWidth + ScoreBarLayout.printWidth
+            + ScoreBarLayout.originNameWidth
         XCTAssertTrue(ScoreBarLayout.fits(widest, in: withoutAChip),
                       "the bar still reserves width for something it no longer draws")
     }
@@ -291,10 +294,11 @@ final class ScoreBarLayoutTests: XCTestCase {
         }
         // widest, then the + gone, then the count gone: three distinct fits.
         // Everything, then without the origin's name beside the ‹ [C6], then
-        // without the +, then without the count: four fits. The name is a
-        // courtesy about where the reader was; the count is a shortcut to
-        // versions. Both go before anything the reader cannot reach elsewhere.
-        XCTAssertEqual(seen.count, 4, "the count did not yield third: \(seen)")
+        // without the +, then without Print (0.17.0; More carries it), then
+        // without the count: five fits. The name is a courtesy about where
+        // the reader was; the count is a shortcut to versions. All of them go
+        // before anything the reader cannot reach elsewhere.
+        XCTAssertEqual(seen.count, 5, "the count did not yield fourth: \(seen)")
         let dropped = try XCTUnwrap(seen.last)
         XCTAssertFalse(dropped.showsVersions)
         XCTAssertFalse(dropped.showsAddToSetlist, "the + should already be gone")
@@ -583,5 +587,29 @@ extension ScoreBarLayoutTests {
             XCTAssertFalse(ScoreBarLayout.fit(barWidth: width, compact: true).showsOriginName,
                            "a phone seated the origin's name at \(width)")
         }
+    }
+
+    /// Print yields after the + and before the version count, and More carries
+    /// it at every width the bar does not (0.17.0).
+    func testPrintIsOnTheBarOrInMoreAtEveryWidth() {
+        XCTAssertTrue(ScoreBarLayout.fit(barWidth: iPadLandscape).showsPrint)
+        var width = 2000.0
+        while width > ScoreBarLayout.floor {
+            let fit = ScoreBarLayout.fit(barWidth: width)
+            XCTAssertNotEqual(fit.showsPrint, fit.optionsCarriesPrint,
+                              "print must be on the bar or in More at \(width)pt")
+            if fit.showsAddToSetlist { XCTAssertTrue(fit.showsPrint, "print went before the + at \(width)pt") }
+            if !fit.showsVersions { XCTAssertFalse(fit.showsPrint, "the count went before print at \(width)pt") }
+            width -= 1
+        }
+        let phone = ScoreBarLayout.fit(barWidth: 390, compact: true)
+        XCTAssertTrue(phone.optionsCarriesPrint, "a phone prints from More")
+    }
+
+    func testPrintIsNeverOfferedOnTheStrip() {
+        XCTAssertTrue(ScorePrinting.available(in: .page))
+        XCTAssertTrue(ScorePrinting.available(in: .spread))
+        XCTAssertFalse(ScorePrinting.available(in: .continuous),
+                       "the strip is one endless system: nothing a printer can take")
     }
 }

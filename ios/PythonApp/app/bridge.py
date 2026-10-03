@@ -362,6 +362,10 @@ def _dispatch(op, a):
         return {"restored": workspace.restore_score(a["score"])["slug"]}
     if op == "sweep":
         return {"swept": workspace.sweep()}
+    if op == "number-bars-from-one":
+        # A launch pass, like tidy-pieces: an arrangement whose latest version
+        # numbers its first full bar 0 gets a new version numbered from 1.
+        return workspace.number_bars_from_one_everywhere()
     if op == "tidy-pieces":
         return {"tidied": workspace.tidy_pieces()}
     if op == "delete-piece":

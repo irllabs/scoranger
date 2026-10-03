@@ -98,6 +98,17 @@ struct ScoreOptionsScreen: View {
             //
             // The app's own switch, not the system's. This was the one stock
             // iOS control left anywhere in it (L33).
+            // Print, where the bar has no room for it (ScoreBarLayout), and
+            // only on the pages: the strip cannot be printed.
+            if barFit.optionsCarriesPrint, ScorePrinting.available(in: state.layoutChoice),
+               state.pdfDocument != nil {
+                ScreenRow(title: "Print", leads: false, identifier: "more-print") {
+                    onBack()
+                    ScorePrinting.present(state.pdfDocument,
+                                          title: state.selectedScore?.name ?? "Score")
+                }
+            }
+
             if barFit.optionsCarriesPerformanceToggle {
                 PanelToggle(title: "Performance mode",
                             isOn: Binding(get: { mode == .performance },

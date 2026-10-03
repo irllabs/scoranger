@@ -236,6 +236,9 @@ struct RootView: View {
             // arrangements" survived every launch: the sweep that was supposed
             // to remove it never ran.
             await state.tidyPieces()
+            // and number every arrangement's first full bar 1: chat counts
+            // bars as the page does, and an ABC tune came in from 0
+            await state.numberBarsFromOne()
             Theme.verifyFontsRegistered()
             state.migrateScoreLayout()
             state.startPolling()

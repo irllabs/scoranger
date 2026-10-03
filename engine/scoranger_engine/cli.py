@@ -626,6 +626,10 @@ def cmd_set_metadata(a):
                                        arranger=a.arranger))
 
 
+def cmd_number_bars_from_one(a):
+    _emit(workspace.number_bars_from_one_everywhere())
+
+
 def cmd_repair_titles(a):
     _emit(workspace.repair_titles(dry_run=not a.apply))
 
@@ -1236,6 +1240,11 @@ def main() -> None:
     s.add_argument("--composer", help="composer credit ('' clears it)")
     s.add_argument("--arranger", help="arranger credit ('' clears it)")
     s.set_defaults(fn=cmd_set_metadata)
+
+    s = sub.add_parser("number-bars-from-one",
+                       help="Give every arrangement whose first full bar is "
+                            "numbered 0 a new version numbered from 1")
+    s.set_defaults(fn=cmd_number_bars_from_one)
 
     s = sub.add_parser("repair-titles",
                        help="Re-title arrangements engraving an internal file "

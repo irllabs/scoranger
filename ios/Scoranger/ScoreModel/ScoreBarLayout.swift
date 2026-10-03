@@ -147,6 +147,13 @@ enum ScoreBarLayout {
         /// whether markup is currently on, which the bar's button shows only
         /// while the bar has it.
         var optionsCarriesEdit: Bool { !showsEdit }
+
+        /// Print (0.17.0, Ali: "a print button ... in the top bar along with
+        /// the other buttons"). FALSE by default, so every narrower rung of
+        /// the ladder below drops it without naming it; the wide rungs seat it.
+        /// Where it is not on the bar, More carries it.
+        var showsPrint: Bool = false
+        var optionsCarriesPrint: Bool { !showsPrint }
     }
 
     /// Measured widths of the bar's parts, so the arithmetic below is legible
@@ -166,6 +173,7 @@ enum ScoreBarLayout {
     static let versionsWidth: CGFloat = 110
     /// The + and the gap before it. The same button as Edit and Ask.
     static let addToSetlistWidth: CGFloat = actionWidth + gap
+    static let printWidth: CGFloat = actionWidth + gap
     /// The transport toggle and the gap before it.
     /// Retired in 0.8: the tray is always there. Kept at zero so the Fit's
     /// field and the switch arithmetic need not move.
@@ -281,8 +289,9 @@ enum ScoreBarLayout {
     }
 
     private static func layout(barWidth: CGFloat) -> Fit {
-        let everything = Fit(showsVersions: true, showsAddToSetlist: true,
+        var everything = Fit(showsVersions: true, showsAddToSetlist: true,
                              layoutCells: 3)
+        everything.showsPrint = true
         // Unmeasured: show everything rather than flashing a stripped bar on
         // the first frame and filling it in afterwards.
         guard barWidth > 0 else { return everything }
@@ -296,7 +305,7 @@ enum ScoreBarLayout {
         // every threshold by its own width.
         let base = essentials + editWidth + titleMinimum + numeralWidth
         let forAll = base + threeCells + versionsWidth + switchesWidth
-            + addToSetlistWidth + originNameWidth
+            + addToSetlistWidth + printWidth + originNameWidth
         if barWidth >= forAll { return everything }
 
         // The origin's NAME beside the ‹ goes first [C6]: a bare ‹ still
@@ -304,13 +313,22 @@ enum ScoreBarLayout {
         // an iPad in portrait (834) it is what yields; in landscape it fits.
         let withoutOriginName = forAll - originNameWidth
         if barWidth >= withoutOriginName {
-            return Fit(showsVersions: true, showsAddToSetlist: true, layoutCells: 3,
-                       showsOriginName: false)
+            var fit = Fit(showsVersions: true, showsAddToSetlist: true, layoutCells: 3,
+                          showsOriginName: false)
+            fit.showsPrint = true
+            return fit
         }
         // Then the +: the library's set list picker still offers the same
         // operation, so this costs a shortcut rather than a feature.
         let withoutAdd = withoutOriginName - addToSetlistWidth
         if barWidth >= withoutAdd {
+            var fit = Fit(showsVersions: true, layoutCells: 3, showsOriginName: false)
+            fit.showsPrint = true
+            return fit
+        }
+        // Then Print, which More carries at every width the bar does not.
+        let withoutPrint = withoutAdd - printWidth
+        if barWidth >= withoutPrint {
             return Fit(showsVersions: true, layoutCells: 3, showsOriginName: false)
         }
         // Then the version count. The title block opens VERSIONS when this
@@ -319,7 +337,7 @@ enum ScoreBarLayout {
         // so the title opened arrangements only, and a phone at reading width
         // had no route to versions at all. Whoever changes what the title opens
         // must keep this true (ScoreTopBar.titleBlock).
-        let withoutVersions = withoutAdd - versionsWidth
+        let withoutVersions = withoutPrint - versionsWidth
         if barWidth >= withoutVersions {
             return Fit(showsVersions: false, layoutCells: 3, showsOriginName: false)
         }
@@ -382,6 +400,7 @@ enum ScoreBarLayout {
         if fit.showsEdit { needed += editWidth }
         if fit.showsVersions { needed += versionsWidth }
         if fit.showsAddToSetlist { needed += addToSetlistWidth }
+        if fit.showsPrint { needed += printWidth }
         if fit.showsTransportToggle { needed += transportWidth }
         if fit.showsPerformanceToggle { needed += performanceWidth }
         if fit.showsOriginName { needed += originNameWidth }

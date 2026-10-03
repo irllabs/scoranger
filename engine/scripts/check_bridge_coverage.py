@@ -250,6 +250,7 @@ do("restore-score", score="a-scan-renamed")
 do("sweep")
 do("delete-piece", piece="Misty", with_arrangements=True)
 do("tidy-pieces")
+do("number-bars-from-one")
 
 # -- the account's library on every device (librarysync) ---------------------
 do("library-sync-status")
