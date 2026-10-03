@@ -44,6 +44,12 @@ ios/project.yml's 0.18.0 scope block as it is taken on.
   whole bundle does not, and `SCORANGER_SILENT_AUDIO` deliberately stops at
   the UI tests. Both now turn their own output down: they count frames and
   read clocks, never loudness. Every other playback unit test renders offline.
+- **Gate note, 0.18.0 (2026-10-03): two UI tests timed out under the
+  four-worker pool and passed alone on the same build.**
+  TransportVisibility (no mixer strip after 180s; 15s alone) and
+  ContinuousFollows (no play head handle; 108s alone). Both wait on the
+  playback graph, which is the slowest thing to build when four simulators
+  share the Mac. If either fails a second gate, give it the serial lane.
 - **Open, shared set list sync:**
   - nothing syncs while the app is closed (no push notifications or
     background refresh); a reader sees changes when they open the app;
