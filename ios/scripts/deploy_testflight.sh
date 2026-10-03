@@ -89,6 +89,9 @@ VENDOR_PY="../engine/.venv/bin/python"
 
 security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 add_keychain_to_search_list
+# Listed for this deploy only, and unlisted however it ends: see
+# remove_keychain_from_search_list for what a listed, locked keychain did.
+trap remove_keychain_from_search_list EXIT
 IDENTITY=$(distribution_identity)
 [[ -n "$IDENTITY" ]] || die "no distribution identity in $KEYCHAIN_PATH -- run scripts/bootstrap_signing.sh"
 

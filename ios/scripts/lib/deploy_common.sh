@@ -116,3 +116,27 @@ add_keychain_to_search_list() {
   security list-keychains -d user -s "${current[@]}" "$KEYCHAIN_PATH" >/dev/null
   say "added signing keychain to the search list"
 }
+
+# The other half, run when a deploy ENDS, however it ends (2026-10-03).
+#
+# Left in the user's search list, this keychain is consulted by EVERY codesign
+# on the Mac -- simulator builds, the gate, other projects' archives -- and a
+# keychain comes back LOCKED after a restart. Locked and listed, it made macOS
+# ask Ali over and over for a password he does not know ("codesign wants to
+# use the 'scoranger-signing' keychain"), and made other apps' headless
+# signing fail with errSecInternalComponent. Only the deploy signs with it, so
+# only the deploy lists it.
+remove_keychain_from_search_list() {
+  local -a kept=()
+  local line
+  while IFS= read -r line; do
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%\"}"
+    line="${line#\"}"
+    [[ -n "$line" && "$line" != "$KEYCHAIN_PATH" ]] && kept+=("$line")
+  done < <(security list-keychains -d user)
+  # Never write an EMPTY list: that would drop the login keychain too.
+  [[ ${#kept[@]} -gt 0 ]] || return 0
+  security list-keychains -d user -s "${kept[@]}" >/dev/null
+  say "signing keychain out of the search list again"
+}
