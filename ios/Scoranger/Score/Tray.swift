@@ -410,10 +410,14 @@ extension TrayLayout {
 // MARK: - The tempo knob
 
 /// The same dial in `ink2`, no LED, "tempo 120" under it. Drag to set the
-/// tempo; double-tap returns to the score's marking (§7.8).
+/// tempo -- up or right is faster, down or left slower (TempoDrag: it sits on
+/// the bottom edge) -- and double-tap returns to the score's marking (§7.8).
 struct TrayTempoKnob: View {
     @ObservedObject var playback: PlaybackEngine
-    @State private var startBPM: Double?
+    /// The tempo the drag began at. GESTURE state, so a drag the system
+    /// cancels -- which does not call `onEnded` -- cannot leave a stale start
+    /// behind for the next one.
+    @GestureState private var startBPM: Double?
     @Environment(\.dynamicTypeSize) private var typeSize
 
     private static let range: ClosedRange<Double> = 30...480
@@ -432,15 +436,17 @@ struct TrayTempoKnob: View {
             .contentShape(Circle())
             .gesture(
                 DragGesture(minimumDistance: 0)
+                    .updating($startBPM) { _, start, _ in
+                        if start == nil { start = playback.tempoBPM }
+                    }
                     .onChanged { move in
-                        let start = startBPM ?? playback.tempoBPM
-                        if startBPM == nil { startBPM = start }
-                        // 14pt per unit, upwards is faster (§7.8).
-                        let bpm = start - Double(move.translation.height) / 14 * 2
+                        // Up OR RIGHT is faster (TempoDrag): the knob is on
+                        // the bottom edge, where down has no room.
+                        let bpm = TempoDrag.bpm(start: startBPM ?? playback.tempoBPM,
+                                                translation: move.translation)
                         playback.setTempo(min(max(bpm.rounded(), Self.range.lowerBound),
                                               Self.range.upperBound))
-                    }
-                    .onEnded { _ in startBPM = nil })
+                    })
             .onTapGesture(count: 2) { playback.clearTempo() }
             HStack(spacing: 3) {
                 Text("tempo").typeRole(.knobLabel).foregroundStyle(Theme.Ink.ink2)

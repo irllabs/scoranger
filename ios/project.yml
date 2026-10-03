@@ -241,6 +241,25 @@ targets:
         #          asked for as one build: "build all of these necessary
         #          features for sharing playlists into the first 7.0 build."
         #          §11.9 records the difference, including what was left out.
+        #   0.17.1 FIXES COLLECTED AFTER 0.17.0 (opened 2026-10-03). Scope
+        #          written as each fix is taken on, before its work; a patch
+        #          while it carries only fixes. Ali: "Get this into the build
+        #          after the one that's going through right now ... build the
+        #          backlog, resolve it, and save it for the next release."
+        #
+        #          In this build:
+        #            1. The tray's tempo knob turns DOWN again. It sits on the
+        #               bottom edge and turned only by vertical drag, down for
+        #               slower, so there was ~40pt (6 bpm) of room to turn it
+        #               down and the whole screen to turn it up: Ali took it
+        #               from 120 to 186 and could not bring it back, by finger
+        #               or pointer. It now reads both axes -- up or right is
+        #               faster, down or left slower -- and its drag start is
+        #               gesture state, so a cancelled drag leaves nothing stale.
+        #          NOT in this build, and said before it starts:
+        #            - no trackpad or mouse-wheel scrolling on the knob;
+        #            - NO OTHER CHANGE yet -- this list grows as fixes are
+        #              taken on, each written here first.
         #   0.17.0 MEASURE NUMBERS, AND A LINE THAT ENDS WHERE YOU SAY
         #          (2026-10-03). Scope written before the work. Two features
         #          and one fix, so the minor bumps once. Ali, on Molly Ban:
@@ -1121,7 +1140,7 @@ targets:
         # has no Firebase configuration". deploy_testflight.sh now refuses such
         # an archive outright.
         CURRENT_PROJECT_VERSION: 206
-        MARKETING_VERSION: 0.17.0
+        MARKETING_VERSION: 0.17.1
         SWIFT_VERSION: 5.10
         SWIFT_OBJC_BRIDGING_HEADER: Scoranger/PythonBridge/PythonBridge.h
         # BeeWare's install_python copies lib-$ARCHS, which requires single-arch builds

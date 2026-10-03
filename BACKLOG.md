@@ -1,5 +1,24 @@
 # Backlog
 
+## Next release (0.17.1) -- collecting, on fix/tempo-knob
+
+Fixes found after 0.17.0 build 206, held for the next build (Ali,
+2026-10-03). Each is in ios/project.yml's 0.17.1 scope block as it is taken
+on.
+
+- **DONE on the branch: the tempo knob would not turn down.** Ali's recording:
+  up from 120 to 186, then stuck. Not stuck -- the knob sits on the screen's
+  bottom edge and turned only by vertical drag, down for slower, so there was
+  ~40pt of travel below it (6 bpm): measured in the simulator, a 200pt
+  downward drag moved it 8 bpm. It now turns by either axis (TempoDrag: up or
+  right faster, down or left slower) with its drag start in @GestureState.
+  Proof: TempoDragTests, and TempoKnobTurnsBothWays, which drags Ali's 470pt
+  up, shows the downward drag still capped, and turns it down 43 bpm by
+  dragging left -- and fails without the fix, which ignored sideways travel.
+- **Open: no trackpad or mouse-wheel scrolling on the tempo knob.** An iPad
+  with a keyboard case scrolls with two fingers; that does nothing here.
+
+
 ## Measure numbers and pagination -- what 0.17.0 does NOT do
 
 - **A measure number's position and size are Verovio's.** `measure-numbers`
