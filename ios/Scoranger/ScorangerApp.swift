@@ -15,6 +15,9 @@ struct ScorangerApp: App {
     /// inert while signed out: `follow(account:)` is what starts it, and it
     /// returns at once for nil.
     @StateObject private var librarySync = LibrarySync()
+    /// Every shared set list in the library, in step with its members
+    /// (0.18.0). Inert while signed out, like the two above.
+    @StateObject private var setlistSync = SharedSetlistSync()
     @Environment(\.scenePhase) private var scenePhase
 
     /// The one moment a test's reset can be total.
@@ -34,13 +37,23 @@ struct ScorangerApp: App {
                 .environmentObject(signIn)
                 .environmentObject(shared)
                 .environmentObject(librarySync)
+                .environmentObject(setlistSync)
                 // This device's own edits go up a moment after they are made;
                 // `Manifest` equality ignores the rebuild stamp, so an idle
                 // refresh is not an edit.
-                .onChange(of: state.manifest) { _, _ in librarySync.libraryChanged() }
-                .onChange(of: signIn.account?.uid) { _, uid in librarySync.follow(account: uid) }
+                .onChange(of: state.manifest) { _, _ in
+                    librarySync.libraryChanged()
+                    setlistSync.libraryChanged()
+                }
+                .onChange(of: signIn.account?.uid) { _, uid in
+                    librarySync.follow(account: uid)
+                    setlistSync.follow(account: uid)
+                }
                 .onChange(of: scenePhase) { _, phase in
-                    if phase == .active { librarySync.nudge() }
+                    if phase == .active {
+                        librarySync.nudge()
+                        setlistSync.syncAll()
+                    }
                 }
                 // Books over cellular are asked about, the way Apple's own
                 // apps ask before a large download (Ali, 2026-09-26).
@@ -114,6 +127,9 @@ struct ScorangerApp: App {
                     }
                     #endif
                     await state.seedLibraryIfEmpty()
+                    #if DEBUG
+                    await state.bindEmulatorShareIfRequested()
+                    #endif
                     // the imported library carries no metadata of its own
                     await state.applyBundledMetadataIfNeeded()
                     await state.refresh()
@@ -125,6 +141,8 @@ struct ScorangerApp: App {
                     await signIn.signInToEmulatorIfRequested()
                     #endif
                     librarySync.follow(account: signIn.account?.uid)
+                    setlistSync.attach(state, shared)
+                    setlistSync.follow(account: signIn.account?.uid)
                     // needs a manifest in hand, so it follows the first refresh
                     await state.migrateSeededSetlistName()
                     #if DEBUG

@@ -159,6 +159,11 @@ final class PlayheadDriftTests: XCTestCase {
         try graph.load(midi: midi, timeline: timeline)
         try graph.engine.start()
         guard let sequencer = graph.sequencer else { return XCTFail("no sequencer") }
+        // Real time, so it reaches the Mac's speakers through the simulator;
+        // what it measures is frames and clock positions, never loudness, so
+        // the output is turned down (Ali, 2026-10-03: "make sure you dont make
+        // sound out of my loudspeakers").
+        graph.engine.mainMixerNode.outputVolume = 0
         let rate = graph.engine.mainMixerNode.outputFormat(forBus: 0).sampleRate
         let done = expectation(description: "twenty seconds of audio")
         var frames: AVAudioFramePosition = 0

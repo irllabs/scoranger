@@ -1021,6 +1021,10 @@ final class AppState: ObservableObject {
 
     /// Where this device put its copy of each shared entry.
     let sharedCopies = SharedEntryCopies()
+    /// Adoptions under way, by entry id. Joining, opening an entry and the
+    /// set list sync can all reach for the same entry at once, and two
+    /// imports of one entry are two arrangements where there should be one.
+    private var adoptions: [String: Task<String?, Never>] = [:]
 
     /// An invitation link that has been opened and not yet acted on.
     ///
@@ -1456,6 +1460,59 @@ final class AppState: ObservableObject {
         restateTheQueue()
         print("SCORANGER-SEED omr queue: \(OMRQueue.summary(omrEntries) ?? "none")")
     }
+
+    #if DEBUG
+    /// The two-simulator set list sync test, against the Firebase emulators.
+    ///
+    /// `-bindShare <id> <ownerUid> <count>` files the first `count` seeded
+    /// arrangements (0 for an empty library) into a set list bound to that
+    /// share, which the harness has already written on the emulator -- the
+    /// state a row is in after promotion or after joining.
+    /// `-addToShareAfter <seconds>` then files one more arrangement into it,
+    /// through the same `addToSetlist` the library's Set lists panel calls,
+    /// so the other simulator has something to receive.
+    func bindEmulatorShareIfRequested() async {
+        let args = ProcessInfo.processInfo.arguments
+        guard let at = args.firstIndex(of: "-bindShare"), at + 3 < args.count,
+              let count = Int(args[at + 3]) else { return }
+        let shareId = args[at + 1], owner = args[at + 2]
+        do {
+            let made = try await local.call(op: "create-setlist", args: ["name": "Echo and Bubba"])
+            guard let slug = made["slug"] as? String else { return }
+            _ = try await local.call(op: "bind-setlist-share",
+                                     args: ["setlist": slug, "shareId": shareId, "ownerUid": owner])
+            let scores = (try await local.manifest()).scores
+            for score in scores.prefix(count) {
+                _ = try await local.call(op: "assign-setlist", args: ["setlist": slug, "score": score.slug])
+            }
+            await refresh()
+            print("SCORANGER-SEED bound \(slug) to \(shareId) with \(min(count, scores.count))")
+            if let after = args.firstIndex(of: "-addToShareAfter"), after + 1 < args.count,
+               let seconds = Double(args[after + 1]), scores.count > count {
+                let next = scores[count].slug
+                Task {
+                    try? await Task.sleep(for: .seconds(seconds))
+                    await self.addToSetlist(setlist: slug, score: next)
+                    print("SCORANGER-SEED added \(next) to \(slug)")
+                }
+            }
+            // `-unfileFromShareAfter <seconds>`: take the row's first
+            // arrangement out, as the set list screen's Remove does.
+            if let after = args.firstIndex(of: "-unfileFromShareAfter"), after + 1 < args.count,
+               let seconds = Double(args[after + 1]) {
+                Task {
+                    try? await Task.sleep(for: .seconds(seconds))
+                    guard let first = self.manifest?.setlists?
+                        .first(where: { $0.slug == slug })?.arrangements.first else { return }
+                    await self.removeFromSetlist(setlist: slug, score: first)
+                    print("SCORANGER-SEED took \(first) out of \(slug)")
+                }
+            }
+        } catch {
+            print("SCORANGER-SEED bind failed: \(error.localizedDescription)")
+        }
+    }
+    #endif
 
     /// Test fixture only. The app ships with no sample library: a fresh install
     /// starts empty and fills up from what the user imports. UI tests need
@@ -3574,9 +3631,30 @@ final class AppState: ObservableObject {
     /// `download` is passed in rather than reached for, so this function has
     /// no opinion about Firebase and can be exercised without it.
     func adoptSharedEntry(_ entryId: String, title: String,
-                          download: () async throws -> URL) async -> String? {
+                          download: @escaping () async throws -> URL) async -> String? {
+        if let running = adoptions[entryId] { return await running.value }
+        let task = Task { await adoptOnce(entryId, title: title, download: download) }
+        adoptions[entryId] = task
+        let slug = await task.value
+        adoptions[entryId] = nil
+        return slug
+    }
+
+    private func adoptOnce(_ entryId: String, title: String,
+                           download: () async throws -> URL) async -> String? {
+        // A copy this library already holds -- adopted here, or adopted on
+        // another of the account's devices and brought here by library sync,
+        // which carries the link on the arrangement (0.18.0).
+        if let held = (manifest?.scores ?? []).first(where: { $0.sharedEntry == entryId }) {
+            return held.slug
+        }
         if let slug = sharedCopies.localSlug(forEntry: entryId),
            (manifest?.scores ?? []).contains(where: { $0.slug == slug }) {
+            // A copy from before 0.18.0 is linked on the way past. Should that
+            // write fail, this device's own record still finds the copy, as
+            // it did before; only the account's other devices go without.
+            _ = try? await local.call(op: "link-shared-entry",
+                                      args: ["score": slug, "entry": entryId])
             return slug
         }
         do {
@@ -3600,6 +3678,8 @@ final class AppState: ObservableObject {
                 return nil
             }
             sharedCopies.remember(entryId: entryId, localSlug: slug)
+            _ = try await local.call(op: "link-shared-entry",
+                                     args: ["score": slug, "entry": entryId])
             await refresh()
             return slug
         } catch {

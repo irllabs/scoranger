@@ -243,8 +243,16 @@ def edits_come_back(server: Server, ipad: Device, iphone: Device) -> None:
     ws.add_version(jig, transposed(ws, jig, "-P4"), "transpose", {"interval": "-P4"})
     friday = repo.list_setlists()[0]["slug"]
     ws.set_setlist_order(friday, [reel, jig])
+    # A copy adopted from a shared set list names its entry, and the account's
+    # other device has to learn that with the copy, or it adopts the entry a
+    # second time (0.18.0).
+    ws.link_shared_entry(jig, "entry-from-the-band")
     iphone.push(server)
     ipad.pull(server)
+    linked = [s.get("sharedEntry") for s in ipad.use()._repo().list_scores()
+              if s["name"] == "Morrison's Jig"]
+    check(linked == ["entry-from-the-band"],
+          f"the shared entry an arrangement is a copy of travels with it: {linked}")
     a, b = ipad.view(), iphone.view()
     check(a == b, "the iPad now matches the iPhone")
     names = sorted(s["name"] for s in a["scores"].values())

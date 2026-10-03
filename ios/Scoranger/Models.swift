@@ -104,6 +104,10 @@ struct ScoreDoc: Codable, Identifiable, Hashable {
     var versions: [VersionDoc]
     var sources: [SourceDoc]?
     var piece: String?
+    /// The shared set list entry this arrangement is a copy of, when it was
+    /// adopted from one. Kept by the engine on the arrangement, so it reaches
+    /// the account's other devices with it (`link-shared-entry`, 0.18.0).
+    var sharedEntry: String? = nil
 
     var id: String { slug }
 
@@ -120,6 +124,7 @@ struct ScoreDoc: Codable, Identifiable, Hashable {
         lhs.slug == rhs.slug && lhs.name == rhs.name && lhs.title == rhs.title
             && lhs.composer == rhs.composer && lhs.latest == rhs.latest && lhs.piece == rhs.piece
             && lhs.versions == rhs.versions && lhs.sources == rhs.sources
+            && lhs.sharedEntry == rhs.sharedEntry
     }
     func hash(into hasher: inout Hasher) { hasher.combine(slug) }
 

@@ -267,6 +267,9 @@ enum Theme {
         /// written as 104: the whole point of these being metrics is that a
         /// change to the hit target moves everything that depends on it.
         static let rowTwoControlInset: CGFloat = hitTarget + hitTarget + s8 + s8
+        /// Room for THREE: a shared set list's Sync button leading of its
+        /// share button (0.18.0). Only a shared row pays for it.
+        static let rowThreeControlInset: CGFloat = hitTarget * 3 + s8 + s8
 
         /// The gutter Edit mode's checkbox lives in.
         ///

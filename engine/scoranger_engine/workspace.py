@@ -1527,6 +1527,30 @@ def bind_setlist_share(name_or_slug: str, share_id: str,
     return doc
 
 
+def link_shared_entry(name_or_slug: str, entry_id: str) -> dict:
+    """Record that this arrangement is this device's copy of a shared entry.
+
+    A copy adopted from a shared set list is imported with a uid of its own
+    (it arrived from outside), so nothing in the arrangement said which entry
+    it was, and the only record was a per-device cache in the app. A second
+    device of the same account then received the copy through library sync
+    and could not tell it already had the entry, and imported it again. Kept
+    on the arrangement, the link travels with it: library sync carries every
+    field of a score document.
+    """
+    repo = _repo()
+    found = repo.get_score(name_or_slug)
+    if found is None:
+        available = [s["slug"] for s in repo.list_scores()]
+        raise FileNotFoundError(f"No score '{name_or_slug}'. Available: {available}")
+    doc = dict(found)
+    if doc.get("sharedEntry") != entry_id:
+        doc["sharedEntry"] = entry_id
+        repo.set_score(doc["slug"], doc)
+        rebuild_manifest()
+    return {"score": doc["slug"], "sharedEntry": entry_id}
+
+
 def resolve_setlist(name_or_slug: str, create_if_missing: bool = False) -> dict:
     """Find a setlist by slug, then by case-insensitive name; optionally create it."""
     repo = _repo()
@@ -1811,6 +1835,9 @@ def rebuild_manifest() -> dict:
             "latest": doc.get("latest"), "versions": versions,
             "sources": repo.list_sources(doc["slug"]),
             "piece": doc.get("piece"),
+            # Which shared set list entry this arrangement is a copy of, if
+            # any (`link_shared_entry`): the app's set list sync matches on it.
+            "sharedEntry": doc.get("sharedEntry"),
         })
     pieces = []
     for p in sorted(repo.list_pieces(), key=lambda x: x["name"].lower()):

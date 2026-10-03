@@ -16,6 +16,7 @@ import SwiftUI
 /// agree with the rows, so it hides rather than lies.
 struct LibraryView: View {
     @EnvironmentObject var state: AppState
+    @EnvironmentObject var setlistSync: SharedSetlistSync
     @Binding var segment: LibrarySegment
     @Binding var search: String
     @Binding var sort: LibrarySort
@@ -66,6 +67,20 @@ struct LibraryView: View {
     private var sharedSetlistIds: Set<String> {
         Set((state.manifest?.setlists ?? [])
             .filter(\.isShared).map(\.slug))
+    }
+
+    /// A shared set list row's Sync button, and nothing on any other row.
+    private func syncAction(_ row: LibraryRow) -> (() -> Void)? {
+        guard segment == .setlists, !editing,
+              let setlist = state.manifest?.setlists?.first(where: { $0.slug == row.id }),
+              let shareId = setlist.shareId else { return nil }
+        return { setlistSync.syncNow(shareId) }
+    }
+
+    private func syncStatus(_ row: LibraryRow) -> SetlistSync.Status {
+        guard let setlist = state.manifest?.setlists?.first(where: { $0.slug == row.id })
+        else { return .unknown }
+        return setlistSync.rowStatus(setlist)
     }
 
     /// The panel beside the page (§7.2): Sort, Filter, Import and New open
@@ -698,6 +713,8 @@ struct LibraryView: View {
                          onShare: segment == .setlists && !editing
                                   ? { onShareSetlist(row.id) } : nil,
                          isShared: sharedSetlistIds.contains(row.id),
+                         onSync: syncAction(row),
+                         syncStatus: syncStatus(row),
                          isSelected: editing && selected.contains(row.id),
                          menuIsOpen: openRow == row.id,
                          actions: openRow == row.id ? rowActions(row) : [],

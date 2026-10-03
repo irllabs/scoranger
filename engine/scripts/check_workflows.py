@@ -264,6 +264,19 @@ with Journey("library: pieces, numbering and set lists") as j:
     if again.get("shareId") != "share-abc":
         j.fail("binding the same share twice lost it")
 
+    # An adopted copy names the shared entry it is, in the MANIFEST, where the
+    # app's set list sync matches on it -- and on the score document, which
+    # library sync carries to the account's other devices (0.18.0).
+    j.workspace.link_shared_entry(slugs[0], "entry-123")
+    listed = next(s for s in j.workspace.rebuild_manifest()["scores"]
+                  if s["slug"] == slugs[0])
+    if listed.get("sharedEntry") != "entry-123":
+        j.fail(f"the shared entry link did not reach the manifest: {listed.get('sharedEntry')}")
+    if j.workspace._repo().get_score(slugs[0]).get("sharedEntry") != "entry-123":
+        j.fail("the shared entry link is not on the score document")
+    if "versions" in j.workspace._repo().get_score(slugs[0]):
+        j.fail("linking a shared entry wrote the version list into the score document")
+
 
 # =============================================================================
 # 5. Titles, credits and renaming: one value, projected everywhere

@@ -241,11 +241,14 @@ targets:
         #          asked for as one build: "build all of these necessary
         #          features for sharing playlists into the first 7.0 build."
         #          §11.9 records the difference, including what was left out.
-        #   0.17.1 FIXES COLLECTED AFTER 0.17.0 (opened 2026-10-03). Scope
-        #          written as each fix is taken on, before its work; a patch
-        #          while it carries only fixes. Ali: "Get this into the build
-        #          after the one that's going through right now ... build the
-        #          backlog, resolve it, and save it for the next release."
+        #   0.18.0 SHARED SET LISTS KEEP IN STEP, AND FIXES COLLECTED AFTER
+        #          0.17.0 (opened 2026-10-03 as 0.17.1). Scope written as each
+        #          item is taken on, before its work. Opened as a patch; item
+        #          2 is a feature, so the build is 0.18.0 (a build carrying a
+        #          fix and a feature is a feature build). Ali: "Get this into
+        #          the build after the one that's going through right now ...
+        #          build the backlog, resolve it, and save it for the next
+        #          release."
         #
         #          In this build:
         #            1. The tray's tempo knob turns DOWN again. It sits on the
@@ -256,10 +259,35 @@ targets:
         #               or pointer. It now reads both axes -- up or right is
         #               faster, down or left slower -- and its drag start is
         #               gesture state, so a cancelled drag leaves nothing stale.
+        #            2. A shared set list keeps in step on every member's
+        #               device. Ali added a tune to "Echo and Bubba" on his
+        #               iPad and it never reached Echo: the row was filled
+        #               from the server once, at join, and adding to it from
+        #               the library pushed nothing. Now an arrangement added,
+        #               removed or moved on a shared row goes up, and what
+        #               other members did comes down -- on launch, on return
+        #               to the app, while the app is open, and from a Sync
+        #               button on the row, beside the share button, which
+        #               also shows whether the list is in step. An adopted
+        #               copy remembers which shared entry it is, in the
+        #               library, so a second device of the same account does
+        #               not import it twice.
         #          NOT in this build, and said before it starts:
         #            - no trackpad or mouse-wheel scrolling on the knob;
-        #            - NO OTHER CHANGE yet -- this list grows as fixes are
-        #              taken on, each written here first.
+        #            - a shared entry is still a COPY pinned at the version
+        #              it was added at: a later edit to the arrangement does
+        #              not reach the band (repinning is its own feature);
+        #            - two members moving the same tune at once: the later
+        #              move wins, as it does on the shared screen today;
+        #            - no sync while the app is closed (no push
+        #              notifications or background refresh);
+        #            - a shared row's title is one button (44pt) narrower,
+        #              for the Sync button;
+        #            - if two of one account's devices adopt the same new
+        #              entry before library sync tells either about the
+        #              other, the second copy leaves the row but stays in
+        #              that library;
+        #            - NO OTHER CHANGE. Closed 2026-10-03 for the gate.
         #   0.17.0 MEASURE NUMBERS, AND A LINE THAT ENDS WHERE YOU SAY
         #          (2026-10-03). Scope written before the work. Two features
         #          and one fix, so the minor bumps once. Ali, on Molly Ban:
@@ -1140,7 +1168,7 @@ targets:
         # has no Firebase configuration". deploy_testflight.sh now refuses such
         # an archive outright.
         CURRENT_PROJECT_VERSION: 206
-        MARKETING_VERSION: 0.17.1
+        MARKETING_VERSION: 0.18.0
         SWIFT_VERSION: 5.10
         SWIFT_OBJC_BRIDGING_HEADER: Scoranger/PythonBridge/PythonBridge.h
         # BeeWare's install_python copies lib-$ARCHS, which requires single-arch builds

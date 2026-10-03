@@ -219,6 +219,7 @@ do("reorder-setlist", setlist=setlist, order=[jig])
 do("rename-setlist", setlist=setlist, name="Saturday")
 do("bind-setlist-share", setlist=setlist, shareId="share-1", ownerUid="uid-1")
 do("share-payload", score=jig)
+do("link-shared-entry", score=jig, entry="entry-1")
 do("unassign-setlist", setlist=setlist, score=jig)
 do("delete-setlist", setlist=setlist)
 

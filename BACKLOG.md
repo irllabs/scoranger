@@ -1,10 +1,10 @@
 # Backlog
 
-## Next release (0.17.1) -- collecting, on fix/tempo-knob
+## Next release (0.18.0) -- collecting, on fix/tempo-knob
 
 Fixes found after 0.17.0 build 206, held for the next build (Ali,
-2026-10-03). Each is in ios/project.yml's 0.17.1 scope block as it is taken
-on.
+2026-10-03), and one feature, which makes the build 0.18.0. Each is in
+ios/project.yml's 0.18.0 scope block as it is taken on.
 
 - **DONE on the branch: the tempo knob would not turn down.** Ali's recording:
   up from 120 to 186, then stuck. Not stuck -- the knob sits on the screen's
@@ -17,6 +17,44 @@ on.
   dragging left -- and fails without the fix, which ignored sideways travel.
 - **Open: no trackpad or mouse-wheel scrolling on the tempo knob.** An iPad
   with a keyboard case scrolls with two fingers; that does nothing here.
+- **DONE on the branch: a shared set list keeps in step.** Ali added a tune
+  to "Echo and Bubba" on his iPad and it never reached Echo. The row was
+  filled from the server once, at join, and adding to it from the library
+  pushed nothing (the analysis under "Still open: a shared set list does not
+  auto-update", below, was right). Now `SetlistSync.plan` (pure, in
+  ScoreModel/) does a three-way merge of the row, the server's entries, and
+  the entries the row held when last in step on this device; and
+  `SharedSetlistSync` carries it out -- push on any change to a shared row
+  (seen as a manifest change, so every path counts), an entries listener per
+  shared set list, a sync on launch and on return to the app, and a Sync
+  button beside the share button that shows in step / syncing / failed.
+  An adopted copy records its entry on the arrangement (`link-shared-entry`),
+  so library sync carries the link to the account's other devices.
+  Proof: SetlistSyncTests (16), SharedSetlistSyncButton (UI, no Firebase),
+  check_workflows and check_library_sync (the link), and a two-simulator run
+  on the Firebase emulators with the real rules: Ali's add reached Echo's
+  row, Echo's removal reached Ali's, the server ended with one live entry and
+  one soft-removed, and the Sync button ran a sync. The first emulator run
+  found a real fault the unit tests could not: a listener snapshot taken
+  during a sync's own uploads was planned from, and the tune was pushed
+  twice. The listener is now only a trigger and every sync reads afresh.
+- **DONE on the branch (tests only): the unit suite played music through
+  the Mac's speakers.** PlayheadTickerTests and PlayheadDriftTests' real-time
+  test start the device output; the gate skips them, but a hand run of the
+  whole bundle does not, and `SCORANGER_SILENT_AUDIO` deliberately stops at
+  the UI tests. Both now turn their own output down: they count frames and
+  read clocks, never loudness. Every other playback unit test renders offline.
+- **Open, shared set list sync:**
+  - nothing syncs while the app is closed (no push notifications or
+    background refresh); a reader sees changes when they open the app;
+  - two of one account's devices can each adopt the same new entry before
+    library sync tells either about the other's copy. The row keeps one (the
+    plan drops the second from the row), but the second arrangement stays in
+    that library;
+  - a shared entry is a copy pinned at the version it was added at, so a
+    later edit to the arrangement does not reach the band (repinning);
+  - a shared row's title loses one more button's width (44pt) to the Sync
+    button.
 
 
 ## Measure numbers and pagination -- what 0.17.0 does NOT do
@@ -428,7 +466,8 @@ is the first, and the analysis is below it so nobody has to find it again.
 
 ### Still open: a shared set list does not auto-update (item 1)
 
-NOT BUILT in 0.8.2. What the code does today, read on 2026-09-14:
+BUILT in 0.18.0 (see "Next release (0.18.0)" at the top); kept for the
+analysis. NOT BUILT in 0.8.2. What the code does today, read on 2026-09-14:
 
 - A shared set list's local row is filled from Firestore ONCE, at join
   (`AppState.joinSharedSetlist`): claim, fetch the document, fetch the

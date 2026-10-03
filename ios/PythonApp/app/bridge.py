@@ -539,6 +539,10 @@ def _dispatch(op, a):
         # Promotion's last step: the set list now IS the shared document.
         return workspace.bind_setlist_share(a["setlist"], a["shareId"],
                                             a["ownerUid"])
+    if op == "link-shared-entry":
+        # An adopted copy remembers which shared entry it is, in the library,
+        # so a second device of the same account does not adopt it again.
+        return workspace.link_shared_entry(a["score"], a["entry"])
     if op == "rename-setlist":
         return workspace.rename_setlist(a["setlist"], a["name"])
     if op == "delete-setlist":

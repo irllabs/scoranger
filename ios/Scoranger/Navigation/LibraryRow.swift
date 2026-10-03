@@ -54,6 +54,11 @@ struct LRow: View {
     /// Whether this row is already shared -- the button says so rather than
     /// offering to share again as if nothing had happened.
     var isShared: Bool = false
+    /// Bring a shared set list into step with its members now (0.18.0). Nil
+    /// on every row that is not a shared set list.
+    var onSync: (() -> Void)?
+    /// How that row stands, drawn on the Sync button.
+    var syncStatus: SetlistSync.Status = .unknown
     /// Checked in Edit mode: a flat tint band [C4].
     var isSelected: Bool = false
     var menuIsOpen: Bool = false
@@ -118,7 +123,8 @@ struct LRow: View {
             .padding(.trailing, onMenu == nil
                      ? Theme.Metric.s20
                      : (onShare == nil ? Theme.Metric.rowMenuInset
-                                       : Theme.Metric.rowTwoControlInset))
+                        : onSync == nil ? Theme.Metric.rowTwoControlInset
+                                        : Theme.Metric.rowThreeControlInset))
             .padding(.vertical, Theme.Metric.s8)
             .frame(minHeight: 64)
             .background(isSelected ? Theme.Accent.clayTint : Color.clear)
@@ -126,6 +132,11 @@ struct LRow: View {
                          container: !actions.isEmpty, action: action, onLongPress: onLongPress)
         .overlay(alignment: .trailing) {
             HStack(spacing: 0) {
+                if let onSync {
+                    RowSyncButton(identifier: "row-sync-\(row.id)",
+                                  title: row.title, status: syncStatus,
+                                  action: onSync)
+                }
                 if let onShare {
                     RowShareButton(identifier: "row-share-\(row.id)",
                                    title: row.title,
@@ -245,5 +256,52 @@ struct RowShareButton: View {
         .accessibilityLabel(isShared ? "Sharing for \(title)" : "Share \(title)")
         .accessibilityAddTraits(.isButton)
         .accessibilityIdentifier(identifier)
+    }
+}
+
+/// A shared set list's Sync button, leading of its share button (0.18.0).
+///
+/// The symbol IS the state -- in step, syncing, or a sync that failed -- so a
+/// reader can see whether the list matches the band's without opening it,
+/// and tapping it pulls and pushes now. Ali, of Echo: "there should be a
+/// manual sync button so that Echo can pull it if he knows there should be
+/// in there."
+struct RowSyncButton: View {
+    let identifier: String
+    let title: String
+    let status: SetlistSync.Status
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: status.symbol)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(isTrouble ? Theme.Accent.clayStrong : Theme.Ink.ink3)
+                .symbolEffect(.pulse, isActive: status == .syncing)
+                .frame(width: Theme.Metric.hitTarget, height: Theme.Metric.hitTarget)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(status == .syncing)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(status.label(for: title))
+        .accessibilityValue(accessibilityValue)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier(identifier)
+    }
+
+    private var isTrouble: Bool {
+        if case .trouble = status { return true }
+        return false
+    }
+
+    /// For the UI test, which waits on the state rather than on a symbol.
+    private var accessibilityValue: String {
+        switch status {
+        case .inStep:   return "in step"
+        case .syncing:  return "syncing"
+        case .trouble:  return "trouble"
+        case .unknown:  return "not synced"
+        }
     }
 }

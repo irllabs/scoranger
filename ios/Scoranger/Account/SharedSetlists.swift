@@ -175,6 +175,7 @@ final class SharedSetlists: ObservableObject {
         setlistsListener?.remove(); setlistsListener = nil
         entriesListener?.remove(); entriesListener = nil
         inkListener?.remove(); inkListener = nil
+        stopWatchingEntries()
         watchingFor = nil
         openEntry = nil
         setlists = []
@@ -223,23 +224,88 @@ final class SharedSetlists: ObservableObject {
     /// Its entries, read once, in running order, without the removed ones.
     /// The same decode and the same sort as the listener in `open(_:)`.
     func fetchEntries(_ setlistId: String) async throws -> [Entry] {
+        try await fetchAllEntries(setlistId)
+            .filter { !$0.isRemoved }
+            .sorted { $0.order < $1.order }
+    }
+
+    /// Every entry, the removed ones included: to keep a row in step, a
+    /// removal is news (`SetlistSync`).
+    func fetchAllEntries(_ setlistId: String) async throws -> [Entry] {
         guard FirebaseApp.app() != nil else { throw Trouble.signedOut }
         let snapshot = try await db.collection("setlists").document(setlistId)
             .collection("entries").getDocuments()
-        return snapshot.documents.map { document in
-            let data = document.data()
-            return Entry(id: document.documentID,
-                         title: data["title"] as? String ?? "Untitled",
-                         composer: data["composer"] as? String,
-                         order: data["order"] as? String ?? "",
-                         scoreUid: data["scoreUid"] as? String ?? "",
-                         versionUid: data["versionUid"] as? String ?? "",
-                         storagePath: data["storagePath"] as? String,
-                         addedBy: data["addedBy"] as? String ?? "",
-                         removedAt: data["removedAt"] as? Timestamp)
+        return snapshot.documents.map(Self.entry)
+    }
+
+    nonisolated private static func entry(_ document: QueryDocumentSnapshot) -> Entry {
+        let data = document.data()
+        return Entry(id: document.documentID,
+                     title: data["title"] as? String ?? "Untitled",
+                     composer: data["composer"] as? String,
+                     order: data["order"] as? String ?? "",
+                     scoreUid: data["scoreUid"] as? String ?? "",
+                     versionUid: data["versionUid"] as? String ?? "",
+                     storagePath: data["storagePath"] as? String,
+                     addedBy: data["addedBy"] as? String ?? "",
+                     removedAt: data["removedAt"] as? Timestamp)
+    }
+
+    // MARK: - every shared row, kept in step
+
+    /// One entries listener per shared set list in the library, not only the
+    /// one open on the shared screen. A member's addition has to reach every
+    /// other member's row without anybody opening anything -- Ali added a
+    /// tune to "Echo and Bubba" and it never reached Echo.
+    ///
+    /// The same `setlists/{id}/entries` listen the shared screen opens, which
+    /// the deployed rules already allow a member: no new rule, no new query.
+    ///
+    /// It says only WHICH set list changed. The sync reads the entries afresh
+    /// rather than planning from the snapshot: on the emulators a snapshot
+    /// taken partway through a sync's own uploads was planned from after it,
+    /// and the half not yet in it was pushed a second time.
+    private var rowListeners: [String: ListenerRegistration] = [:]
+
+    func watchEntries(of setlistIds: Set<String>,
+                      onChange: @escaping @MainActor (String) -> Void) {
+        guard FirebaseApp.app() != nil, uid != nil else { return }
+        for (id, listener) in rowListeners where !setlistIds.contains(id) {
+            listener.remove()
+            rowListeners[id] = nil
         }
-        .filter { !$0.isRemoved }
-        .sorted { $0.order < $1.order }
+        for id in setlistIds where rowListeners[id] == nil {
+            rowListeners[id] = db.collection("setlists").document(id)
+                .collection("entries")
+                .addSnapshotListener { snapshot, error in
+                    // A listener refused (the reader left, or was removed) or
+                    // a write of this device's own not yet acknowledged: in
+                    // neither case is there anything new from the band.
+                    guard error == nil, let snapshot,
+                          !snapshot.metadata.hasPendingWrites else { return }
+                    Task { @MainActor in onChange(id) }
+                }
+        }
+    }
+
+    func stopWatchingEntries() {
+        rowListeners.values.forEach { $0.remove() }
+        rowListeners = [:]
+    }
+
+    /// Give an entry a new place in the running order.
+    func setOrder(_ key: String, entry entryId: String, in setlistId: String) async throws {
+        try await db.collection("setlists").document(setlistId)
+            .collection("entries").document(entryId)
+            .updateData(["order": key])
+    }
+
+    /// Soft-remove an entry by id: the same write as `remove(_:in:)`.
+    func withdraw(_ entryId: String, in setlistId: String) async throws {
+        guard let uid else { throw Trouble.signedOut }
+        try await db.collection("setlists").document(setlistId)
+            .collection("entries").document(entryId)
+            .updateData(["removedAt": FieldValue.serverTimestamp(), "removedBy": uid])
     }
 
     /// The setlist being read, watched as ITS OWN DOCUMENT.
@@ -321,18 +387,7 @@ final class SharedSetlists: ObservableObject {
                 guard let self else { return }
                 if let error { self.trouble = error.localizedDescription; return }
                 self.isStale = snapshot?.metadata.isFromCache ?? false
-                self.entries = (snapshot?.documents ?? []).map { document in
-                    let data = document.data()
-                    return Entry(id: document.documentID,
-                                 title: data["title"] as? String ?? "Untitled",
-                                 composer: data["composer"] as? String,
-                                 order: data["order"] as? String ?? "",
-                                 scoreUid: data["scoreUid"] as? String ?? "",
-                                 versionUid: data["versionUid"] as? String ?? "",
-                                 storagePath: data["storagePath"] as? String,
-                                 addedBy: data["addedBy"] as? String ?? "",
-                                 removedAt: data["removedAt"] as? Timestamp)
-                }
+                self.entries = (snapshot?.documents ?? []).map(Self.entry)
                 // The order is the KEY, sorted here. Sorting server-side would
                 // need an index and buy nothing at a dozen entries.
                 .filter { !$0.isRemoved }
@@ -466,20 +521,22 @@ final class SharedSetlists: ObservableObject {
     /// Promotion's form: the order key is computed for the whole list at once
     /// by `SharedOrder.spread`, so the entries keep the local order instead of
     /// each being appended relative to the last.
+    @discardableResult
     func addEntry(to setlistId: String, payload: [String: Any],
-                  orderKey: String) async throws {
+                  orderKey: String) async throws -> String {
         try await addEntry(to: setlistId, payload: payload,
                            explicitOrder: orderKey)
     }
 
+    @discardableResult
     func addEntry(to setlistId: String, payload: [String: Any],
-                  after previous: String?, before next: String?) async throws {
+                  after previous: String?, before next: String?) async throws -> String {
         try await addEntry(to: setlistId, payload: payload,
                            explicitOrder: SharedOrder.between(previous, next))
     }
 
     private func addEntry(to setlistId: String, payload: [String: Any],
-                          explicitOrder: String) async throws {
+                          explicitOrder: String) async throws -> String {
         guard let uid else { throw Trouble.signedOut }
         // The title is guarded with the other three, and that is the fix for a
         // real defect: it alone had a `?? "Untitled"` on it, so a payload that
@@ -524,6 +581,7 @@ final class SharedSetlists: ObservableObject {
             "addedBy": uid,
             "addedAt": FieldValue.serverTimestamp(),
         ])
+        return entry.documentID
     }
 
     /// Move one entry. A one-field write to one document, which is what lets

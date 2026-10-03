@@ -19,6 +19,11 @@ final class PlayheadTickerTests: XCTestCase {
         let timeline = try JSONDecoder().decode(PlaybackTimeline.self, from: json)
         let graph = PlaybackGraph()
         try graph.load(midi: midi, timeline: timeline)
+        // Real time, so it reaches the Mac's speakers through the simulator;
+        // what it measures is frames and clock positions, never loudness, so
+        // the output is turned down (Ali, 2026-10-03: "make sure you dont make
+        // sound out of my loudspeakers").
+        graph.engine.mainMixerNode.outputVolume = 0
         try graph.engine.start()
         let sequencer = try XCTUnwrap(graph.sequencer)
         sequencer.prepareToPlay()
