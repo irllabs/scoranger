@@ -1,8 +1,8 @@
 # App Store listing — Scoranger
 
-*Draft for App Store Connect. Every field below is one the submission asks for.
-Character limits are Apple's and are counted here. Nothing is published by this
-document.*
+*What App Store Connect holds for the first submission, entered through the API
+on 2026-10-04 (version 0.18.1). Every field below is one the submission asks
+for. Character limits are Apple's and are counted here.*
 
 ---
 
@@ -20,61 +20,50 @@ Alternatives, same limit:
 
 ## Promotional text (170 max, editable without review)
 
-`Bring in a score, say what you want, and it rewrites the notation. Now reads ABC tunes, carries ornaments through, and can combine pieces.` — 137
+`Bring in a score, say what you want, and it rewrites the notation. Share set lists with your band, and keep your library on every device you sign in on.` -- 150
 
 ## Description (4000 max)
 
 Scoranger rewrites musical scores for the instruments you actually have.
 
-Bring in a score and say what you want in plain words. "Keep the violins, turn
-the viola and cello into an accordion left hand, add chord symbols." It carries
-that out and hands you back real notation.
+Bring in a score and say what you want in plain words. "Keep the violins, turn the viola and cello into an accordion left hand, add chord symbols." It carries that out and hands you back real notation.
 
-The arranging is done by music software, not by a language model writing notes.
-The chat works out what you asked for and then calls the operations that do the
-work, so what comes back is correct notation rather than a guess at it. Nothing
-is overwritten: every change makes a new version, labelled with what made it,
-and you can go back to any of them.
+The arranging is done by music software, not by a language model writing notes. The chat works out what you asked for and then calls the operations that do the work, so what comes back is correct notation rather than a guess at it. Nothing is overwritten: every change makes a new version, labelled with what made it, and you can go back to any of them.
 
 WHAT IT DOES
 
 • Transpose by interval, or by scale degree so a harmony line stays in the key
-• Merge staves, split a part into bass and chords, fit a line to an instrument's
-  range and clef
-• Add and edit chord symbols, guitar tab, chord diagrams and penny-whistle
-  fingerings
+• Merge staves, split a part into bass and chords, fit a line to an instrument's range and clef
+• Add and edit chord symbols, guitar tab, chord diagrams and penny-whistle fingerings
 • Repeats, voltas, rehearsal marks, dynamics, ornaments and articulations
+• Lay out the page: bars per line, where a line ends, measure numbers, spacing
 • Play the arrangement back with a click, and read from it with a moving cursor
 • Mark up any page with the Apple Pencil
-• Export as MusicXML, MIDI or PDF, or hand a whole set list to someone as a file
+• Print, or export as MusicXML, MIDI or PDF
 
 WHAT IT READS
 
-MusicXML, MIDI and ABC come in as notation. ABC tunes from sites like
-thesession.org import as one arrangement per tune, ornaments included.
+MusicXML, MIDI and ABC come in as notation. ABC tunes from sites like thesession.org import as one arrangement per tune, ornaments included.
 
-A PDF or a photograph of a page can be read and marked up as it is, or converted
-into editable notation. Conversion is automatic reading of printed music: good
-on clean engraved pages, weaker on handwriting and faint photocopies. What you
-get is a draft to correct, which is why the original stays beside it.
+A PDF or a photograph of a page can be read and marked up as it is, or converted into editable notation. Conversion is automatic reading of printed music: good on clean engraved pages, weaker on handwriting and faint photocopies. What you get is a draft to correct, which is why the original stays beside it.
+
+A PDF tunebook can stay one book with its tunes listed, or be split into one arrangement per tune. Scoranger proposes where each tune starts and what it is called, and you confirm before anything is saved.
+
+SET LISTS, ALONE OR WITH YOUR BAND
+
+Put arrangements in running order and play through them. Share a set list with the people you play with: anyone in it can add and reorder tunes, and the list stays up to date for everyone.
 
 ON THE DEVICE
 
-The engine runs on your iPad. Importing, arranging, engraving, playback, pencil
-marks and export all work with no network at all. Two things need one: the chat,
-and converting a scan into notation.
+The engine runs on your device. Importing, arranging, engraving, playback, pencil marks and export all work with no network at all. Two things need one: the chat, and converting a scan into notation.
 
-The chat runs on your own OpenRouter account: make a key at openrouter.ai and
-paste it in Settings. You choose the model, and you pay OpenRouter directly for
-what you use.
+The chat runs on your own OpenRouter account: make a key at openrouter.ai and paste it in Settings. You choose the model, and you pay OpenRouter directly for what you use.
 
-No Scoranger account is required, ever. Your library is yours and stays on your
-iPad. Sign in only if you want to share a set list with the people you play with.
+No account is required. Sign in with Apple or Google only to keep your library on all your devices, or to share a set list.
 
 FOR WHOM
 
-Composers, arrangers and working musicians who have a score in one shape and
-need it in another.
+Composers, arrangers and working musicians who have a score in one shape and need it in another.
 
 ## Keywords (100 max, comma-separated, no spaces after commas)
 
@@ -105,12 +94,14 @@ no upload.
 
 ## Screenshots
 
-Only two sizes are gated; Apple derives the rest.
-- iPhone 6.5-inch — 1284 x 2778
-- iPad 13-inch — 2048 x 2732
+Uploaded 2026-10-04 through the API: five each at iPhone 6.5" (1284 x 2778,
+iPhone 14 Plus simulator) and iPad 13" (2064 x 2752, iPad Pro 13-inch M5),
+in this order: Amazing Grace with chords and guitar tab, Ode to Joy with
+whistle fingerings, playback, set lists (one shared), the library.
 
-Shoot from `design/shots-0.12.0/`: the library, a score being read, the chat
-mid-arrangement, the mixer, and a marked-up page.
+Taken by `ScorangerUITests/StoreShots` on `-seedStoreLibrary`, which is
+public-domain music only -- the test library is copyrighted and must never
+appear in a store picture. Retake with TEST_RUNNER_SCORANGER_SHOT_DIR set.
 
 ## App Review Information
 
