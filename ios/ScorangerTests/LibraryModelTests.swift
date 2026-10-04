@@ -32,7 +32,8 @@ final class LibraryModelTests: XCTestCase {
                     score("libertango-1", name: "Libertango", composer: "Piazzolla",
                           piece: "libertango"),
                     score("blue-bossa", name: "Blue Bossa", piece: "blue-bossa",
-                          versions: [version("v001", op: "import")]),
+                          versions: [version("v001", op: "import-pdf"),
+                                     version("v002", op: "omr")]),
                     score("loose-sketch", name: "Loose sketch", composer: "nobody"),
                  ],
                  pieces: [
@@ -93,12 +94,26 @@ final class LibraryModelTests: XCTestCase {
                       "a credited piece sorted below an un-credited one")
     }
 
-    /// A scan that has never been edited. One version, and that version is the
-    /// import -- which is exactly what a fresh scan looks like.
+    /// A scan transcribed in the app and not edited since: the page, then
+    /// the transcription as the current version.
     func testAFreshScanIsMarkedAsAnOMRDraft() {
         let rows = LibraryModel.pieceRows(manifest: manifest)
         let bossa = rows.first { $0.title == "Blue Bossa" }
         XCTAssertTrue(bossa?.chips.contains { $0.text == "OMR DRAFT" } ?? false)
+    }
+
+    /// A tune imported as notation (MusicXML, ABC, MIDI) was never a scan.
+    /// The App Store screenshots showed an ABC tune labelled OMR DRAFT.
+    func testANotationImportIsNotAnOMRDraft() {
+        var library = manifest
+        library.scores.append(score("molly-ban", name: "Molly Ban", piece: "molly-ban",
+                                    versions: [version("v001", op: "import")]))
+        library.pieces?.append(PieceDoc(slug: "molly-ban", name: "Molly Ban",
+                                        arrangements: ["molly-ban"]))
+        let rows = LibraryModel.pieceRows(manifest: library)
+        let molly = rows.first { $0.title == "Molly Ban" }
+        XCTAssertNotNil(molly)
+        XCTAssertFalse(molly?.chips.contains { $0.text == "OMR DRAFT" } ?? true)
     }
 
     func testAnEditedScoreIsNoLongerADraft() {

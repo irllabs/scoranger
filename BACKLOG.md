@@ -50,6 +50,21 @@ ios/project.yml's 0.18.0 scope block as it is taken on.
   ContinuousFollows (no play head handle; 108s alone). Both wait on the
   playback graph, which is the slowest thing to build when four simulators
   share the Mac. If either fails a second gate, give it the serial lane.
+- **0.18.1, found taking the App Store screenshots (2026-10-04):**
+  - FIXED: the iPhone tray pushed play/stop off the left edge of the screen
+    for a multi-part score, and while playing (PhoneTransport, phone lane).
+  - FIXED: "OMR DRAFT" was on every fresh notation import and on no real
+    scan transcription (LibraryModel.isOMRDraft).
+  - FIXED: 0.18.0's Sync button pushed a shared row's Play off the right
+    edge on an iPhone; on a phone Sync is in the row's ☰ (PhoneSharedRow).
+  - Open: chord diagrams for two chords close together overlap (Amazing
+    Grace bars 3-4 and 15-16 in the engine's PDF). The screenshots use chord
+    symbols and tab without diagrams.
+  - Open: the engine's PDF export (render.py, cairosvg) draws the tempo
+    mark's note as a box, "[] = 80". The app's own engraving draws it.
+  - Open: the transport and the page header read "bar 0" on a tune that
+    starts with a pickup, where reports say "pickup" (ops.bar_label).
+  - Open: an ABC tune's one part is named "Part 7" on its mixer knob.
 - **Open, shared set list sync:**
   - nothing syncs while the app is closed (no push notifications or
     background refresh); a reader sees changes when they open the app;

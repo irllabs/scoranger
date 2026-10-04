@@ -129,6 +129,7 @@ struct ScorangerApp: App {
                     await state.seedLibraryIfEmpty()
                     #if DEBUG
                     await state.bindEmulatorShareIfRequested()
+                    await state.seedStoreLibraryIfRequested()
                     #endif
                     // the imported library carries no metadata of its own
                     await state.applyBundledMetadataIfNeeded()

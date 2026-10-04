@@ -404,11 +404,17 @@ enum LibraryModel {
 
     // MARK: - Derived facts
 
-    /// An OMR draft: imported from a scan and never edited since. One version
-    /// whose op is the import, which is exactly what a fresh scan looks like.
+    /// An OMR draft: a scan's transcription, not edited since. In the app a
+    /// scan arrives as the page (`import-pdf`) and is transcribed into a NEW
+    /// version whose op is `omr` (bridge `add-version-from-file`), so the draft
+    /// is the arrangement whose CURRENT version is that transcription.
+    ///
+    /// It used to be "one version, op `import`", the shape of the desktop
+    /// route (Audiveris, then `scor import`). In the app that labelled every
+    /// MusicXML, ABC and MIDI import a scan, and never labelled a real one.
     static func isOMRDraft(_ score: ScoreDoc) -> Bool {
-        guard score.versions.count == 1, let only = score.versions.first else { return false }
-        return only.op == "import" || only.op == "omr"
+        let current = score.versions.first { $0.id == score.latest } ?? score.versions.last
+        return current?.op == "omr"
     }
 
     /// Whatever time the engine wrote, shortened for a row's trailing edge.

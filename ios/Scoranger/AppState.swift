@@ -1462,6 +1462,98 @@ final class AppState: ObservableObject {
     }
 
     #if DEBUG
+    /// The App Store screenshots' library, under `-seedStoreLibrary`.
+    ///
+    /// Public-domain music only: the test library (`-seedTestLibrary`) is two
+    /// copyrighted editions and must never appear in a store picture. Written
+    /// here as ABC for the reason `-seedInboxABC` gives -- music bundled in the
+    /// app's resources would trip check_no_bundled_scores. The tunes are
+    /// traditional (and one Beethoven), transcribed for this, and each was
+    /// engraved and looked at before it was used.
+    func seedStoreLibraryIfRequested() async {
+        guard ProcessInfo.processInfo.arguments.contains("-seedStoreLibrary"),
+              (manifest?.scores ?? []).isEmpty else { return }
+        let tunes: [(slug: String, abc: String)] = [
+            ("amazing-grace", """
+            X:1
+            T:Amazing Grace
+            C:Traditional
+            M:3/4
+            L:1/4
+            Q:1/4=80
+            K:G
+            D|"G"G2 B/G/|B2 A|"C"G2 E|"G"D2 D|G2 B/G/|B2 A/B/|"D"d3-|d2 B/d/|
+            "G"d2 B/d/|B2 A/G/|"C"E2 G/E/|"G"D2 D|G2 B/G/|"D"B2 A|"G"G3-|G2|]
+            """),
+            ("ode-to-joy", """
+            X:1
+            T:Ode to Joy
+            C:Ludwig van Beethoven
+            M:4/4
+            L:1/4
+            Q:1/4=108
+            K:D
+            f f g a|a g f e|d d e f|f3/2 e/ e2|
+            f f g a|a g f e|d d e f|e3/2 d/ d2|
+            e e f d|e f/g/ f d|e f/g/ f e|d e A2|
+            f f g a|a g f e|d d e f|e3/2 d/ d2|]
+            """),
+            ("drunken-sailor", """
+            X:1
+            T:Drunken Sailor
+            C:Traditional
+            M:4/4
+            L:1/8
+            Q:1/4=120
+            K:Ddor
+            "Dm"A2 AA A2 AA|A2 D2 F2 A2|"C"G2 GG G2 GG|G2 C2 E2 G2|
+            "Dm"A2 AA A2 AA|A2 B2 c2 d2|"C"c2 A2 G2 E2|"Dm"D4 D4|]
+            """),
+        ]
+        let folder = FileManager.default.temporaryDirectory.appending(path: "store-seed")
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        do {
+            var slugs: [String: String] = [:]
+            for tune in tunes {
+                let file = folder.appending(path: "\(tune.slug).abc")
+                try tune.abc.write(to: file, atomically: true, encoding: .utf8)
+                let made = try await local.call(op: "import", args: ["path": file.path])
+                slugs[tune.slug] = made["score"] as? String
+            }
+            if let grace = slugs["amazing-grace"] {
+                _ = try await local.call(op: "guitar-tab", args: ["score": grace, "part": "#0"])
+            }
+            if let ode = slugs["ode-to-joy"] {
+                _ = try await local.call(op: "whistle-fingerings", args: ["score": ode, "part": "#0"])
+            }
+            let session = try await local.call(op: "create-setlist", args: ["name": "Friday session"])
+            if let list = session["slug"] as? String {
+                for key in ["drunken-sailor", "amazing-grace", "ode-to-joy"] {
+                    if let slug = slugs[key] {
+                        _ = try await local.call(op: "assign-setlist", args: ["setlist": list, "score": slug])
+                    }
+                }
+            }
+            let band = try await local.call(op: "create-setlist", args: ["name": "Echo and Bubba"])
+            if let list = band["slug"] as? String {
+                _ = try await local.call(op: "bind-setlist-share",
+                                         args: ["setlist": list, "shareId": "store-share",
+                                                "ownerUid": "store-owner"])
+                for key in ["ode-to-joy", "drunken-sailor"] {
+                    if let slug = slugs[key] {
+                        _ = try await local.call(op: "assign-setlist", args: ["setlist": list, "score": slug])
+                    }
+                }
+            }
+            await refresh()
+            print("SCORANGER-SEED store library: \(slugs.count) tunes")
+        } catch {
+            print("SCORANGER-SEED store library failed: \(error.localizedDescription)")
+        }
+    }
+    #endif
+
+    #if DEBUG
     /// The two-simulator set list sync test, against the Firebase emulators.
     ///
     /// `-bindShare <id> <ownerUid> <count>` files the first `count` seeded

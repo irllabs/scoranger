@@ -241,6 +241,42 @@ targets:
         #          asked for as one build: "build all of these necessary
         #          features for sharing playlists into the first 7.0 build."
         #          §11.9 records the difference, including what was left out.
+        #   0.18.1 THE APP STORE SUBMISSION BUILD: THREE FIXES FOUND TAKING
+        #          THE STORE SCREENSHOTS (2026-10-04). Fixes only, so the
+        #          patch bumps. Written once both were found and before the gate,
+        #          and said so: the submission is the reason for the build,
+        #          and Echo, on a child account with no TestFlight, can only
+        #          get the shared set list fix from the App Store.
+        #
+        #          In this build:
+        #            1. On an iPhone the transport's play/stop button is on
+        #               screen. The tray's one line was wider than a phone
+        #               whenever a score had several parts (a knob each), or
+        #               while playing (a clock and a scrubber), and centred
+        #               it pushed play off the LEFT edge: on a 6.5" iPhone a
+        #               quartet could not be played, and a tune could be
+        #               started and not stopped. A line that does not fit now
+        #               scrolls sideways with play first, as it already did
+        #               at accessibility text sizes, and a phone leaves out
+        #               the clock and scrubber (its position bar is above).
+        #            2. "OMR DRAFT" marks a scan's transcription, not every
+        #               import. The rule was "one version, the import",
+        #               the desktop route's shape: in the app it labelled
+        #               every MusicXML, ABC and MIDI tune a scan and never
+        #               labelled a real one, which arrives as the page and
+        #               then an `omr` version.
+        #            3. On an iPhone a shared set list's row keeps its Play
+        #               button on screen: 0.18.0's Sync button was a fourth
+        #               control the row had no room for. On a phone Sync is
+        #               in the row's ☰ actions; on an iPad it stays beside
+        #               share, and is in the ☰ actions there too.
+        #          NOT in this build, and said before it starts:
+        #            - chord diagrams on two chords a bar or so apart overlap
+        #              (BACKLOG);
+        #            - the engine's PDF export draws the tempo mark's note
+        #              as a box; the app's own engraving is correct
+        #              (BACKLOG);
+        #            - NO OTHER CHANGE.
         #   0.18.0 SHARED SET LISTS KEEP IN STEP, AND FIXES COLLECTED AFTER
         #          0.17.0 (opened 2026-10-03 as 0.17.1). Scope written as each
         #          item is taken on, before its work. Opened as a patch; item
@@ -1168,7 +1204,7 @@ targets:
         # has no Firebase configuration". deploy_testflight.sh now refuses such
         # an archive outright.
         CURRENT_PROJECT_VERSION: 207
-        MARKETING_VERSION: 0.18.0
+        MARKETING_VERSION: 0.18.1
         SWIFT_VERSION: 5.10
         SWIFT_OBJC_BRIDGING_HEADER: Scoranger/PythonBridge/PythonBridge.h
         # BeeWare's install_python copies lib-$ARCHS, which requires single-arch builds

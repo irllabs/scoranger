@@ -17,6 +17,7 @@ import SwiftUI
 struct LibraryView: View {
     @EnvironmentObject var state: AppState
     @EnvironmentObject var setlistSync: SharedSetlistSync
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @Binding var segment: LibrarySegment
     @Binding var search: String
     @Binding var sort: LibrarySort
@@ -70,8 +71,10 @@ struct LibraryView: View {
     }
 
     /// A shared set list row's Sync button, and nothing on any other row.
+    /// Not on a phone: a fourth control there pushed the row's Play button
+    /// off the right edge (0.18.1), and the row's ☰ carries Sync instead.
     private func syncAction(_ row: LibraryRow) -> (() -> Void)? {
-        guard segment == .setlists, !editing,
+        guard segment == .setlists, !editing, sizeClass != .compact,
               let setlist = state.manifest?.setlists?.first(where: { $0.slug == row.id }),
               let shareId = setlist.shareId else { return nil }
         return { setlistSync.syncNow(shareId) }
@@ -794,6 +797,12 @@ struct LibraryView: View {
                                        title: sharedSetlistIds.contains(row.id) ? "Shared" : "Share") {
                 onShareSetlist(row.id)
             })
+            if let shareId = state.manifest?.setlists?
+                .first(where: { $0.slug == row.id })?.shareId {
+                items.append(RowActionItem(id: "row-sync-action-\(row.id)", title: "Sync") {
+                    setlistSync.syncNow(shareId)
+                })
+            }
             items.append(RowActionItem(id: "row-rename-\(row.id)", title: "Rename") {
                 renameDraft = row.title; renaming = row.id; openRow = nil
             })

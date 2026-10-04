@@ -37,6 +37,13 @@ struct Tray: View {
     var dimmed = false
 
     @Environment(\.dynamicTypeSize) private var typeSize
+    /// A phone has no room for the running clock and the scrubber beside the
+    /// knobs: with them the line outgrew the screen while playing, and being
+    /// centred it pushed play/stop off the LEFT edge -- found photographing
+    /// the App Store screenshots on a 6.5" iPhone, where Stop could not be
+    /// tapped. A phone's position bar sits above the tray already.
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    private var hasRoomForTheClock: Bool { sizeClass != .compact }
 
     var body: some View {
         Group {
@@ -48,7 +55,17 @@ struct Tray: View {
                     line.fixedSize(horizontal: true, vertical: false)
                 }
             } else {
-                line
+                // The same rule wherever the line is wider than the screen: a
+                // phone with a quartet open has a knob per part, and centred
+                // the line pushed play off the left edge before anything
+                // played (PhoneTransport). When it fits, it is drawn as it
+                // always was.
+                ViewThatFits(in: .horizontal) {
+                    line
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        line.fixedSize(horizontal: true, vertical: false)
+                    }
+                }
             }
         }
             .padding(.horizontal, Theme.Metric.s16)
@@ -97,7 +114,7 @@ struct Tray: View {
                 knobs.layoutPriority(2)
                 Theme.Rule(vertical: true).frame(height: 20)
                 position.fixedSize().layoutPriority(1)
-                if playback.isPlaying {
+                if playback.isPlaying && hasRoomForTheClock {
                     TrayScrubber(playback: playback)
                         .frame(minWidth: 60, maxWidth: 220)
                 } else {
@@ -203,7 +220,7 @@ struct Tray: View {
                     .monospacedDigit()
                     .frame(minWidth: 54, alignment: .leading)
                     .accessibilityIdentifier("transport-bar")
-                if playback.isPlaying {
+                if playback.isPlaying && hasRoomForTheClock {
                     Text("· \(clock(playback.beat)) / \(clock(playback.timeline.beats))")
                         .typeRole(.data).foregroundStyle(Theme.Ink.ink3).monospacedDigit()
                         .accessibilityIdentifier("mixer-elapsed")

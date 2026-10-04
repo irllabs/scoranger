@@ -91,6 +91,9 @@ SKIP=(
   # two sharps, a repeat, two endings. It asserts nothing, and a tune that
   # engraves as nonsense is a thing only eyes can catch.
   -skip-testing:ScorangerUITests/ABCShot
+  # StoreShots takes the App Store screenshots on the public-domain store
+  # library; run by hand at the two sizes App Store Connect requires.
+  -skip-testing:ScorangerUITests/StoreShots
   -skip-testing:ScorangerUITests/PerfSweep
   # TopBarShot photographs the bar before and after a change for a human to
   # compare, and one of its two shots wants an OMR service on 127.0.0.1 that a
@@ -332,6 +335,8 @@ done
 # the report for 0.8.2 -- the lane is five tests and runs after the pool, so
 # it is added wall clock rather than hidden inside it.
 PHONE_LANE=(
+  "ScorangerUITests/PhoneTransport/testStopIsOnScreenWhilePlaying()"
+  "ScorangerUITests/PhoneSharedRow/testASharedRowFitsAndSyncIsInItsActions()"
   "ScorangerUITests/PhoneSurfaces/testASetListOnAPhoneShowsTheSetList()"
   "ScorangerUITests/PhoneSurfaces/testTheFootStripCarriesTheSetListsTools()"
   "ScorangerUITests/PhoneSurfaces/testTheScoreBarsSecondRowCarriesLayoutPerformAndAdd()"
