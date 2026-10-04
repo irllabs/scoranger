@@ -241,6 +241,32 @@ targets:
         #          asked for as one build: "build all of these necessary
         #          features for sharing playlists into the first 7.0 build."
         #          §11.9 records the difference, including what was left out.
+        #   0.18.2 THE BACKLOG FROM THE STORE SCREENSHOTS (opened
+        #          2026-10-04). Scope written before the work. Fixes only,
+        #          so the patch bumps. Ali: "Get to work on the backlog items
+        #          now."
+        #
+        #          In this build:
+        #            1. Chord diagrams for chords close together no longer
+        #               overlap (Amazing Grace bars 3-4 and 15-16).
+        #            2. The engine's PDF export draws the tempo mark's note,
+        #               not a box ("[] = 80").
+        #            3. A tune that opens with a pickup reads "pickup", not
+        #               "bar 0", wherever the app names a bar to the reader:
+        #               the transport, the page header, the play head, "Back
+        #               to ...", and the selection and destination chips --
+        #               the word reports already use (ops.bar_label). Chat
+        #               context and op arguments keep the number.
+        #            4. An ABC tune's one part has a name a reader would give
+        #               it on its mixer knob, not "Part 7".
+        #            5. The tempo knob turns with a trackpad's two-finger
+        #               scroll and a mouse wheel.
+        #            6. Chat names the app's home as github.com/irllabs/
+        #               scoranger to OpenRouter (the repository moved from
+        #               batchku on 2026-10-04).
+        #          NOT in this build, and said before it starts:
+        #            - NO OTHER CHANGE; an item found not to be a fault is
+        #              taken out here, and said so.
         #   0.18.1 THE APP STORE SUBMISSION BUILD: THREE FIXES FOUND TAKING
         #          THE STORE SCREENSHOTS (2026-10-04). Fixes only, so the
         #          patch bumps. Written once both were found and before the gate,
@@ -1204,7 +1230,7 @@ targets:
         # has no Firebase configuration". deploy_testflight.sh now refuses such
         # an archive outright.
         CURRENT_PROJECT_VERSION: 208
-        MARKETING_VERSION: 0.18.1
+        MARKETING_VERSION: 0.18.2
         SWIFT_VERSION: 5.10
         SWIFT_OBJC_BRIDGING_HEADER: Scoranger/PythonBridge/PythonBridge.h
         # BeeWare's install_python copies lib-$ARCHS, which requires single-arch builds

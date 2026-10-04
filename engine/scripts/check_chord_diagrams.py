@@ -460,6 +460,62 @@ check("ChordDiagrams.swift reserves the same block",
       and f"static let frets = {render.DIAGRAM_FRETS}" in swift)
 
 # ---------------------------------------------------------------------------
+# 0.18.2: diagrams that would meet are drawn smaller. Verovio reserves a
+# diagram's height but no width, and @vgrp pins them all to one level, so two
+# chords a bar apart drew one grid over the other (Amazing Grace bars 3-4, in
+# the App Store screenshots).
+for name, value in [("clearanceGaps", render.DIAGRAM_CLEARANCE_GAPS),
+                    ("minFit", render.DIAGRAM_MIN_FIT)]:
+    check(f"ChordDiagrams.swift keeps {name} = {value:g}",
+          f"static let {name} = {value:g}" in swift)
+# The numbers ChordDiagramsTests.testFitMatchesRenderPy asserts on the Swift
+# side, so the two rules are held to one answer.
+FIT_CASES = [dict(x=0, top=100, pitch=100, scale=1),     # 600 wanted, 300 room
+             dict(x=300, top=100, pitch=100, scale=1),   # 600 wanted, 1000 room
+             dict(x=1300, top=100, pitch=100, scale=1),  # 600 wanted, 100 room: floor
+             dict(x=1400, top=100, pitch=100, scale=1),  # last on its line
+             dict(x=10, top=900, pitch=100, scale=1)]    # another line: unaffected
+check("render.diagram_fit gives the numbers the Swift test holds",
+      render.diagram_fit(FIT_CASES) == [0.5, 1.0, 0.5, 1.0, 1.0],
+      str(render.diagram_fit(FIT_CASES)))
+
+crowded = m21stream.Score()
+lead = m21stream.Part()
+lead.partName = "Guitar"
+for number, (first, second) in enumerate([("G", "C"), ("G", "D"), ("Em", "C")], start=1):
+    measure = m21stream.Measure(number=number)
+    if number == 1:
+        measure.append(m21meter.TimeSignature("3/4"))
+    measure.insert(0, m21harmony.ChordSymbol(first))
+    measure.insert(2, m21harmony.ChordSymbol(second))
+    measure.append(m21note.Note("G4", quarterLength=2))
+    measure.append(m21note.Note("A4", quarterLength=1))
+    lead.append(measure)
+crowded.append(lead)
+ops.chord_diagrams(crowded, lead, "EADGBE")
+crowded_xml = Path(_tempfile.mkdtemp(prefix="scoranger-crowded-")) / "crowded.musicxml"
+crowded.write("musicxml", fp=str(crowded_xml))
+_tk.loadFile(str(crowded_xml))
+_mei = render.mei_with_chord_diagrams(_tk.getMEI(), crowded_xml)
+if _mei is not None and _tk.loadData(_mei):
+    _svg = render._sanitize_svg(_tk.renderToSVG(1))
+    _blocks = render.chord_diagram_blocks(_svg)
+    _fits = render.diagram_fit(_blocks)
+    # (left, right edge as drawn, line, fit), left to right
+    spans = sorted((b["x"], b["x"] + b["pitch"] * b["scale"] * f
+                    * (render.DIAGRAM_STRINGS - 1), b["top"], f)
+                   for b, f in zip(_blocks, _fits))
+    # A grid reaching the next one on its line, unless it is already at the
+    # floor -- that much crowding overlaps by design rather than vanishing.
+    meets = [(a, b) for a, b in zip(spans, spans[1:])
+             if abs(a[2] - b[2]) < 1 and a[1] > b[0] and a[3] > render.DIAGRAM_MIN_FIT]
+    check("six chords two beats apart: diagrams are drawn smaller, not over each other",
+          len(_blocks) == 6 and any(f < 1 for f in _fits) and not meets,
+          f"blocks {len(_blocks)}, fits {_fits}, meeting {meets}")
+else:
+    check("the crowded chart engraves", False, "Verovio would not reload it")
+
+# ---------------------------------------------------------------------------
 # A SEVENTH thing: the op says so when there is nothing to draw on.
 #
 # Ali, 0.6.10: "the agent reports adding chord-diagram grids but none appear on

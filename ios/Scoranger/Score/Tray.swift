@@ -215,7 +215,7 @@ struct Tray: View {
                 Text("preparing…").typeRole(.meta).foregroundStyle(Theme.Ink.ink3)
                     .accessibilityIdentifier("transport-preparing")
             } else {
-                Text(playback.soundingBar.map { "bar \($0)" } ?? "bar —")
+                Text(playback.soundingBar.map(BarName.text) ?? "bar —")
                     .typeRole(.data).fontWeight(.semibold).foregroundStyle(Theme.Ink.ink)
                     .monospacedDigit()
                     .frame(minWidth: 54, alignment: .leading)
@@ -435,6 +435,8 @@ struct TrayTempoKnob: View {
     /// cancels -- which does not call `onEnded` -- cannot leave a stale start
     /// behind for the next one.
     @GestureState private var startBPM: Double?
+    /// The tempo a trackpad or mouse-wheel scroll began at (ScrollWheelCatcher).
+    @State private var scrollStartBPM: Double?
     @Environment(\.dynamicTypeSize) private var typeSize
 
     private static let range: ClosedRange<Double> = 30...480
@@ -465,6 +467,18 @@ struct TrayTempoKnob: View {
                                               Self.range.upperBound))
                     })
             .onTapGesture(count: 2) { playback.clearTempo() }
+            // A trackpad's two-finger scroll or a mouse wheel turns it the way
+            // a drag does: up or right faster (0.18.2).
+            .overlay {
+                ScrollWheelCatcher(
+                    onBegan: { scrollStartBPM = playback.tempoBPM },
+                    onChanged: { travel in
+                        let bpm = TempoDrag.bpm(start: scrollStartBPM ?? playback.tempoBPM,
+                                                translation: travel)
+                        playback.setTempo(min(max(bpm.rounded(), Self.range.lowerBound),
+                                              Self.range.upperBound))
+                    })
+            }
             HStack(spacing: 3) {
                 Text("tempo").typeRole(.knobLabel).foregroundStyle(Theme.Ink.ink2)
                 Text("\(Int(playback.tempoBPM.rounded()))").typeRole(.knobData)
@@ -525,6 +539,6 @@ struct TrayScrubber: View {
         .accessibilityElement()
         .accessibilityIdentifier("mixer-scrubber")
         .accessibilityLabel("Position")
-        .accessibilityValue(playback.soundingBar.map { "bar \($0)" } ?? "start")
+        .accessibilityValue(playback.soundingBar.map(BarName.text) ?? "start")
     }
 }

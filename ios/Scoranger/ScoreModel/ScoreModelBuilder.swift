@@ -179,8 +179,7 @@ struct ScoreSelection: Equatable {
         let unit = n == 1 ? "element" : "elements"
         let bars = self.bars
         guard let first = bars.first else { return "\(n) \(unit)" }
-        let where_ = bars.count == 1 ? "bar \(first)"
-                                     : "bars \(first)–\(bars[bars.count - 1])"
+        let where_ = BarName.range(first, bars[bars.count - 1])
         return "\(n) \(unit) from \(where_)"
     }
 

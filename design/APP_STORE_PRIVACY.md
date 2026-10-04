@@ -155,7 +155,7 @@ no setlists, and **no user identifier of any kind**: no uid, no email, no
 and the full header set.
 
 *Headers* (`LocalChat.swift:265-278`): `HTTP-Referer:
-https://github.com/batchku/scoranger`, `X-Title: Scoranger`, and the bearer
+https://github.com/irllabs/scoranger`, `X-Title: Scoranger`, and the bearer
 key. These identify the app, not the person.
 
 **From 0.15.0 the API key is the READER'S OWN** (Ali, 2026-09-23). `ChatKey`

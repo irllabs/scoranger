@@ -15,8 +15,10 @@ ios/project.yml's 0.18.0 scope block as it is taken on.
   Proof: TempoDragTests, and TempoKnobTurnsBothWays, which drags Ali's 470pt
   up, shows the downward drag still capped, and turns it down 43 bpm by
   dragging left -- and fails without the fix, which ignored sideways travel.
-- **Open: no trackpad or mouse-wheel scrolling on the tempo knob.** An iPad
-  with a keyboard case scrolls with two fingers; that does nothing here.
+- **0.18.2: trackpad and mouse-wheel scrolling on the tempo knob**
+  (ScrollWheelCatcher). UNVERIFIED on hardware: the simulator test tools cannot
+  produce a trackpad scroll. TempoKnobTurnsBothWays proves a finger still
+  turns it through the new layer. Ali to try it on an iPad with a trackpad.
 - **DONE on the branch: a shared set list keeps in step.** Ali added a tune
   to "Echo and Bubba" on his iPad and it never reached Echo. The row was
   filled from the server once, at join, and adding to it from the library
@@ -57,14 +59,19 @@ ios/project.yml's 0.18.0 scope block as it is taken on.
     scan transcription (LibraryModel.isOMRDraft).
   - FIXED: 0.18.0's Sync button pushed a shared row's Play off the right
     edge on an iPhone; on a phone Sync is in the row's ☰ (PhoneSharedRow).
-  - Open: chord diagrams for two chords close together overlap (Amazing
-    Grace bars 3-4 and 15-16 in the engine's PDF). The screenshots use chord
-    symbols and tab without diagrams.
-  - Open: the engine's PDF export (render.py, cairosvg) draws the tempo
-    mark's note as a box, "[] = 80". The app's own engraving draws it.
-  - Open: the transport and the page header read "bar 0" on a tune that
-    starts with a pickup, where reports say "pickup" (ops.bar_label).
-  - Open: an ABC tune's one part is named "Part 7" on its mixer knob.
+  - FIXED in 0.18.2: chord diagrams for two chords close together overlapped
+    (Amazing Grace bars 3-4 and 15-16). Each is drawn smaller to fit the room
+    before the next, never below half size (render.diagram_fit,
+    ChordDiagrams.fit). Below half size they still overlap, by design.
+  - FIXED in 0.18.2: the engine's PDF export drew the tempo mark's note as a
+    box; leading music glyphs are now drawn as Verovio's own outlines
+    (render._draw_leading_music_glyphs, check_render.py).
+  - FIXED in 0.18.2: a pickup read "bar 0" in the transport and page header;
+    every reader-facing bar label goes through BarName now.
+  - FIXED in 0.18.2: "Part 7" was the part's name "Part" beside its fader
+    level 7. An unnamed part is named at import: "Melody" alone, "Part N"
+    among several (ops.name_unnamed_parts). Arrangements already in a library
+    keep "Part".
 - **Open, shared set list sync:**
   - nothing syncs while the app is closed (no push notifications or
     background refresh); a reader sees changes when they open the app;

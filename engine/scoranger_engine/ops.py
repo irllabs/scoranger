@@ -75,6 +75,27 @@ def part_label(p) -> str:
     return p.partName or (p.id if isinstance(p.id, str) else "Part")
 
 
+def name_unnamed_parts(score) -> list[str]:
+    """Give a part that arrived with no name one a reader would use.
+
+    An ABC tune's melody, and any notation file whose parts carry no
+    <part-name>, came in named nothing and was shown as "Part" -- beside its
+    fader level on the mixer knob that read "Part 7". One part is the
+    "Melody"; several are "Part 1", "Part 2" by position. A grand staff's
+    staves are left alone: they are named through their group. Run once, at
+    import (workspace.create_score); a name already given is never touched.
+    """
+    from music21 import stream
+    parts = list(score.parts)
+    given = []
+    for index, part in enumerate(parts):
+        if (part.partName or "").strip() or isinstance(part, stream.PartStaff):
+            continue
+        part.partName = "Melody" if len(parts) == 1 else f"Part {index + 1}"
+        given.append(part.partName)
+    return given
+
+
 def list_part_labels(score) -> list[str]:
     return [part_label(p) for p in score.parts]
 

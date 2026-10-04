@@ -162,4 +162,19 @@ final class ChordDiagramsTests: XCTestCase {
         XCTAssertEqual(ChordDiagrams.draw(in: "<g class=\"dir\">rit.</g>"),
                        "<g class=\"dir\">rit.</g>")
     }
+
+    /// Diagrams that would meet are drawn smaller (0.18.2), by the rule
+    /// render.diagram_fit applies -- check_chord_diagrams.py asserts the same
+    /// five numbers on the Python side.
+    func testFitMatchesRenderPy() {
+        let fits = ChordDiagrams.fit([
+            (x: 0, top: 100, pitch: 100, scale: 1),     // 600 wanted, 300 room
+            (x: 300, top: 100, pitch: 100, scale: 1),   // 600 wanted, 1000 room
+            (x: 1300, top: 100, pitch: 100, scale: 1),  // 100 room: the floor
+            (x: 1400, top: 100, pitch: 100, scale: 1),  // last on its line
+            (x: 10, top: 900, pitch: 100, scale: 1),    // another line
+        ])
+        XCTAssertEqual(fits, [0.5, 1.0, 0.5, 1.0, 1.0])
+    }
+
 }

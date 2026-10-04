@@ -277,6 +277,70 @@ def _toolkit():
     return _tk
 
 
+# MUSIC GLYPHS AT THE START OF A TEXT, AS OUTLINES. A tempo mark is
+# `<text><tspan font-family="Leipzig">\uECA5</tspan> = 80</text>` -- the note is
+# a character in Verovio's music font, which cairosvg cannot load, so the PDF
+# drew a box where the note goes ("[] = 80", found taking the App Store
+# screenshots). Verovio ships every glyph's outline in data/Leipzig/<HEX>.xml
+# and its advance in data/Leipzig.xml (1000 units to the em), so the leading
+# glyphs are drawn as paths at the text's start and the words after them are
+# moved along by the glyphs' width: the spacing Verovio laid out is kept.
+# Only LEADING glyphs: one inside a run of words has no position of its own
+# to draw at. Chord-symbol accidentals are `_sanitize_svg`'s, which runs after.
+_TEXT_BLOCK_RE = re.compile(r'<text([^>]*[^/])>((?:(?!<text[^>]*>).)*?)</text>', re.S)
+_LEADING_GLYPHS_RE = re.compile(
+    r'^((?:\s|<tspan[^>]*>)*)<tspan font-family="Leipzig" font-size="([\d.]+)px">'
+    r'([^<]+)</tspan>')
+_glyph_cache: dict = {}
+
+
+def _leipzig_glyph(ch: str):
+    """(path d, advance in font units) for one Leipzig character, or None.
+    A space has an advance and no outline: d is "" and nothing is drawn."""
+    if ch in _glyph_cache:
+        return _glyph_cache[ch]
+    import verovio
+    data = Path(verovio.__file__).parent / "data"
+    code = f"{ord(ch):04X}"
+    outline = data / "Leipzig" / f"{code}.xml"
+    found = None
+    if outline.exists():
+        d = re.search(r' d="([^"]+)"', outline.read_text())
+        adv = re.search(rf'<g c="{code}"[^>]* h-a-x="([\d.]+)"',
+                        (data / "Leipzig.xml").read_text())
+        if adv:
+            found = (d.group(1) if d else "", float(adv.group(1)))
+    _glyph_cache[ch] = found
+    return found
+
+
+def _draw_leading_music_glyphs(svg: str) -> str:
+    def block(m):
+        attrs, body = m.group(1), m.group(2)
+        lead = _LEADING_GLYPHS_RE.match(body)
+        x = re.search(r'\bx="([-\d.]+)"', attrs)
+        y = re.search(r'\by="([-\d.]+)"', attrs)
+        if not (lead and x and y):
+            return m.group(0)
+        glyphs = [_leipzig_glyph(ch) for ch in lead.group(3)]
+        if any(g is None for g in glyphs):
+            return m.group(0)
+        size = float(lead.group(2))
+        scale = size / 1000.0
+        x0, y0 = float(x.group(1)), float(y.group(1))
+        paths, at = [], 0.0
+        for d, advance in glyphs:
+            if d:
+                paths.append(f'<path transform="translate({_svg_number(at)},0) scale(1,-1)" d="{d}"/>')
+            at += advance
+        drawn = (f'<g transform="translate({_svg_number(x0)},{_svg_number(y0)}) '
+                 f'scale({scale:g})">' + "".join(paths) + '</g>')
+        body = body[:lead.start(3)] + body[lead.end(3):]
+        attrs = attrs[:x.start(1)] + _svg_number(x0 + at * scale) + attrs[x.end(1):]
+        return f'<text{attrs}>{body}</text>{drawn}'
+    return _TEXT_BLOCK_RE.sub(block, svg)
+
+
 # Verovio text-font glyphs (U+EA6x) and plain unicode accidentals -> ASCII
 ACCIDENTAL_TEXT = {
     "": "b", "♭": "b",   # flat
@@ -1784,6 +1848,40 @@ def chord_diagram_blocks(svg: str) -> list[dict]:
     return blocks
 
 
+# DIAGRAMS THAT WOULD MEET ARE DRAWN SMALLER. Verovio reserves a diagram's
+# HEIGHT (the blank rows) but no width, and every diagram is pinned to one
+# level (@vgrp) so they do not climb the page -- so two chords a bar or less
+# apart drew one grid over the other (Amazing Grace, bars 3-4, found taking the
+# App Store screenshots). Each diagram on a line, left to right, is shrunk to
+# the room before the next one, a string gap of clearance included, and never
+# below DIAGRAM_MIN_FIT: smaller than half its size a grid cannot be read, and
+# chords that close together overlap at the floor rather than vanish.
+# Mirrored as ChordDiagrams.fit; check_chord_diagrams.py holds both.
+DIAGRAM_CLEARANCE_GAPS = 1.0
+DIAGRAM_MIN_FIT = 0.5
+
+
+def diagram_fit(blocks: list[dict]) -> list[float]:
+    """The factor each block is drawn at so it does not reach the next one.
+
+    `blocks` carry x, top, pitch and scale, in page order. Two blocks are on
+    one line when their tops are within a row pitch of each other.
+    """
+    fits = [1.0] * len(blocks)
+    for i, block in enumerate(blocks):
+        right = [b["x"] for j, b in enumerate(blocks)
+                 if j != i and b["x"] > block["x"]
+                 and abs(b["top"] - block["top"]) < min(b["pitch"], block["pitch"])]
+        if not right:
+            continue
+        room = min(right) - block["x"]
+        wants = (block["pitch"] * DIAGRAM_GAP_VS_ROW * block["scale"]
+                 * (DIAGRAM_STRINGS - 1 + DIAGRAM_CLEARANCE_GAPS))
+        if wants > room:
+            fits[i] = max(DIAGRAM_MIN_FIT, room / wants)
+    return fits
+
+
 def _chord_diagrams(svg: str) -> str:
     """Replace every reserved diagram block with the drawn diagram."""
     from . import ops
@@ -1791,13 +1889,14 @@ def _chord_diagrams(svg: str) -> str:
     blocks = chord_diagram_blocks(svg)
     if not blocks:
         return svg
+    fits = diagram_fit(blocks)
     out, cursor = [], 0
-    for block in blocks:
+    for block, fit in zip(blocks, fits):
         match = block["match"]
         out.append(svg[cursor:match.start()])
         shape = ops.parse_shape(block["shape"])
         drawn = chord_diagram_svg(shape, block["x"], block["top"],
-                                  block["pitch"], block["scale"],
+                                  block["pitch"], block["scale"] * fit,
                                   ops.parse_fingering(block["shape"])) if shape else ""
         out.append(f'<g class="dir chord-diagram">{drawn}</g>')
         cursor = match.end()
@@ -1911,7 +2010,8 @@ def render_pdf(musicxml_path, out_path, parts: list[str] | None = None,
         n_pages = tk.getPageCount()
         svgs = [_tab_staff(_chord_diagrams(_fingering_diagrams(
                     apply_lyric_sizes(apply_element_sizes(
-                        _style_chart_svg(_sanitize_svg(tk.renderToSVG(p)), harm_staves),
+                        _style_chart_svg(_sanitize_svg(_draw_leading_music_glyphs(
+                            tk.renderToSVG(p))), harm_staves),
                         src)))))
                 for p in range(1, n_pages + 1)]
     for svg in svgs:

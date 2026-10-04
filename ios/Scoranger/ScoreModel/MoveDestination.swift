@@ -105,8 +105,8 @@ struct MoveDestination: Equatable {
     /// `bar 12 · downbeat`, or `bar 12 · 1½ ♩ in`. Nil before a bar is tapped.
     var summary: String? {
         guard let bar else { return nil }
-        return offset == 0 ? "bar \(bar) \u{00B7} downbeat"
-                           : "bar \(bar) \u{00B7} \(Self.quarters(offset)) in"
+        return offset == 0 ? "\(BarName.text(bar)) \u{00B7} downbeat"
+                           : "\(BarName.text(bar)) \u{00B7} \(Self.quarters(offset)) in"
     }
 
     /// What the chip asks for while no bar has been tapped.
@@ -184,7 +184,7 @@ struct MoveDestination: Equatable {
         if !onsets.isEmpty {
             return "A \(noun) hangs off a note, and nothing starts "
                 + "\(offset == 0 ? "on the downbeat" : "at \(Self.quarters(offset))") "
-                + "of bar \(bar.map(String.init) ?? "that bar"). "
+                + "of \(bar.map(BarName.phrase) ?? "that bar"). "
                 + "Here is what that bar does start:"
         }
         if let barLength {

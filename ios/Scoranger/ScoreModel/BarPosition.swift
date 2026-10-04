@@ -46,7 +46,7 @@ enum BarPosition {
     /// What the top bar shows. Nil where nothing is known — the remote-engine
     /// path builds no geometry, and a wrong bar number is worse than none.
     static func label(for bar: Int?) -> String? {
-        bar.map { "bar \($0)" }
+        bar.map(BarName.text)
     }
 
     /// Whether the canvas puts a bar number in the corner at all.

@@ -1323,7 +1323,7 @@ final class PlayheadHandleView: UIView, UIGestureRecognizerDelegate {
     required init?(coder: NSCoder) { fatalError("PlayheadHandleView is not from a nib") }
 
     override var accessibilityValue: String? {
-        get { bar.map { "bar \($0)" } ?? "start" }
+        get { bar.map(BarName.text) ?? "start" }
         set { super.accessibilityValue = newValue }
     }
 

@@ -909,6 +909,8 @@ def create_score(name: str, m21_score, op: str = "import", args: dict | None = N
     # The first full bar is bar 1, whatever the reader of the file thought
     # (ops.number_bars_from_one: ABC numbers a tune with no pickup from 0).
     ops.number_bars_from_one(m21_score)
+    # A part with no name is named, or the mixer shows "Part" (ops.name_unnamed_parts).
+    ops.name_unnamed_parts(m21_score)
     meta = ops.score_metadata(m21_score)
     repo.set_score(slug, {
         "id": slug, "slug": slug, "uid": ids.new_id(), "name": name,

@@ -223,6 +223,12 @@ def main() -> int:  # noqa: C901 -- a checklist reads better whole
     check(getattr(sig, "mode", None) == "dorian",
           f"the MODE reaches the written file too, not just the sharp count: "
           f"{getattr(sig, 'mode', None)!r}")
+    # 0.18.2: an ABC melody carries no part name, and the mixer showed "Part"
+    # beside its fader level -- "Part 7" in the App Store screenshots.
+    check([p["name"] for p in info["parts"]] == ["Melody"],
+          f"the one unnamed part is named Melody: {[p['name'] for p in info['parts']]}")
+    check(score.parts[0].partName == "Melody",
+          f"...in the written file, so it travels: {score.parts[0].partName!r}")
 
     # ------------------------------------------ several tunes, two rules ---
     print("\nseveral tunes in one file, and the piece each one lands in")

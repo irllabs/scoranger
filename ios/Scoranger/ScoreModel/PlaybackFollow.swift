@@ -158,6 +158,6 @@ struct PageFollow: Equatable {
     /// What the chip says. The bar, because a reader navigates by bar and
     /// "Back to playback" tells them nothing about where they are going.
     static func syncLabel(bar: Int?) -> String {
-        bar.map { "Back to bar \($0)" } ?? "Back to playback"
+        bar.map { "Back to \(BarName.phrase($0))" } ?? "Back to playback"
     }
 }

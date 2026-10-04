@@ -358,19 +358,45 @@ enum ChordDiagrams {
         return out
     }
 
+    /// A string gap of room left before the next diagram, and the smallest
+    /// a diagram is drawn: render.py's DIAGRAM_CLEARANCE_GAPS and
+    /// DIAGRAM_MIN_FIT, which say why.
+    static let clearanceGaps = 1.0
+    static let minFit = 0.5
+
+    /// The factor each block is drawn at so it does not reach the next one on
+    /// its line (0.18.2): Verovio reserves a diagram's height but no width, so
+    /// two chords a bar apart drew one grid over the other. render.py's
+    /// `diagram_fit`, rule for rule; check_chord_diagrams.py holds both.
+    static func fit(_ blocks: [(x: Double, top: Double, pitch: Double, scale: Double)]) -> [Double] {
+        blocks.enumerated().map { i, block in
+            let right = blocks.enumerated().compactMap { j, other -> Double? in
+                j != i && other.x > block.x
+                    && abs(other.top - block.top) < min(other.pitch, block.pitch)
+                    ? other.x : nil
+            }
+            guard let next = right.min() else { return 1 }
+            let room = next - block.x
+            let wants = block.pitch * gapVsRow * block.scale
+                * (Double(strings - 1) + clearanceGaps)
+            return wants > room ? max(minFit, room / wants) : 1
+        }
+    }
+
     /// Replace every reserved diagram block with the drawn diagram.
     static func draw(in svg: String) -> String {
         let found = blocks(in: svg)
         guard !found.isEmpty else { return svg }
+        let fits = fit(found.map { ($0.x, $0.top, $0.pitch, $0.scale) })
         let ns = svg as NSString
         var out = ""
         var cursor = 0
-        for block in found {
+        for (block, fit) in zip(found, fits) {
             out += ns.substring(with: NSRange(location: cursor,
                                               length: block.range.location - cursor))
             out += "<g class=\"dir chord-diagram\">"
                 + diagramSVG(shape: block.shape, x: block.x, topY: block.top,
-                             rowPitch: block.pitch, scale: block.scale,
+                             rowPitch: block.pitch, scale: block.scale * fit,
                              fingers: block.fingers)
                 + "</g>"
             cursor = block.range.location + block.range.length

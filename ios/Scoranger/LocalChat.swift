@@ -273,7 +273,7 @@ struct LocalChat {
         request.httpMethod = "POST"
         request.timeoutInterval = 180
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("https://github.com/batchku/scoranger", forHTTPHeaderField: "HTTP-Referer")
+        request.setValue("https://github.com/irllabs/scoranger", forHTTPHeaderField: "HTTP-Referer")
         request.setValue("Scoranger", forHTTPHeaderField: "X-Title")
         var payload: [String: Any] = ["model": model, "messages": messages]
         if allowTools {

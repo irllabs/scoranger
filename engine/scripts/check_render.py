@@ -343,6 +343,24 @@ else:
             "glyph and the digits are engraved at different sizes and the "
             "export must keep them apart")
 
+# 0.18.2: the tempo mark's NOTE is a character in Verovio's music font, which
+# cairosvg cannot load, so the PDF drew a box -- "[] = 80". The export draws a
+# leading music glyph as its outline and moves the words along by its width.
+drawn = render._draw_leading_music_glyphs(marks_toolkit.renderToSVG(1))
+drawn_tempo = re.search(r'<g[^>]*class="tempo".*?</g>', drawn, re.S)
+if drawn_tempo is None:
+    FAILURES.append("no tempo mark after drawing its glyphs")
+else:
+    left = re.findall(r'<tspan font-family="Leipzig"[^>]*>([^<]+)</tspan>', drawn_tempo.group(0))
+    if left:
+        FAILURES.append(f"the tempo mark still hands cairosvg music-font characters "
+                        f"{[hex(ord(c)) for c in ''.join(left)]}: they print as boxes")
+    # "138", not "= ": Verovio sets the '=' between NO-BREAK spaces.
+    if "<path" not in drawn_tempo.group(0) or "138" not in drawn_tempo.group(0):
+        FAILURES.append("the tempo mark lost its note outline or its '= 138'")
+    else:
+        print("    ok   the tempo note is drawn as an outline, the words moved along")
+
 # -- a resized WORD reaches the exported page -------------------------------
 #
 # Measured in the PDF, not in the SVG, because the SVG pass and the export
