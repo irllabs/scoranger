@@ -1,5 +1,26 @@
 # Backlog
 
+## After the first App Store approval: a $4.99/month subscription (0.19.0)
+
+Ali, 2026-10-05: the first App Store release ships FREE so it is not held up,
+and "we add subscription after review" at $4.99 a month. The app has no
+StoreKit today, so this is a feature build, not a setting. To decide and do:
+
+- **What it unlocks.** Apple rejects a subscription without ongoing value
+  (guideline 3.1.2). The candidates are what costs a server: scanning a page
+  into notation (OMR, Cloud Run), and library sync plus shared set lists
+  (Firestore and Storage). Chat already bills the reader's own OpenRouter
+  account. Whether a free trial comes with it is Ali's.
+- **Ali's, in App Store Connect:** the Paid Applications agreement, banking
+  and tax; the subscription group and the $4.99 product.
+- **The build:** StoreKit 2 purchase and entitlement, a paywall at the gated
+  features, Restore Purchases, and links to the Terms of Use and privacy
+  policy in the app and the listing (required for subscriptions); the
+  privacy policy and App Privacy answers re-checked.
+- **Who already has it free.** Readers who installed the free release are
+  grandfathered or not -- Ali's call, and it shapes the entitlement check.
+- **Echo** is on a child account: every purchase goes through Ask to Buy.
+
 ## Next release (0.18.0) -- collecting, on fix/tempo-knob
 
 Fixes found after 0.17.0 build 206, held for the next build (Ali,
