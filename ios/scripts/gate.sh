@@ -244,7 +244,7 @@ ENGINE_SERIAL=(
   # loading ~70 frameworks is the live explanation, and it is a HOST effect,
   # not an app that blocks its main thread. Same evidence, same rule: if
   # these fail HERE, the diagnosis is wrong.
-  "ScorangerUITests/BookShareIn/testTakingTheTunesOutMakesAPieceForEach()"
+  "ScorangerUITests/BookShareIn/testExtractingTheTunesMakesAPieceForEach()"
   "ScorangerUITests/BookShareIn/testAScannedBooksTunesAreReadFromItsPages()"
   # The tray's knobs come from the playback timeline, which is another engine
   # call. Solo it passes in ~27s, twice out of twice; under four workers it
