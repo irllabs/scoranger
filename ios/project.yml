@@ -241,6 +241,48 @@ targets:
         #          asked for as one build: "build all of these necessary
         #          features for sharing playlists into the first 7.0 build."
         #          §11.9 records the difference, including what was left out.
+        #   0.19.0 BOOKS YOU CAN READ AND TAKE TUNES OUT OF; A CHAT BOX THAT
+        #          RESIZES SMOOTHLY; ABC THAT ALWAYS IMPORTS (2026-10-06).
+        #          Scope written before the work. Features and fixes in one
+        #          build, so the minor bumps once. Ali asked for all of these
+        #          "into a single build", sent to TestFlight. The $4.99/month
+        #          subscription moves to 0.20.0.
+        #
+        #          In this build:
+        #            1. The chat box resizes smoothly: its height follows the
+        #               finger and snaps to whole lines on release. It
+        #               juddered because the drag was measured in the grip's
+        #               own coordinates, which move as the box grows, and it
+        #               re-laid the field out on every line.
+        #            2. One redesigned divider between the conversation and
+        #               the message box, in place of the dashed line, handle
+        #               and solid line (design/BOOK_EXTRACT_0.19.md).
+        #            3. Reading a book: the page as large as the screen
+        #               allows, and the score view's three views -- one
+        #               page, two pages, and a strip of as many pages as fit
+        #               at full height -- scrolling to the rest. Everything
+        #               about taking tunes out leaves the reader.
+        #            4. Extract, from the reader's top right: (a) find the
+        #               tunes and tick the ones to take out, each a new piece
+        #               (or joining a piece of its name); (b) mark a page
+        #               range with Start and End on the scrollable pages;
+        #               (c) either goes to a new piece or into an existing
+        #               one. The review list loses Join previous, Split,
+        #               Remove and the evidence labels. Keep as contents
+        #               keeps a home.
+        #            5. Import lists ABC under Score.
+        #            6. ABC from thesession.org imports: a chord written with
+        #               an unclosed bracket ("[[Ee") no longer fails the
+        #               whole file, and the chord symbols an ABC tune
+        #               carries reach the page (verified, and fixed if not).
+        #          NOT in this build, and said before it starts:
+        #            - the subscription (0.20.0);
+        #            - two tunes on one page stay one arrangement when a
+        #              book is split;
+        #            - no undo for a many-tune extract (BACKLOG);
+        #            - on a phone, Extract is the pages above the panel on
+        #              one screen, not the spec's pushed pages (BACKLOG);
+        #            - NO OTHER CHANGE.
         #   0.18.2 THE BACKLOG FROM THE STORE SCREENSHOTS (opened
         #          2026-10-04). Scope written before the work. Fixes only,
         #          so the patch bumps. Ali: "Get to work on the backlog items
@@ -1230,7 +1272,7 @@ targets:
         # has no Firebase configuration". deploy_testflight.sh now refuses such
         # an archive outright.
         CURRENT_PROJECT_VERSION: 209
-        MARKETING_VERSION: 0.18.2
+        MARKETING_VERSION: 0.19.0
         SWIFT_VERSION: 5.10
         SWIFT_OBJC_BRIDGING_HEADER: Scoranger/PythonBridge/PythonBridge.h
         # BeeWare's install_python copies lib-$ARCHS, which requires single-arch builds

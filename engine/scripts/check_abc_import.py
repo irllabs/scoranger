@@ -170,6 +170,46 @@ K: Gmaj
 
 # Everything a real download throws at the reader at once, and a unicode title.
 # `~`, `!trill!` and `.` are here to be CARRIED and counted.
+# 0.19.0: thesession.org is typed by hand. One setting with an unclosed chord
+# bracket ("[Ee[[Ee]", "The Wind That Shakes The Barley") made music21 refuse
+# the whole 30-setting download. Synthetic tunes, same typos.
+TYPO_SET = """X: 1
+T: Bracket Typo
+M: 4/4
+L: 1/8
+K: Edor
+"Em"[E2e2] [Ee[[Ee] B2 AF|"D"D2 FA dAFA|"Em"[E2e2] B2 [G B] e2|"D"dBAF E4|]
+
+X: 2
+T: Bracket Typo
+M: 4/4
+L: 1/8
+K: Edor
+|:EB B2 EB B2|"D"dBAF DEFA:|
+
+X: 3
+T: Bracket Typo
+M: 3/4
+L: 1/8
+K: G
+|:([GB[[Bd]) ([Ac][ce])|d4 B2:|
+"""
+# a tune no repair can read, beside one that is fine
+ONE_UNREADABLE = """X: 1
+T: Fine Tune
+M: 4/4
+L: 1/8
+K: G
+GABc d2B2|c2A2 G4|]
+
+X: 2
+T: Hopeless Tune
+M: 4/4
+L: 1/8
+K: G
+GA [(Bc| d4 [ 2 e4|]
+"""
+
 FEATURES = """X: 1
 T: Sí Beag Féatúr
 C: Trad.
@@ -390,6 +430,39 @@ def main() -> int:  # noqa: C901 -- a checklist reads better whole
                   f"at Alternate rank, because this app does not own an "
                   f"extension it shares with Alembic: "
                   f"{types[0].get('LSHandlerRank')}")
+
+    # ------------------------------------------------ typos from the wild ---
+    print("\na setting with an unclosed chord bracket does not fail the file")
+    from scoranger_engine import enrich
+    fixed, n = enrich.repair_chords('[E2e2] [Ee[[Ee] [G B] "[x" [K:D] |[1 ab:|[2 ba|]')
+    check(fixed == '[E2e2] [Ee][Ee] [G B] "[x" [K:D] |[1 ab:|[2 ba|]' and n == 2,
+          f"the repair closes [Ee and drops the doubled [, and leaves a chord "
+          f"with a space, a quoted [, an inline field and endings alone: {fixed!r} ({n})")
+    out = scor(env, "import", str(write(root, "typo.abc", TYPO_SET)))
+    check(out["tunes_found"] == 3, f"all three settings import: {out.get('tunes_found')}")
+    check((out.get("abc") or {}).get("chords_repaired", 0) >= 3,
+          f"and the report says brackets were repaired: {out.get('abc')}")
+    check(not (out.get("abc") or {}).get("tunes_skipped"),
+          f"and none was skipped: {out.get('abc')}")
+    first = written(env, out["arrangements"][0]["score"], root / "typo1.musicxml")
+    from music21 import harmony as m21harmony
+    chords = [c.figure for c in first.recurse().getElementsByClass(m21harmony.ChordSymbol)]
+    check(chords == ["Em", "D", "Em", "D"],
+          f"the setting's chord symbols reach the written file: {chords}")
+
+    print("\na tune nothing can read is named, and the rest of the file imports")
+    out = scor(env, "import", str(write(root, "one-bad.abc", ONE_UNREADABLE)))
+    check(out["tunes_found"] == 1, f"the readable tune imports: {out.get('tunes_found')}")
+    skipped = (out.get("abc") or {}).get("tunes_skipped") or []
+    check([t["title"] for t in skipped] == ["Hopeless Tune"],
+          f"the unreadable one is named in the report: {skipped}")
+    message = refusal(env, "import", str(write(root, "all-bad.abc",
+                                               ONE_UNREADABLE.split("X: 2")[0].replace(
+                                                   "GABc d2B2|c2A2 G4|]",
+                                                   "GA [(Bc| d4 [ 2 e4|]"))))
+    check("could be read" in message and "Fine Tune" in message
+          and "ABCHandlerException" not in message,
+          f"a file where nothing reads says so in words: {message!r}")
 
     if FAILURES:
         print(f"\nFAIL: {len(FAILURES)} ABC import check(s) failed")

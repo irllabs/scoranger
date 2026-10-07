@@ -72,7 +72,7 @@ enum Pipeline {
     static let stages: [Stage] = [
         Stage(id: "sources",
               title: "What you bring in",
-              detail: "A MusicXML or MIDI file, a PDF, or a photograph of a page.",
+              detail: "A MusicXML, ABC or MIDI file, a PDF, or a photograph of a page.",
               locale: .yours),
         Stage(id: "omr",
               title: "Reading the page",
@@ -123,7 +123,7 @@ enum Pipeline {
 
     static let passages: [Passage] = [
         Passage(id: "in", title: "Getting a score in", body:
-            "A MusicXML or MIDI file is notation already, so it comes in as it is and "
+            "A MusicXML, ABC or MIDI file is notation already, so it comes in as it is and "
           + "nothing has to be guessed.\n\n"
           + "A PDF or a photograph is a picture of notation, which is a different "
           + "problem. It goes through optical music recognition: software looks at the "

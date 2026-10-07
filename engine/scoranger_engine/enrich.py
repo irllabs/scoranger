@@ -436,6 +436,82 @@ def restore(scores: list, marks: list[Decoration]) -> dict:
     return out
 
 
+#: `[K:G]`, `[M:6/8]`: an inline field, not a chord.
+_INLINE_FIELD = re.compile(r"\[[A-Za-z]:")
+
+
+def repair_chords(text: str) -> tuple[str, int]:
+    """Close chord brackets that were never closed, and drop doubled ones.
+
+    thesession.org is typed by hand, and some settings carry a chord whose
+    `]` was never written: "The Wind That Shakes The Barley" has `[Ee[[Ee]`,
+    "Jenny Lind" `([EG[[GB])`. music21 reads the first `[` to the next `]`,
+    finds a chord with another chord inside it, and refuses the WHOLE FILE --
+    "Bad chord indicator: [[Ee: no closing bracket found", which is what a
+    reader saw for a download of 38 settings with one typo in one of them.
+
+    The repair is the reading a musician gives the typo: an open chord ends
+    where the next one starts, or at the next space or bar line, and `[[` is
+    one bracket. Inline fields (`[K:G]`), endings (`[1`, `[2`) and `[|` are
+    not chords and pass through. Returns the text and how many brackets were
+    added or dropped, which the import report carries.
+    """
+    repaired = 0
+    out_lines = []
+    for line in text.splitlines(keepends=True):
+        if _FIELD_LINE.match(line) or line.lstrip().startswith("%"):
+            out_lines.append(line)
+            continue
+        body = line.rstrip("\r\n")
+        ending = line[len(body):]
+        out, i, open_chord = [], 0, False
+        while i < len(body):
+            c = body[i]
+            if c == '"':
+                close = body.find('"', i + 1)
+                close = len(body) - 1 if close < 0 else close
+                out.append(body[i:close + 1])
+                i = close + 1
+                continue
+            if c == "[":
+                rest = body[i:]
+                if (_INLINE_FIELD.match(rest) or rest[1:2].isdigit() or rest[1:2] in "|("
+                        or rest[1:3].strip().isdigit()):
+                    if open_chord:
+                        out.append("]"); repaired += 1; open_chord = False
+                    close = body.find("]", i)
+                    close = len(body) - 1 if close < 0 else close
+                    out.append(body[i:close + 1])
+                    i = close + 1
+                    continue
+                if open_chord:
+                    out.append("]"); repaired += 1; open_chord = False
+                if rest[1:2] == "[":
+                    repaired += 1          # `[[`: one bracket
+                    i += 1
+                    continue
+                open_chord = True
+                out.append(c)
+            elif c == "]":
+                open_chord = False
+                out.append(c)
+            elif open_chord and c == "|":
+                out.append("]"); repaired += 1; open_chord = False
+                out.append(c)
+            else:
+                out.append(c)
+            i += 1
+        if open_chord:
+            out.append("]"); repaired += 1
+        out_lines.append("".join(out) + ending)
+    return "".join(out_lines), repaired
+
+
+def _title(block: str) -> str:
+    found = re.search(r"^\s*T\s*:\s*(.+)$", block, re.M)
+    return found.group(1).strip() if found else "an untitled tune"
+
+
 def read_abc(path) -> tuple[list, dict]:
     """Every tune in an ABC file, with its decorations on it.
 
@@ -452,13 +528,65 @@ def read_abc(path) -> tuple[list, dict]:
     # Parsed from a temp copy under the SAME stem: music21 seeds the movement
     # title with the file name, and `cli.cmd_import` reads that title back out
     # as the arrangement's name when the tune does not name itself.
-    with tempfile.TemporaryDirectory(prefix="scoranger-abc-") as tmp:
-        copy = Path(tmp) / source.name
-        copy.write_text(stripped, encoding="utf-8")
-        parsed = converter.parse(str(copy), forceSource=True)
-    scores = list(parsed.scores) if isinstance(parsed, stream.Opus) else [parsed]
+    def parse(body: str):
+        with tempfile.TemporaryDirectory(prefix="scoranger-abc-") as tmp:
+            copy = Path(tmp) / source.name
+            copy.write_text(body, encoding="utf-8")
+            parsed = converter.parse(str(copy), forceSource=True)
+        return list(parsed.scores) if isinstance(parsed, stream.Opus) else [parsed]
 
-    report = restore(scores, marks)
+    skipped: list[dict] = []
+    chords_repaired = 0
+    try:
+        scores = parse(stripped)
+        report = restore(scores, marks)
+    except Exception:  # noqa: BLE001 -- music21 raises many kinds; each is a tune it cannot read
+        # ONE TUNE AT A TIME. music21 reads a file whole, so one setting it
+        # could not read took the other thirty-seven down with it ("Bad chord
+        # indicator: [[Ee"). Each `X:` block is read on its own; a block that
+        # fails is read again with its chord brackets repaired
+        # (`repair_chords`), and only then skipped -- NAMED in the report. A
+        # tune that reads is never repaired: the repair is for typos, and a
+        # rule applied to music that was fine is how a typo-fixer breaks it.
+        lines = text.splitlines(keepends=True)
+        bounds = _tunes(text)
+        preamble = "".join(lines[:bounds[0][0]]) if bounds and bounds[0][0] > 0 else ""
+        scores, carried, misplaced, reasons = [], 0, 0, []
+        for start, end in bounds:
+            block = preamble + "".join(lines[start:end])
+            parsed, block_marks = None, []
+            try:
+                body, block_marks, _ = scan(block)
+                parsed = parse(body)
+            except Exception as first:  # noqa: BLE001
+                fixed, n = repair_chords(block)
+                try:
+                    if not n:
+                        raise first
+                    body, block_marks, _ = scan(fixed)
+                    parsed = parse(body)
+                    chords_repaired += n
+                except Exception as exc:  # noqa: BLE001
+                    skipped.append({"title": _title(block), "reason": str(exc)})
+                    continue
+            for score in parsed:
+                one = _restore_one(score, block_marks)
+                carried += one["carried"]
+                misplaced += one["misplaced"]
+                if one["reason"]:
+                    reasons.append(f"{_title(block)}: {one['reason']}")
+            scores.extend(parsed)
+        if not scores:
+            names = ", ".join(t["title"] for t in skipped[:3])
+            raise ValueError(f"None of the tunes in this file could be read ({names}). "
+                             f"The ABC may be damaged; try another setting of the tune.")
+        report = {"carried": carried, "misplaced": misplaced}
+        if reasons:
+            report["reasons"] = reasons
     if unknown:
         report["unknown"] = sorted(set(unknown))
+    if chords_repaired:
+        report["chords_repaired"] = chords_repaired
+    if skipped:
+        report["tunes_skipped"] = skipped
     return scores, report

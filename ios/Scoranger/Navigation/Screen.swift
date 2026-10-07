@@ -49,7 +49,9 @@ struct Screen<Content: View, Trailing: View>: View {
                 HStack(spacing: 2) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 12, weight: .semibold))
-                    Text(backLabel).typeRole(.control)
+                    // One line: on a phone bar with three controls beside
+                    // it, "Library" wrapped to "Librar / y" (0.19.0).
+                    Text(backLabel).typeRole(.control).lineLimit(1).fixedSize()
                 }
                 .foregroundStyle(Theme.Accent.clayStrong)
                 .contentShape(Rectangle())

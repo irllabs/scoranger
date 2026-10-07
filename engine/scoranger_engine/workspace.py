@@ -446,6 +446,13 @@ def abc_report(path, scores: list) -> dict:
       `decorations_unknown`   `!...!` spellings there is no music21 object
                               for. Still dropped, now by name rather than as
                               a count.
+      `chords_repaired`       chord brackets `enrich.repair_chords` closed or
+                              dropped in tunes music21 refused as written
+                              (thesession's "[Ee[[Ee]"); only ever counted
+                              for a tune that would otherwise not import
+      `tunes_skipped`         tunes in the file that could not be read even
+                              repaired, each {title, reason}: the rest of the
+                              file imports, and these are NAMED (0.19.0)
       `tune_types`            `R:`, which names the tune type -- reel, jig,
                               hornpipe. It is not notation and has nowhere to
                               live in MusicXML, so it is REPORTED and not
@@ -463,6 +470,10 @@ def abc_report(path, scores: list) -> dict:
         out["abc_notes"] = report["reasons"]
     if report.get("unknown"):
         out["decorations_unknown"] = report["unknown"]
+    if report.get("chords_repaired"):
+        out["chords_repaired"] = report["chords_repaired"]
+    if report.get("tunes_skipped"):
+        out["tunes_skipped"] = report["tunes_skipped"]
 
     # `R:` is read off the TEXT: it never reaches a stream at all.
     try:

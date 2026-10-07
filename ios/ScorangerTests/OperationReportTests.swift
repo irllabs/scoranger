@@ -14,6 +14,16 @@ final class OperationReportTests: XCTestCase {
         XCTAssertEqual(OperationReport.reason(e), "no part named 'Vln III'")
     }
 
+    /// 0.19.0: "Couldn't import that file: ValueError: None of the tunes..."
+    /// -- the class name is for a log; a refusal is a sentence for a reader.
+    /// A crash keeps its class, because that is the news.
+    func testARefusalLosesItsClassNameAndACrashKeepsIt() {
+        XCTAssertEqual(OperationReport.reason(EngineError(error: "ValueError: None of the tunes could be read.")),
+                       "None of the tunes could be read.")
+        XCTAssertEqual(OperationReport.reason(EngineError(error: "KeyError: 'parts'")),
+                       "KeyError: 'parts'")
+    }
+
     func testOtherErrorsFallBackToTheirDescription() {
         struct Boom: LocalizedError { var errorDescription: String? { "the disk is full" } }
         XCTAssertEqual(OperationReport.reason(Boom()), "the disk is full")

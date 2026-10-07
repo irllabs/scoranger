@@ -1,6 +1,32 @@
 # Backlog
 
-## After the first App Store approval: a $4.99/month subscription (0.19.0)
+## 0.19.0: books, Extract, the chat box, ABC -- what it does not do
+
+Built to design/BOOK_EXTRACT_0.19.md, with these differences and gaps:
+
+- **iPhone Extract is one screen, not the spec's pushed pages.** The pages sit
+  above the panel (find tunes or choose pages) on one screen, rather than a
+  pushed "Tune pages" page and a Next step. Works; not the spec's shape.
+- **Pinch zoom in Continuous.** PDFKit allows it; the spec said none. Left on.
+- **No bulk undo.** "Extract 123 tunes" is one tap with the count on the
+  button and makes up to 123 pieces; undoing it is 123 deletes. The fix, if
+  wanted, is an engine undo for one book-split, not a confirm step.
+- **BookContents.mergeWithPrevious / split / remove lost their only callers**
+  (the old review list). Kept with their unit tests this build; remove both
+  together in a later one.
+- **Choosing pages always files under a piece.** The old empty "Piece
+  (optional)" path that left an extraction unfiled is gone, on purpose.
+- **ABC chords**: verified to arrive -- the engine reads every quoted chord
+  thesession.org writes (Drowsy Maggie: 27/27, 14/14, 25/25, 20/20) and they
+  reach the written MusicXML. Most settings carry none (10 of Drowsy
+  Maggie's 38), and #1 and #2 of a download are often among those, which is
+  how "no chords" was seen. A way to find the settings that have chords is
+  not built.
+- **ABC that cannot be read even repaired** (2 of the 49 bracket-broken
+  thesession settings: La Promeneuse, The Old Queen) is skipped and named;
+  the rest of its file imports.
+
+## After the first App Store approval: a $4.99/month subscription (0.20.0)
 
 Ali, 2026-10-05: the first App Store release ships FREE so it is not held up,
 and "we add subscription after review" at $4.99 a month. The app has no

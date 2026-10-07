@@ -1,22 +1,20 @@
 import PDFKit
 import SwiftUI
 
-/// A book, and the arrangements you take out of it.
+/// A book, read (design/BOOK_EXTRACT_0.19.md §B).
 ///
-/// You do not read a book here, but you do LOOK through it. A book is a
-/// reference — a fake book, a method book — and what makes it useful is
-/// pulling one tune out of it and filing that under its piece. The pages are
-/// copied, so the book is never cut up.
+/// The page as large as the screen allows, in the score's three views -- one
+/// page, two pages, a strip of pages at full height -- with the filmstrip as
+/// the one control for where you are. Everything about taking tunes out is on
+/// the Extract screen, at the bar's far right.
 ///
-/// The screen used to ask for a page range and show nothing at all, which in a
-/// four-hundred-page fake book means guessing: type 137, extract, open it,
-/// find it is "Moonglow", delete it, guess again. So the pages are here. You
-/// flip to the tune, press "Starts here", flip to its last page, press "Ends
-/// here", and the fields fill themselves in.
+/// It used to stack, under one 420pt page: a pager, a filmstrip, From here /
+/// To here, the found-tunes review with its steppers and row actions, and a
+/// take-out form. Ali: "not usable ... make the score larger so we can
+/// actually see it."
 ///
-/// The fields stay, and stay editable, because a reader who knows the page
-/// number should still be able to type it — and typing it now turns the book
-/// to that page. `BookPages` is the arithmetic that keeps the two in step.
+/// A book kept with a tune list is read a tune at a time from the Tunes
+/// panel, which is that list's one way in now that it is not on the page.
 struct BookScreen: View {
     @EnvironmentObject var state: AppState
     let slug: String
@@ -24,373 +22,196 @@ struct BookScreen: View {
     var onOpen: (String) -> Void
     /// Read one tune of the book's contents, by entry id (0.14.0).
     var onRead: (String) -> Void = { _ in }
+    /// Push the Extract screen (§C).
+    var onExtract: () -> Void = {}
 
-    @State private var fromPage = ""
-    @State private var toPage = ""
-    @State private var name = ""
-    @State private var piece = ""
-    @State private var busy = false
-    @State private var made: String?
-    /// What the last keep, take-out or discard did, said under the tunes.
-    @State private var tunesNote: String?
-
-    /// The book, opened. nil until it has loaded, and still nil when it cannot
-    /// be reached — which the screen says, rather than showing an empty frame.
+    @AppStorage("bookLayout") private var layoutRaw = ScoreLayout.page.rawValue
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var document: PDFDocument?
     @State private var loading = true
-    /// The page on screen, 1-based as printed.
-    @State private var showing = 1
+    @State private var showingTunes = false
 
-    private var book: BookDoc? {
-        (state.manifest?.books ?? []).first { $0.slug == slug }
+    private var isCompact: Bool { sizeClass == .compact }
+    private var book: BookDoc? { (state.manifest?.books ?? []).first { $0.slug == slug } }
+    private var contents: [BookEntry] { book?.contents ?? [] }
+
+    private var layout: Binding<ScoreLayout> {
+        Binding(get: {
+                    let chosen = ScoreLayout(rawValue: layoutRaw) ?? .page
+                    return ScoreLayout.available(isCompact: isCompact).contains(chosen) ? chosen : .page
+                },
+                set: { layoutRaw = $0.rawValue })
     }
 
-    private var pages: Int? {
-        document.map { $0.pageCount } ?? book?.pages
+    private var page: Binding<Int> {
+        Binding(get: { state.bookPage[slug] ?? 1 }, set: { state.bookPage[slug] = $0 })
     }
 
-    private var range: (from: Int, to: Int)? {
-        BookPages.range(from: fromPage, to: toPage, pages: pages)
-    }
-
-    private var canExtract: Bool {
-        range != nil && !name.trimmingCharacters(in: .whitespaces).isEmpty && !busy
+    /// The tune on the page, said under the title.
+    private var tuneLine: String? {
+        guard !isCompact,
+              let entry = contents.first(where: { ($0.from...$0.to).contains(page.wrappedValue) })
+        else { return nil }
+        return "\(entry.title) · \(BookReading.pages(entry))"
     }
 
     var body: some View {
-        Screen(title: book?.name ?? "Book",
-               backLabel: "Library",
-               subtitle: book?.pages.map { "\($0) pages" },
-               onBack: onBack) {
-            VStack(alignment: .leading, spacing: 0) {
-                browser
-                tunes
-                // The manual path stays beside the automatic one: a reader who
-                // knows the pages should not have to go through a proposal,
-                // and a book the detector cannot read is still usable.
-                PanelLabel(text: "Take out pages")
-                form
+        Screen(title: book?.name ?? "Book", backLabel: isCompact ? "Back" : "Library",
+               subtitle: tuneLine,
+               onBack: onBack, trailing: { bar }, content: {
+            HStack(spacing: 0) {
+                if !(isCompact && showingTunes) {
+                    reading
+                }
+                if showingTunes {
+                    if !isCompact { Theme.Rule(vertical: true) }
+                    tunesPanel
+                        .frame(width: isCompact ? nil : Theme.Metric.panelWidth)
+                        .frame(maxWidth: isCompact ? .infinity : nil)
+                }
             }
-            .padding(.bottom, Theme.Metric.s32)
-        }
+        }, scrolls: false)
         .task(id: slug) { await open() }
+        .onAppear { openTunesIfAsked() }
+        // Coming back from Extract does not always re-run onAppear: the
+        // reader never left the stack.
+        .onChange(of: state.bookTunesOpen) { _, _ in openTunesIfAsked() }
     }
 
-    // MARK: its tunes (0.14.0)
-
-    private var proposal: BookProposal? { state.bookProposals[slug] }
-    private var contents: [BookEntry] { book?.contents ?? [] }
+    // MARK: the bar
 
     @ViewBuilder
-    private var tunes: some View {
-        PanelLabel(text: proposal != nil ? "Tunes found" : "Tunes")
-        if let stage = state.findingTunes[slug] {
-            PanelNote(text: "Finding the tunes: \(stage)")
-                .padding(.horizontal, Theme.Metric.panelPadding)
-                .accessibilityIdentifier("book-finding")
-        } else if let proposal {
-            BookReview(slug: slug, bookName: book?.name ?? "The book",
-                       contents: BookContents(entries: proposal.entries,
-                                              pages: pages ?? proposal.pages),
-                       evidence: Self.found(proposal),
-                       onShow: { showing = $0 },
-                       onDone: { tunesNote = $0 })
-                // a new proposal is a new list, not an edit of the old one
-                .id(proposal.entries.map(\.id))
-        } else {
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(Array(contents.enumerated()), id: \.element.id) { index, entry in
-                    contentsRow(entry, at: index)
-                    Theme.Rule()
-                }
-                HStack(spacing: Theme.Metric.s8) {
-                    if contents.isEmpty {
-                        PanelButton(title: "Find the tunes", kind: .primary,
-                                    identifier: "book-find-tunes") { find() }
-                    } else {
-                        PanelButton(title: "Edit the list", identifier: "book-edit-contents") {
-                            state.bookProposals[slug] = BookProposal(
-                                entries: contents, unassigned: [], matter: [], needsOcr: [],
-                                bookmarks: 0, pages: pages ?? 0)
-                        }
-                        PanelButton(title: "Find the tunes again",
-                                    identifier: "book-find-tunes") { find() }
-                    }
-                    Spacer(minLength: 0)
-                }
-                .padding(Theme.Metric.panelPadding)
+    private var bar: some View {
+        HStack(spacing: Theme.Metric.s8) {
+            BookBarButton(glyph: "list.bullet", word: isCompact ? nil : "Tunes",
+                          label: "Tunes", identifier: "book-tunes", active: showingTunes) {
+                showingTunes.toggle()
             }
-        }
-        if let tunesNote {
-            PanelNote(text: tunesNote)
-                .padding(.horizontal, Theme.Metric.panelPadding)
-                .padding(.bottom, Theme.Metric.s12)
-                .accessibilityIdentifier("book-tunes-note")
+            BookLayoutControl(layout: layout, isCompact: isCompact, prefix: "book-layout")
+                .opacity(document == nil ? 0.45 : 1)
+                .disabled(document == nil)
+            BookBarButton(glyph: "doc.badge.plus", word: isCompact ? nil : "Extract",
+                          label: "Extract", identifier: "book-extract", action: onExtract)
         }
     }
 
-    /// One tune of the contents, read like a set list's arrangement.
-    private func contentsRow(_ entry: BookEntry, at index: Int) -> some View {
-        HStack(spacing: Theme.Metric.s12) {
+    // MARK: the pages
+
+    @ViewBuilder
+    private var reading: some View {
+        VStack(spacing: 0) {
+            if let document, document.pageCount > 0 {
+                BookPagesView(document: document, layout: layout.wrappedValue, page: page)
+                    .id(layout.wrappedValue)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("book-view")
+                    .accessibilityLabel(BookPages.label(page: page.wrappedValue,
+                                                        pages: document.pageCount))
+                BookFilmstrip(document: document, showing: page.wrappedValue,
+                              spread: layout.wrappedValue == .spread, compact: isCompact,
+                              onJump: { page.wrappedValue = $0 })
+            } else if loading {
+                VStack(spacing: Theme.Metric.s8) {
+                    ProgressView().tint(Theme.Accent.clay)
+                    Text("Opening the book…").typeRole(.body).foregroundStyle(Theme.Ink.ink2)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Theme.Surface.band)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("book-loading")
+            } else {
+                StateView(systemImage: "book.closed", title: "Can't open this book",
+                          message: "Its pages could not be read on this device.",
+                          identifier: "book-unopenable")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Theme.Surface.band)
+            }
+        }
+    }
+
+    // MARK: its tunes
+
+    private var tunesPanel: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: Theme.Metric.s8) {
+                Text("Tunes").typeRole(.titleS).foregroundStyle(Theme.Ink.ink)
+                if !contents.isEmpty {
+                    Text("\(contents.count)").typeRole(.data).foregroundStyle(Theme.Ink.ink3)
+                }
+                Spacer()
+                PanelButton(title: "Done", identifier: "book-tunes-done") { showingTunes = false }
+            }
+            .padding(.horizontal, Theme.Metric.panelSide)
+            .frame(height: Theme.Metric.scoreTopBar)
+            .overlay(alignment: .bottom) { Theme.Rule() }
+            if contents.isEmpty {
+                VStack(alignment: .leading, spacing: Theme.Metric.s12) {
+                    Text("This book has no tune list yet.").typeRole(.body)
+                        .foregroundStyle(Theme.Ink.ink2)
+                    PanelButton(title: "Find tunes", kind: .primary,
+                                identifier: "book-tunes-find", action: onExtract)
+                }
+                .padding(Theme.Metric.panelSide)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Spacer()
+            } else {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(Array(contents.enumerated()), id: \.element.id) { index, entry in
+                                tuneRow(entry, at: index)
+                                Theme.Rule()
+                            }
+                        }
+                    }
+                    .onAppear {
+                        if let here = contents.firstIndex(where: {
+                            ($0.from...$0.to).contains(page.wrappedValue) }) {
+                            proxy.scrollTo(contents[here].id, anchor: .center)
+                        }
+                    }
+                }
+            }
+        }
+        .background(Theme.Surface.panel)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("book-tunes-panel")
+    }
+
+    private func tuneRow(_ entry: BookEntry, at index: Int) -> some View {
+        let here = (entry.from...entry.to).contains(page.wrappedValue)
+        return HStack(spacing: Theme.Metric.s12) {
             Text("\(index + 1)").typeRole(.data).foregroundStyle(Theme.Ink.ink3)
                 .frame(width: 32, alignment: .trailing)
             VStack(alignment: .leading, spacing: 3) {
-                Text(entry.title).typeRole(.titleS).foregroundStyle(Theme.Ink.ink)
-                    .lineLimit(1)
-                Text(BookReading.pages(entry)).typeRole(.meta)
-                    .foregroundStyle(Theme.Ink.ink3)
+                Text(entry.title).typeRole(.titleS).foregroundStyle(Theme.Ink.ink).lineLimit(1)
+                Text(BookReading.pages(entry)).typeRole(.meta).foregroundStyle(Theme.Ink.ink3)
             }
             Spacer()
         }
-        .padding(.horizontal, Theme.Metric.panelPadding)
+        .padding(.horizontal, Theme.Metric.panelSide)
         .padding(.vertical, Theme.Metric.s8)
         .frame(minHeight: 56)
+        .background(here ? Theme.Accent.clayTint : Color.clear)
+        .id(entry.id)
         .rowTappable(label: entry.title, identifier: "book-tune-\(index + 1)") {
             onRead(entry.id)
         }
     }
 
-    private func find() {
-        tunesNote = nil
-        Task { await state.findTunes(in: slug) }
-    }
-
-    /// "124 tunes, from the book's bookmarks. Pages 2–5, 130–133 are contents
-    /// or an index. Pages 1, 134 belong to no tune." -- what the list rests
-    /// on, said before the reader is asked to trust it.
-    static func found(_ proposal: BookProposal) -> String {
-        let n = proposal.entries.count
-        guard n > 0 else {
-            return "No tunes were found. Take pages out by hand below."
-        }
-        let sources = Set(proposal.entries.compactMap(\.evidence))
-        let names: [(String, String)] = [("bookmark", "the book's bookmarks"),
-                                         ("heading", "the titles printed on its pages"),
-                                         ("ocr", "titles read from its scanned pages")]
-        let from = names.filter { sources.contains($0.0) }.map(\.1)
-        var text = "\(n) tune\(n == 1 ? "" : "s")"
-        if !from.isEmpty { text += ", from " + from.joined(separator: " and ") }
-        text += "."
-        if !proposal.matter.isEmpty {
-            let verb = proposal.matter.count == 1 ? "is" : "are"
-            text += " \(pageList(proposal.matter)) \(verb) contents or an index."
-        }
-        if !proposal.unassigned.isEmpty {
-            let verb = proposal.unassigned.count == 1 ? "belongs" : "belong"
-            text += " \(pageList(proposal.unassigned)) \(verb) to no tune."
-        }
-        return text + " Check them against the pages above."
-    }
-
-    /// [2, 3, 4, 5, 130] -> "Pages 2–5, 130"
-    static func pageList(_ pages: [Int]) -> String {
-        let sorted = pages.sorted()
-        var runs: [String] = []
-        var i = 0
-        while i < sorted.count {
-            var j = i
-            while j + 1 < sorted.count, sorted[j + 1] == sorted[j] + 1 { j += 1 }
-            runs.append(i == j ? "\(sorted[i])" : "\(sorted[i])–\(sorted[j])")
-            i = j + 1
-        }
-        return (pages.count == 1 ? "Page " : "Pages ") + runs.joined(separator: ", ")
-    }
-
-    // MARK: looking through it
-
-    @ViewBuilder
-    private var browser: some View {
-        VStack(alignment: .leading, spacing: Theme.Metric.s12) {
-            if let document, let pages, pages > 0 {
-                BookPageView(document: document, index: showing - 1)
-                    .frame(maxWidth: .infinity)
-                    .accessibilityIdentifier("book-page")
-                    .accessibilityLabel(BookPages.label(page: showing, pages: pages))
-                pager(pages)
-                BookThumbnails(document: document, showing: showing,
-                               chosen: { BookPages.isChosen($0, from: fromPage,
-                                                            to: toPage, pages: pages) },
-                               onJump: { showing = $0 })
-                markers(pages)
-            } else if loading {
-                PanelNote(text: "Opening the book…")
-                    .accessibilityIdentifier("book-loading")
-            } else {
-                // A book that will not open is not a reason to take the
-                // feature away: the fields below still work, and someone who
-                // knows the page numbers can still use them.
-                PanelNote(text: "This book's pages could not be opened here, so "
-                          + "the page numbers below have to be typed.")
-                    .accessibilityIdentifier("book-unopenable")
-            }
-        }
-        .padding(Theme.Metric.panelPadding)
-    }
-
-    private func pager(_ pages: Int) -> some View {
-        HStack(spacing: Theme.Metric.s8) {
-            step("chevron.left", label: "Previous page", id: "book-prev",
-                 enabled: showing > 1) { showing = BookPages.clamp(showing - 1, pages: pages) }
-            step("chevron.right", label: "Next page", id: "book-next",
-                 enabled: showing < pages) { showing = BookPages.clamp(showing + 1, pages: pages) }
-            Text(BookPages.label(page: showing, pages: pages))
-                .typeRole(.data)
-                .foregroundStyle(Theme.Ink.ink2)
-                .accessibilityIdentifier("book-page-label")
-            Spacer(minLength: 0)
-        }
-    }
-
-    /// The two presses that fill the fields in, and what they have chosen so
-    /// far said as a sentence — two numbers in two boxes do not read as a span.
-    private func markers(_ pages: Int) -> some View {
-        HStack(spacing: Theme.Metric.s8) {
-            PanelButton(title: "From here", kind: .normal) {
-                (fromPage, toPage) = BookPages.starting(at: showing, from: fromPage,
-                                                        to: toPage)
-            }
-            .accessibilityIdentifier("book-starts-here")
-            PanelButton(title: "To here", kind: .normal) {
-                (fromPage, toPage) = BookPages.ending(at: showing, from: fromPage,
-                                                      to: toPage)
-            }
-            .accessibilityIdentifier("book-ends-here")
-            if let range {
-                Text("Taking \(BookPages.summary(from: range.from, to: range.to))")
-                    .typeRole(.meta)
-                    .foregroundStyle(Theme.Ink.ink3)
-                    .accessibilityIdentifier("book-range-summary")
-            }
-            Spacer(minLength: 0)
-        }
-    }
-
-    private func step(_ glyph: String, label: String, id: String,
-                      enabled: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: glyph).font(.system(size: 13))
-                .foregroundStyle(enabled ? Theme.Ink.ink : Theme.Ink.ink3)
-                .frame(width: 32, height: 32)
-                .background(Theme.Surface.panel)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .disabled(!enabled)
-        .accessibilityIdentifier(id)
-        .accessibilityLabel(label)
-    }
-
-    // MARK: taking one out
-
-    private var form: some View {
-        VStack(alignment: .leading, spacing: Theme.Metric.s12) {
-            if let made {
-                PanelNote(text: made)
-            }
-            HStack(spacing: Theme.Metric.s12) {
-                PanelField(placeholder: "From page", text: $fromPage, isMono: true)
-                    .accessibilityIdentifier("book-from-page")
-                PanelField(placeholder: "To page", text: $toPage, isMono: true)
-                    .accessibilityIdentifier("book-to-page")
-            }
-            PanelField(placeholder: "Name", text: $name)
-                .accessibilityIdentifier("book-name")
-            PanelField(placeholder: "Piece (optional)", text: $piece)
-                .accessibilityIdentifier("book-piece")
-            PanelNote(text: "The pages are copied. \(book?.name ?? "The book") "
-                      + "stays as it is.")
-            PanelButton(title: busy ? "Taking it out…" : takeOutTitle,
-                        kind: .primary) {
-                extract()
-            }
-            .disabled(!canExtract)
-            .accessibilityIdentifier("book-extract")
-        }
-        .padding(Theme.Metric.panelPadding)
-        // A typed page turns the book to it. The field is still the field --
-        // this is the other half of "Starts here", not a replacement for it.
-        .onChange(of: fromPage) { _, typed in follow(typed) }
-        .onChange(of: toPage) { _, typed in follow(typed) }
-    }
-
-    /// "Take out pages 3–7" (§10), or the bare verb until the range is set.
-    private var takeOutTitle: String {
-        range.map { "Take out \(BookPages.summary(from: $0.from, to: $0.to))" } ?? "Take out pages"
-    }
-
-    private func follow(_ typed: String) {
-        guard let pages, let page = BookPages.page(inField: typed, pages: pages) else { return }
-        showing = page
+    private func openTunesIfAsked() {
+        guard state.bookTunesOpen == slug else { return }
+        state.bookTunesOpen = nil
+        showingTunes = true
     }
 
     private func open() async {
         loading = true
         document = await state.bookDocument(slug)
         loading = false
-        if let pages, pages > 0 { showing = BookPages.clamp(showing, pages: pages) }
-    }
-
-    private func extract() {
-        guard let range else { return }
-        let tune = name.trimmingCharacters(in: .whitespaces)
-        let filed = piece.trimmingCharacters(in: .whitespaces)
-        busy = true
-        Task {
-            let slugMade = await state.extractFromBook(slug, from: range.from,
-                                                       to: range.to, name: tune,
-                                                       piece: filed.isEmpty ? nil : filed)
-            busy = false
-            if slugMade != nil {
-                made = "Added “\(tune)” from pages \(range.from)–\(range.to)."
-                fromPage = ""; toPage = ""; name = ""; piece = ""
-            }
+        if let document, document.pageCount > 0 {
+            page.wrappedValue = BookPages.clamp(page.wrappedValue, pages: document.pageCount)
         }
-    }
-}
-
-/// One page of the book, big enough to read a tune's title off.
-///
-/// Rastered through `ThumbnailCache` like every other page picture in the app,
-/// and — since a fake book is four hundred pages of scan — rastered OFF the
-/// main thread. See `PageImage`.
-private struct BookPageView: View {
-    let document: PDFDocument
-    let index: Int
-
-    /// Tall enough to read a title and a first line at arm's length, short
-    /// enough that the fields below it are still on screen without scrolling.
-    private static let height: CGFloat = 420
-
-    var body: some View {
-        let size = drawnSize()
-        PageImage(document: document, index: index, drawn: size,
-                  // Twice the points drawn, because `PDFPage.thumbnail`
-                  // answers at scale 1 and this is a retina display.
-                  raster: CGSize(width: size.width * 2, height: size.height * 2),
-                  interpolation: .high) { phase in
-            PageThumb(width: size.width, height: size.height)
-                .overlay {
-                    if phase == .missing {
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.system(size: 15))
-                            .foregroundStyle(Theme.Status.warn)
-                    }
-                }
-                .accessibilityIdentifier(phase == .missing ? "book-page-failed"
-                                                           : "book-page-drawing")
-        }
-        .background(Theme.Surface.paper)
-        .frame(maxWidth: .infinity)
-    }
-
-    /// The page's own shape, at the height there is room for. A fake book is
-    /// not always portrait and a picture stretched to a fixed box is unreadable
-    /// where it is not.
-    private func drawnSize() -> CGSize {
-        let bounds = document.page(at: index)?.bounds(for: .mediaBox)
-            ?? CGRect(x: 0, y: 0, width: 8.5, height: 11)
-        let ratio = bounds.height > 0 ? bounds.width / bounds.height : 0.77
-        return CGSize(width: Self.height * ratio, height: Self.height)
     }
 }
 
@@ -458,117 +279,3 @@ struct PageImage<Placeholder: View>: View {
     }
 }
 
-/// The strip under the page: every page in the book, lazily.
-///
-/// Lazy, so a four-hundred-page book builds the dozen thumbnails on screen and
-/// not four hundred — the same rule the score's own strip learned. The pages
-/// inside the chosen range are marked, so a span reads as a span.
-private struct BookThumbnails: View {
-    let document: PDFDocument
-    let showing: Int
-    let chosen: (Int) -> Bool
-    var onJump: (Int) -> Void
-
-    // The filmstrip (design/DESIGN_SYSTEM.md §7.12, [C12]): every page at
-    // 20 × 27, 3 apart, across the whole width; the showing page ringed;
-    // page numbers at the ends; a 4pt scrub bar with a 16pt clay handle.
-    // Drag the bar to fly, tap a thumbnail to land.
-    private static let cell = CGSize(width: 20, height: 27)
-    private static let raster = CGSize(width: 40, height: 54)
-    private static let gap: CGFloat = 3
-    @State private var flying: Int?
-
-    var body: some View {
-        VStack(spacing: Theme.Metric.s6) {
-            ScrollViewReader { proxy in
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: Self.gap) {
-                        ForEach(0..<document.pageCount, id: \.self) { index in
-                            thumb(index)
-                        }
-                    }
-                    .padding(.vertical, Theme.Metric.s4)
-                }
-                .onChange(of: showing) { _, page in
-                    withAnimation { proxy.scrollTo(page - 1, anchor: .center) }
-                }
-            }
-            scrubBar
-        }
-        .background(Theme.Surface.panel)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("book-thumbnails")
-    }
-
-    private var scrubBar: some View {
-        GeometryReader { geo in
-            let pages = max(document.pageCount, 1)
-            let current = (flying ?? showing) - 1
-            let usable = max(geo.size.width - 16, 1)
-            let x = pages > 1 ? usable * CGFloat(current) / CGFloat(pages - 1) : 0
-            ZStack(alignment: .leading) {
-                Capsule().fill(Theme.Surface.well).frame(height: 4)
-                Circle().fill(Theme.Accent.clay).frame(width: 16, height: 16)
-                    .offset(x: x)
-            }
-            .frame(height: 24)
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        let fraction = min(max((value.location.x - 8) / usable, 0), 1)
-                        flying = Int((fraction * CGFloat(pages - 1)).rounded()) + 1
-                    }
-                    .onEnded { _ in
-                        if let flying { onJump(flying) }
-                        flying = nil
-                    })
-        }
-        .frame(height: 24)
-        .overlay(alignment: .leading) {
-            Text("1").typeRole(.dataS).foregroundStyle(Theme.Ink.ink3).offset(y: 16)
-        }
-        .overlay(alignment: .trailing) {
-            Text("\(document.pageCount)").typeRole(.dataS).foregroundStyle(Theme.Ink.ink3).offset(y: 16)
-        }
-        .padding(.bottom, Theme.Metric.s12)
-        .accessibilityElement()
-        .accessibilityIdentifier("book-scrub")
-        .accessibilityLabel("Page")
-        .accessibilityValue("\(showing) of \(document.pageCount)")
-        .accessibilityAdjustableAction { direction in
-            switch direction {
-            case .increment: onJump(min(showing + 1, document.pageCount))
-            case .decrement: onJump(max(showing - 1, 1))
-            @unknown default: break
-            }
-        }
-    }
-
-    private func thumb(_ index: Int) -> some View {
-        let page = index + 1
-        let isShowing = page == (flying ?? showing)
-        let inRange = chosen(page)
-        return Button { onJump(page) } label: {
-            PageImage(document: document, index: index, drawn: Self.cell,
-                      raster: Self.raster, interpolation: .medium) { _ in
-                PageThumb(width: Self.cell.width, height: Self.cell.height)
-            }
-            .frame(width: Self.cell.width, height: Self.cell.height)
-            .background(inRange ? Theme.Accent.clayTint : Theme.Surface.paper)
-            .clipShape(RoundedRectangle(cornerRadius: 2))
-            .overlay {
-                RoundedRectangle(cornerRadius: 2)
-                    .strokeBorder(isShowing ? Theme.Accent.clay
-                                  : (inRange ? Theme.Accent.clayBorder : Color.clear),
-                                  lineWidth: isShowing ? 1.5 : 1)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .id(index)
-        .accessibilityIdentifier("book-thumb-\(page)")
-        .accessibilityLabel("Page \(page)")
-        .accessibilityAddTraits(inRange ? [.isButton, .isSelected] : [.isButton])
-    }
-}

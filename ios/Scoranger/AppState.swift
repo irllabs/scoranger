@@ -2489,6 +2489,18 @@ final class AppState: ObservableObject {
     /// Where a book's tune-finding is, by slug, while it runs.
     @Published var findingTunes: [String: String] = [:]
 
+    /// Why the last tune-finding failed, by slug, for Extract to say in its own
+    /// panel (design/BOOK_EXTRACT_0.19.md §C) rather than in the notice bar.
+    @Published var findTunesFailure: [String: String] = [:]
+
+    /// The page each book is open at, 1-based, so the reader and Extract open
+    /// on the same page and Back returns to it. In memory, like a proposal.
+    @Published var bookPage: [String: Int] = [:]
+
+    /// A book whose reader should open with its Tunes panel showing -- set by
+    /// Extract's "Show the tune list" before it goes back.
+    @Published var bookTunesOpen: String?
+
     /// Propose a book's contents: bookmarks and text layer first, then Vision
     /// over the pages the engine says have neither, then the engine again
     /// with those lines. The judging is the engine's; this only reads pages.
@@ -2500,6 +2512,7 @@ final class AppState: ObservableObject {
             if let pending { updatePending(pending, stage: stage, fraction: nil) }
         }
         defer { findingTunes[slug] = nil }
+        findTunesFailure[slug] = nil
         do {
             say(BookImportStage.finding)
             var proposal = try await local.bookDetect(slug)
@@ -2513,8 +2526,12 @@ final class AppState: ObservableObject {
             bookProposals[slug] = proposal
             return proposal
         } catch {
-            notice = BookImportStage.detectionFailure(name: name,
-                                                      reason: OperationReport.reason(error))
+            let reason = OperationReport.reason(error)
+            findTunesFailure[slug] = reason
+            // During an import there is no Extract panel open to say it in.
+            if pending != nil {
+                notice = BookImportStage.detectionFailure(name: name, reason: reason)
+            }
             return nil
         }
     }
@@ -3197,8 +3214,10 @@ final class AppState: ObservableObject {
                     .appending(path: url.lastPathComponent)
                 try await IncomingCopy.make(url, at: tmp)
                 let name = url.deletingPathExtension().lastPathComponent
-                let slug = try await local.importScore(fileURL: tmp, name: name, piece: piece)
+                let (slug, said) = try await local.importScoreReporting(fileURL: tmp, name: name,
+                                                                        piece: piece)
                 try? FileManager.default.removeItem(at: tmp)
+                if let said { notice = said }
                 selectedSlug = slug
                 previewedSlug = slug
                 pinnedVersion = nil

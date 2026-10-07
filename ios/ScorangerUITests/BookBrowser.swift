@@ -4,7 +4,7 @@ import XCTest
 ///
 /// The browser shipped in 0.6.4 with NO test of any kind. This is that test:
 /// a 512-page book opens, the strip is there, it survives being flicked
-/// through, the pager moves and a typed page number turns the book to it.
+/// through, the scrub bar flies across it, and the three views keep the page.
 ///
 /// # What it is NOT
 ///
@@ -76,7 +76,7 @@ final class BookBrowser: XCTestCase {
 
         let strip = app.descendants(matching: .any)["book-thumbnails"].firstMatch
         XCTAssertTrue(strip.exists)
-        XCTAssertTrue(label().contains("of 512"),
+        XCTAssertTrue(label().hasSuffix("/ 512"),
                       "the seeded book is not 512 pages: \(label())")
 
         for _ in 0..<8 {
@@ -85,11 +85,11 @@ final class BookBrowser: XCTestCase {
 
         // The question: does anything still work? A generous deadline, because
         // this is a hang test and not a latency budget.
-        let next = app.buttons["book-next"].firstMatch
-        XCTAssertTrue(next.waitForExistence(timeout: 30),
-                      "the pager was gone after flicking the strip")
         let before = label()
-        next.tap()
+        // A tap in the strip's thumbnail row lands on whichever page is there;
+        // asking 512 lazy cells which one is hittable is not a question
+        // XCUITest can answer reliably.
+        strip.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25)).tap()
         let moved = NSPredicate(format: "label != %@", before)
         expectation(for: moved, evaluatedWith:
                         app.descendants(matching: .any)["book-page-label"].firstMatch)
@@ -99,26 +99,59 @@ final class BookBrowser: XCTestCase {
         }
     }
 
-    /// Typing a page number turns the book to it — a jump of four hundred
-    /// pages, which is what a reader looking for one tune does.
-    func testTypingAFarPageNumberTurnsTheBookToIt() {
+    /// The scrub bar flies the book four hundred pages in one drag -- what a
+    /// reader looking for one tune does (0.19.0: it replaced typing a page).
+    func testTheScrubBarFliesAcrossTheBook() {
         launch()
         guard openTheBook() else { return }
+        let scrub = app.descendants(matching: .any)["book-scrub"].firstMatch
+        XCTAssertTrue(scrub.waitForExistence(timeout: 30))
+        let from = scrub.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
+        from.press(forDuration: 0.2,
+                   thenDragTo: scrub.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.5)),
+                   withVelocity: .slow, thenHoldForDuration: 0.3)
+        sleep(1)
+        let seen = label()
+        let page = Int(label().split(separator: "/").first?
+            .trimmingCharacters(in: .whitespaces) ?? "") ?? 0
+        XCTAssertGreaterThan(page, 380, "the scrub bar did not fly the book: \(seen)")
+    }
 
-        let field = app.textFields["book-from-page"].firstMatch
-        guard field.waitForExistence(timeout: 30) else {
-            XCTFail("no from-page field")
-            return
+    /// The score's three views, on a book, and the reader keeps its page
+    /// through them. Extract and Tunes are on the bar (0.19.0).
+    func testTheThreeViewsAndTheBar() {
+        launch()
+        guard openTheBook() else { return }
+        for cell in ["book-layout-page", "book-layout-spread", "book-layout-continuous",
+                     "book-tunes", "book-extract"] {
+            XCTAssertTrue(app.buttons[cell].exists, "\(cell) is not on the book's bar")
         }
-        field.tap()
-        field.typeText("437")
-
-        let arrived = NSPredicate(format: "label CONTAINS %@", "Page 437")
-        expectation(for: arrived, evaluatedWith:
-                        app.descendants(matching: .any)["book-page-label"].firstMatch)
-        waitForExpectations(timeout: 60) { error in
-            XCTAssertNil(error, "typing a page did not turn the book to it "
-                         + "(label was \(self.label()))")
-        }
+        app.descendants(matching: .any)["book-thumb-5"].firstMatch.tap()
+        let five = NSPredicate(format: "label == %@", "5 / 512")
+        expectation(for: five, evaluatedWith: app.descendants(matching: .any)["book-page-label"].firstMatch)
+        waitForExpectations(timeout: 20)
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shot.name = "book-one-page"; shot.lifetime = .keepAlways; add(shot)
+        app.buttons["book-layout-spread"].tap()
+        let spread = NSPredicate(format: "label BEGINSWITH %@", "5–6")
+        expectation(for: spread, evaluatedWith: app.descendants(matching: .any)["book-page-label"].firstMatch)
+        waitForExpectations(timeout: 20)
+        XCTAssertTrue(app.buttons["book-layout-spread"].isSelected)
+        sleep(2)
+        let two = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        two.name = "book-two-pages"; two.lifetime = .keepAlways; add(two)
+        app.buttons["book-layout-continuous"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["book-view"].waitForExistence(timeout: 20))
+        sleep(2)
+        let strip = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        strip.name = "book-continuous"; strip.lifetime = .keepAlways; add(strip)
+        app.buttons["book-layout-page"].tap()
+        app.buttons["book-tunes"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["book-tunes-panel"].waitForExistence(timeout: 10))
+        let tunes = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        tunes.name = "book-tunes-panel"; tunes.lifetime = .keepAlways; add(tunes)
+        app.buttons["book-extract"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["extract-mode"].waitForExistence(timeout: 30),
+                      "Extract did not open")
     }
 }

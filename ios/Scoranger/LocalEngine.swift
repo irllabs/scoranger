@@ -44,11 +44,18 @@ struct LocalEngine {
     /// filing the new arrangement under a piece.
     @discardableResult
     func importScore(fileURL: URL, name: String?, piece: String? = nil) async throws -> String {
+        try await importScoreReporting(fileURL: fileURL, name: name, piece: piece).slug
+    }
+
+    /// The same import, and what the reader should be told about it: a file of
+    /// many tunes can import some and name the rest (`ImportReport`).
+    func importScoreReporting(fileURL: URL, name: String?, piece: String? = nil)
+        async throws -> (slug: String, notice: String?) {
         var args: [String: Any] = ["path": fileURL.path]
         if let name { args["name"] = name }
         if let piece { args["piece"] = piece }
         let r = try await result(op: "import", args: args)
-        return (r["score"] as? String) ?? ""
+        return ((r["score"] as? String) ?? "", ImportReport.notice(from: r))
     }
 
     /// Import a PDF as a scan arrangement: stored as it arrived, readable and

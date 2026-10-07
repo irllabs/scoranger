@@ -23,6 +23,15 @@ final class BookShareIn: XCTestCase {
         add(shot)
     }
 
+    private func importTheSampleBook(_ argument: String = "-shareInSampleBook") {
+        app = XCUIApplication()
+        app.launchArguments = ["-resetLibrary", argument]
+        app.launch()
+        let asBook = element("import-as-new-book")
+        XCTAssertTrue(asBook.waitForExistence(timeout: 120), "a shared file was not asked about")
+        asBook.tap()
+    }
+
     func testASharedBookIsAskedAboutFoundKeptAndRead() {
         app = XCUIApplication()
         app.launchArguments = ["-resetLibrary", "-shareInSampleBook"]
@@ -37,26 +46,28 @@ final class BookShareIn: XCTestCase {
         snap("import-as")
         asBook.tap()
 
-        // The book opens on its proposal: twelve titled pages, twelve tunes.
-        let review = element("book-review")
-        XCTAssertTrue(review.waitForExistence(timeout: 180),
-                      "the book did not open on its proposed tunes")
-        // Counted from the sentence above the list: the list is lazy, and a
-        // row below the fold does not exist to be found.
-        let found = element("book-review-found")
-        XCTAssertTrue(found.waitForExistence(timeout: 10))
-        XCTAssertTrue(found.label.hasPrefix("12 tunes, from the titles printed on its pages"),
-                      "twelve titled pages should propose twelve tunes: \(found.label)")
-        XCTAssertTrue(element("book-review-row-1").exists)
-        snap("book-review")
+        // 0.19.0: the book opens on Extract, its found tunes ticked: twelve
+        // titled pages, twelve tunes.
+        let list = element("extract-list")
+        XCTAssertTrue(list.waitForExistence(timeout: 180),
+                      "the book did not open on its found tunes")
+        XCTAssertTrue(app.staticTexts["12 tunes"].exists, "twelve titled pages should be twelve tunes")
+        XCTAssertEqual(element("extract-found").label, "From the titles on its pages")
+        XCTAssertTrue(element("extract-row-1").exists)
+        XCTAssertEqual(element("extract-auto").label, "Extract 12 tunes")
+        snap("extract-list")
 
-        // Kept as the book's contents: the book stays one book.
-        element("book-review-keep").tap()
+        // Saved as the book's tune list: the book stays one book.
+        element("extract-keep").tap()
+        let show = element("extract-show-tunes")
+        XCTAssertTrue(show.waitForExistence(timeout: 60), "saving the list said nothing")
+        show.tap()
+        // ... and read from the reader's Tunes panel, the list's way in.
         let first = element("book-tune-1")
         XCTAssertTrue(first.waitForExistence(timeout: 60),
-                      "the kept contents were not listed")
+                      "the saved tune list was not in the Tunes panel")
         XCTAssertTrue(element("book-tune-12").exists)
-        snap("book-contents")
+        snap("book-tunes")
 
         // Read like a set list: a tune, then the next one.
         first.tap()
@@ -75,39 +86,66 @@ final class BookShareIn: XCTestCase {
     /// A scanned book has no text layer, so its titles are read on the device
     /// with Vision and judged by the engine's scan rule (BookOCR, booksplit).
     func testAScannedBooksTunesAreReadFromItsPages() {
-        app = XCUIApplication()
-        app.launchArguments = ["-resetLibrary", "-shareInScannedBook"]
-        app.launch()
-        let asBook = element("import-as-new-book")
-        XCTAssertTrue(asBook.waitForExistence(timeout: 120))
-        asBook.tap()
-        let found = element("book-review-found")
+        importTheSampleBook("-shareInScannedBook")
+        let found = element("extract-found")
         XCTAssertTrue(found.waitForExistence(timeout: 240),
-                      "the scanned book did not open on its proposed tunes")
-        XCTAssertTrue(found.label.hasPrefix("6 tunes, from titles read from its scanned pages"),
-                      "six scanned pages, each titled, should propose six tunes: \(found.label)")
-        snap("scanned-book-review")
+                      "the scanned book did not open on its found tunes")
+        XCTAssertEqual(found.label, "Read from its scanned pages")
+        XCTAssertTrue(app.staticTexts["6 tunes"].exists,
+                      "six scanned pages, each titled, should be six tunes")
+        snap("scanned-book-extract")
     }
 
-    /// Taking the tunes out asks once more, then says what it made.
-    func testTakingTheTunesOutMakesAPieceForEach() {
-        app = XCUIApplication()
-        app.launchArguments = ["-resetLibrary", "-shareInSampleBook"]
-        app.launch()
-        let asBook = element("import-as-new-book")
-        XCTAssertTrue(asBook.waitForExistence(timeout: 120))
-        asBook.tap()
-        let takeOut = element("book-review-take-out")
-        XCTAssertTrue(takeOut.waitForExistence(timeout: 180))
-        takeOut.tap()
-        let confirm = element("book-review-take-out-confirm")
-        XCTAssertTrue(confirm.waitForExistence(timeout: 5), "taking out did not ask first")
-        XCTAssertEqual(confirm.label, "Take out 12 tunes")
-        confirm.tap()
-        let note = element("book-tunes-note")
-        XCTAssertTrue(note.waitForExistence(timeout: 180), "taking out said nothing")
-        XCTAssertTrue(note.label.hasPrefix("Took out 12 tunes: 12 new pieces"), note.label)
-        snap("book-taken-out")
+    /// One press, no confirm: the count is on the button (0.19.0).
+    func testExtractingTheTunesMakesAPieceForEach() {
+        importTheSampleBook()
+        let extract = element("extract-auto")
+        XCTAssertTrue(extract.waitForExistence(timeout: 180))
+        extract.tap()
+        let result = element("extract-result")
+        XCTAssertTrue(result.waitForExistence(timeout: 180), "extracting said nothing")
+        XCTAssertTrue(app.staticTexts["Extracted 12 tunes"].exists)
+        XCTAssertTrue(app.staticTexts["12 new pieces."].exists)
+        XCTAssertTrue(element("extract-result-row-1").exists, "what was made is not listed to open")
+        snap("extract-result")
+    }
+
+    /// What is extracted is what is ticked: no Remove, no Join, no Split.
+    func testOnlyTheTickedTunesAreExtracted() {
+        importTheSampleBook()
+        let check = element("extract-check-2")
+        XCTAssertTrue(check.waitForExistence(timeout: 180))
+        XCTAssertFalse(element("book-review-remove-1").exists)
+        check.tap()
+        XCTAssertEqual(element("extract-auto").label, "Extract 11 tunes")
+        element("extract-select-all").tap()          // "Select all" brings it back
+        XCTAssertEqual(element("extract-auto").label, "Extract 12 tunes")
+        element("extract-select-all").tap()          // "Select none"
+        XCTAssertFalse(element("extract-auto").isEnabled, "nothing ticked, nothing to extract")
+        snap("extract-none-ticked")
+    }
+
+    /// Choose pages: Start on the current page, End on another, a name, and
+    /// it goes to a new piece.
+    func testAPageRangeIsMarkedWithStartAndEnd() {
+        importTheSampleBook()
+        XCTAssertTrue(element("extract-list").waitForExistence(timeout: 180))
+        element("extract-mode-range").tap()
+        let start = element("extract-range-start")
+        XCTAssertTrue(start.waitForExistence(timeout: 10))
+        start.tap()
+        // a tune starts on page 1, so Start names it
+        let name = app.textFields["extract-name"].firstMatch
+        XCTAssertFalse((name.value as? String ?? "").isEmpty, "Start did not name the tune")
+        element("book-thumb-3").tap()
+        element("extract-range-end").tap()
+        XCTAssertEqual(element("extract-range-summary").label, "Pages 1–3")
+        XCTAssertEqual(element("extract-range").label, "Extract pages 1–3")
+        snap("extract-range")
+        element("extract-range").tap()
+        XCTAssertTrue(element("extract-made").waitForExistence(timeout: 120),
+                      "extracting a range said nothing")
+        XCTAssertTrue(element("extract-open").exists)
     }
 
     /// Cancel means nothing was imported.

@@ -46,7 +46,7 @@ enum LibraryQuickAction: String, CaseIterable, Identifiable {
     /// filed, now that there is no row of its own for it.
     var bandSubtitle: String {
         switch self {
-        case .importScore:  return "MusicXML, MIDI, PDF, or a picture — from Files"
+        case .importScore:  return "MusicXML, ABC, MIDI, PDF, or a picture — from Files"
         case .importPhotos: return "a picture of the music, from your photo library"
         case .importFolder: return "a whole exported library"
         case .importBook:   return "a collection to take arrangements out of"

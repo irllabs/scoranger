@@ -112,13 +112,16 @@ struct RootView: View {
                 if scoreOpen { close() }
                 if libraryPath.last != .importAs { libraryPath.append(.importAs) }
             }
-            // A book just imported opens on its proposed contents.
+            // A book just imported opens on its proposed tunes, in Extract.
             .onChange(of: state.openBookAfterImport) { _, slug in
                 guard let slug else { return }
                 state.openBookAfterImport = nil
                 segment = .books
                 if libraryPath.last == .importAs { _ = libraryPath.popLast() }
+                // The book, and on it Extract, where its found tunes are
+                // ticked or saved (0.19.0); Back is the book itself.
                 libraryPath.append(.book(slug))
+                libraryPath.append(.bookExtract(slug))
             }
             // SHARING'S PROGRESS AND FAILURES, through the app's own notice
             // bar rather than a second surface invented for this one feature.
@@ -430,10 +433,20 @@ struct RootView: View {
             }
         case .book(let slug):
             BookScreen(slug: slug, onBack: pop, onOpen: { open($0) },
-                       onRead: { libraryPath.append(.bookEntry(slug, $0)) })
+                       onRead: { libraryPath.append(.bookEntry(slug, $0)) },
+                       onExtract: { libraryPath.append(.bookExtract(slug)) })
                 .navigationBarHidden(true)
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("screen-book-\(slug)")
+        case .bookExtract(let slug):
+            BookExtractScreen(slug: slug, onBack: pop, onOpen: { open($0) },
+                              onShowTunes: {
+                                  state.bookTunesOpen = slug
+                                  pop()
+                              })
+                .navigationBarHidden(true)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("screen-book-extract-\(slug)")
         case .bookEntry(let slug, let entry):
             // Next and previous REPLACE the page rather than stacking it: back
             // goes to the book, as a set list's reader goes back to its list.

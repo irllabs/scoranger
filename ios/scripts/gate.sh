@@ -337,6 +337,7 @@ done
 PHONE_LANE=(
   "ScorangerUITests/PhoneTransport/testStopIsOnScreenWhilePlaying()"
   "ScorangerUITests/PhoneSharedRow/testASharedRowFitsAndSyncIsInItsActions()"
+  "ScorangerUITests/PhoneBook/testABookReadsAndExtractsOnAPhone()"
   "ScorangerUITests/PhoneSurfaces/testASetListOnAPhoneShowsTheSetList()"
   "ScorangerUITests/PhoneSurfaces/testTheFootStripCarriesTheSetListsTools()"
   "ScorangerUITests/PhoneSurfaces/testTheScoreBarsSecondRowCarriesLayoutPerformAndAdd()"

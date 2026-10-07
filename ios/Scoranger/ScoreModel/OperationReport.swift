@@ -31,7 +31,14 @@ enum OperationReport {
     /// which is the useful half; anything else falls back to its description.
     static func reason(_ error: Error) -> String {
         let raw = (error as? EngineError)?.error ?? error.localizedDescription
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        var trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        // The engine's REFUSALS are ValueErrors written as sentences for the
+        // reader ("None of the tunes in this file could be read ..."); the
+        // bridge prefixes the class, which is a word for a log. Any other
+        // class is kept: it says the engine broke, not that it said no.
+        if trimmed.hasPrefix("ValueError: ") {
+            trimmed = String(trimmed.dropFirst("ValueError: ".count))
+        }
         return trimmed.isEmpty ? unexplained : trimmed
     }
 

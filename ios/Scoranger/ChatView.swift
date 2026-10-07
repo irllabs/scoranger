@@ -20,8 +20,18 @@ struct ChatView: View {
     /// squeezed into what was left (L31). A NEW key, because the six is stored
     /// on every device that has run this app and the stored value is the bug.
     @AppStorage("chatInputLines2") private var inputLines: Double = 0
-    /// Live drag offset, applied on top of `inputLines` until the grip is let go.
-    @State private var dragLines: Double = 0
+    /// The box's height while the grip is held, in POINTS, following the finger
+    /// exactly; it snaps to whole lines only when the grip is let go (0.19.0).
+    /// It used to be a whole number of lines computed afresh on every drag
+    /// event, from a translation measured in the grip's OWN coordinates -- and
+    /// the grip moves as the box grows, so each frame's resize fed back into the
+    /// next frame's reading and the box juddered up and down (Ali's recording).
+    @State private var dragHeight: CGFloat?
+    /// Where the drag started, so the travel is added to a fixed height.
+    @State private var dragStartHeight: CGFloat?
+    /// The field's laid-out height, which is where a drag from an auto-sized
+    /// box starts.
+    @State private var fieldHeight: CGFloat = 21
 
     /// The range the grip can drag through. Two lines is still usable; above
     /// about fourteen the transcript has no room left on an iPad in a panel.
@@ -32,9 +42,19 @@ struct ChatView: View {
 
     /// How many lines the box is DRAGGED to, or nil while it is auto-sized.
     private var draggedLines: Int? {
-        let combined = inputLines + dragLines
-        guard combined >= Self.lineRange.lowerBound else { return nil }
-        return Int(min(combined, Self.lineRange.upperBound).rounded())
+        if let dragHeight { return Int((dragHeight / Self.lineHeight).rounded()) }
+        guard inputLines >= Self.lineRange.lowerBound else { return nil }
+        return Int(min(inputLines, Self.lineRange.upperBound).rounded())
+    }
+
+    /// The height the box is held at: the finger's while dragging, the stored
+    /// whole lines otherwise, nil while auto-sized.
+    private var pinnedHeight: CGFloat? {
+        dragHeight ?? draggedLines.map { CGFloat($0) * Self.lineHeight }
+    }
+
+    private static var heightRange: ClosedRange<CGFloat> {
+        CGFloat(lineRange.lowerBound) * lineHeight...CGFloat(lineRange.upperBound) * lineHeight
     }
 
     /// What the grip reports, and the cap the text may grow to.
@@ -221,27 +241,48 @@ struct ChatView: View {
     /// Dragging UP makes the box taller, which is why the sign is inverted: the
     /// grip is at the box's top edge, so moving it up grows the box downward
     /// into the space the transcript gives back.
+    ///
+    /// ONE mark (design/BOOK_EXTRACT_0.19.md §A): the dashed rule, broken
+    /// around a handle sitting on it. It was a solid line, a capsule under it
+    /// and the input bar's own dashed rule -- three marks in 20pt, two of them
+    /// lines of different kinds, which Ali called awkward. The row is 20pt in
+    /// the layout and 44pt to a finger: it reaches 12pt into the padding above
+    /// and below, neither of which holds a control, and sits over the
+    /// transcript so its scroll view never claims the touch first.
     private var inputGrip: some View {
-        VStack(spacing: 0) {
-            Rectangle()
-                .fill(Theme.Line.line2)
-                .frame(height: 1)
+        let dragging = dragHeight != nil
+        return ZStack {
+            Theme.Rule()
             Capsule()
-                .fill(Theme.Ink.ink3.opacity(0.55))
-                .frame(width: 34, height: 3)
-                .padding(.vertical, Theme.Metric.s6)
+                .fill(dragging ? Theme.Accent.clay : Theme.Ink.ink3)
+                .frame(width: dragging ? 44 : 36, height: 4)
+                .padding(.horizontal, Theme.Metric.s8)
+                .background(Theme.Surface.panel)
+                .animation(Theme.Motion.pillState, value: dragging)
         }
-        .frame(maxWidth: .infinity)
-        .background(Theme.Surface.panel)
+        .frame(maxWidth: .infinity, minHeight: 20, maxHeight: 20)
+        .frame(height: Theme.Metric.hitTarget)
         .contentShape(Rectangle())
+        .padding(.vertical, -(Theme.Metric.hitTarget - 20) / 2)
+        .zIndex(1)
         .gesture(
-            DragGesture(minimumDistance: 2)
+            // GLOBAL coordinates: the grip moves as the box grows, so a
+            // translation read in its own space is not the finger's travel.
+            DragGesture(minimumDistance: 2, coordinateSpace: .global)
                 .onChanged { value in
-                    dragLines = Double(-value.translation.height / Self.lineHeight)
+                    let start = dragStartHeight ?? (pinnedHeight ?? fieldHeight)
+                    if dragStartHeight == nil { dragStartHeight = start }
+                    let wanted = start - value.translation.height
+                    dragHeight = min(max(wanted, Self.heightRange.lowerBound),
+                                     Self.heightRange.upperBound)
                 }
                 .onEnded { _ in
-                    inputLines = Double(effectiveLines)
-                    dragLines = 0
+                    let lines = Double(draggedLines ?? Self.autoLines)
+                    withAnimation(.snappy(duration: 0.18)) {
+                        inputLines = lines
+                        dragHeight = nil
+                    }
+                    dragStartHeight = nil
                 }
         )
         .accessibilityIdentifier("chat-input-grip")
@@ -276,9 +317,12 @@ struct ChatView: View {
                 .tint(Theme.Accent.clay)
                 // One line, growing to the cap -- or to whatever the grip was
                 // dragged to, which is the one thing that pins the height.
-                .lineLimit(1...max(effectiveLines, Self.autoLines))
-                .frame(minHeight: draggedLines.map { CGFloat($0) * Self.lineHeight },
-                       alignment: .topLeading)
+                // A FIXED limit while the box is pinned: a limit that moved with
+                // every line of a drag re-laid the field out each time it did.
+                .lineLimit(1...(pinnedHeight == nil ? Self.autoLines
+                                                    : Int(Self.lineRange.upperBound)))
+                .frame(minHeight: pinnedHeight, alignment: .topLeading)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { fieldHeight = $0 }
                 .focused($inputFocused)
                 .onSubmit(send)
                 .padding(.vertical, 9)
@@ -335,11 +379,10 @@ struct ChatView: View {
             .opacity(state.chatBusy || draft.trimmingCharacters(in: .whitespaces).isEmpty
                      ? 0.42 : 1)
         }
-        .padding(Theme.Metric.s12)
+        .padding(.horizontal, Theme.Metric.s12)
+        .padding(.bottom, Theme.Metric.s12)
+        .padding(.top, Theme.Metric.s8)
         .background(Theme.Surface.panel)
-        .overlay(alignment: .top) {
-            Theme.Rule()
-        }
     }
 
     private func send() {
