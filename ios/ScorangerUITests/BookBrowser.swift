@@ -79,17 +79,24 @@ final class BookBrowser: XCTestCase {
         XCTAssertTrue(label().hasSuffix("/ 512"),
                       "the seeded book is not 512 pages: \(label())")
 
+        // Flick the THUMBNAIL ROW: the strip's centre is its scrub bar, and a
+        // swipe there drags the scrub rather than flicking the thumbnails.
+        let row = { (x: CGFloat) in strip.coordinate(withNormalizedOffset: CGVector(dx: x, dy: 0.25)) }
         for _ in 0..<8 {
-            strip.swipeLeft(velocity: .fast)
+            row(0.9).press(forDuration: 0.01, thenDragTo: row(0.1), withVelocity: .fast,
+                           thenHoldForDuration: 0)
         }
 
         // The question: does anything still work? A generous deadline, because
         // this is a hang test and not a latency budget.
+        // Let the strip stop gliding: a tap on a strip still in flight only
+        // stops it, which is the scroll view's rule, not a hang (0.19.0 gate).
+        sleep(3)
         let before = label()
         // A tap in the strip's thumbnail row lands on whichever page is there;
         // asking 512 lazy cells which one is hittable is not a question
         // XCUITest can answer reliably.
-        strip.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25)).tap()
+        row(0.3).tap()
         let moved = NSPredicate(format: "label != %@", before)
         expectation(for: moved, evaluatedWith:
                         app.descendants(matching: .any)["book-page-label"].firstMatch)

@@ -245,6 +245,10 @@ ENGINE_SERIAL=(
   # not an app that blocks its main thread. Same evidence, same rule: if
   # these fail HERE, the diagnosis is wrong.
   "ScorangerUITests/BookShareIn/testExtractingTheTunesMakesAPieceForEach()"
+  # Timed out in the pool at 0.18.0 (no play head handle after 45s) and passed
+  # alone in 108s; timed out the same way at 0.19.0. BACKLOG said a second
+  # failure moves it here.
+  "ScorangerUITests/ContinuousFollows/testTheScoreStreamsPastTheLineInScrollMode()"
   "ScorangerUITests/BookShareIn/testAScannedBooksTunesAreReadFromItsPages()"
   # The tray's knobs come from the playback timeline, which is another engine
   # call. Solo it passes in ~27s, twice out of twice; under four workers it
