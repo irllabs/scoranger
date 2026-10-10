@@ -101,4 +101,36 @@ final class PrintAndChatBox: XCTestCase {
         XCTAssertLessThan(grip.frame.minY, before - 30, "the box did not grow")
         snap("04-chat-box-tall")
     }
+
+    /// One tap anywhere in a tall box starts typing (0.19.1). The text view is
+    /// one line high inside the box, and only that line used to take a tap --
+    /// on an iPad Ali tapped twice to type. Measured before the fix: a tap
+    /// 30pt below the box's middle, in an eleven-line box, left it unfocused.
+    func testATallChatBoxTakesOneTapAnywhereInIt() {
+        app = XCUIApplication()
+        app.launchArguments = ["-resetLibrary", "-seedTestLibrary"]
+        app.launch()
+        XCUIDevice.shared.orientation = .landscapeLeft
+        openFirstScore()
+        app.buttons["score-ask"].tap()
+        let grip = app.descendants(matching: .any)["chat-input-grip"].firstMatch
+        let field = app.descendants(matching: .any)["chat-input"].firstMatch
+        XCTAssertTrue(grip.waitForExistence(timeout: 20))
+        let from = grip.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        from.press(forDuration: 0.2, thenDragTo: from.withOffset(CGVector(dx: 0, dy: -200)))
+        sleep(1)
+        XCTAssertEqual(field.value(forKey: "hasKeyboardFocus") as? Bool, false,
+                       "the drag itself focused the box, so the tap below proves nothing")
+        // The send button is centred on the box, so below its middle is the
+        // lower half of the box -- well under the single line of text.
+        let send = app.buttons["chat-send"]
+        let low = send.frame.midY + 30
+        XCTAssertGreaterThan(low, field.frame.maxY + 20, "the box did not grow past its text")
+        app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: field.frame.midX, dy: low)).tap()
+        let focused = NSPredicate(format: "hasKeyboardFocus == true")
+        expectation(for: focused, evaluatedWith: field)
+        waitForExpectations(timeout: 5)
+        snap("05-chat-box-tapped-low")
+    }
 }

@@ -33,8 +33,10 @@ import SwiftUI
 @MainActor
 final class SpeechDictation: ObservableObject {
     @Published var isRecording = false
-    /// Best transcription of the current dictation session (grows/refines live).
+    /// Everything said this dictation session, refined live. Kept across the
+    /// recogniser's pauses by `words`; it used to be the latest utterance only.
     @Published var transcript = ""
+    private var words = DictationTranscript()
     /// Permission or engine failure, phrased for the input placeholder.
     @Published var errorText: String?
 
@@ -51,6 +53,7 @@ final class SpeechDictation: ObservableObject {
         guard !isRecording else { return }
         errorText = nil
         transcript = ""
+        words = DictationTranscript()
         SFSpeechRecognizer.requestAuthorization { status in
             Task { @MainActor in
                 guard status == .authorized else {
@@ -119,7 +122,9 @@ final class SpeechDictation: ObservableObject {
                 Task { @MainActor in
                     guard let self else { return }
                     if let result {
-                        self.transcript = result.bestTranscription.formattedString
+                        self.words.receive(result.bestTranscription.formattedString,
+                                           utteranceEnded: result.speechRecognitionMetadata != nil)
+                        self.transcript = self.words.text
                     }
                     // A failure that produced no words looked like a dead
                     // mic: the button un-lit and the field said nothing. It

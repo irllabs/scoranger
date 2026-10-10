@@ -246,9 +246,10 @@ struct ChatView: View {
     /// around a handle sitting on it. It was a solid line, a capsule under it
     /// and the input bar's own dashed rule -- three marks in 20pt, two of them
     /// lines of different kinds, which Ali called awkward. The row is 20pt in
-    /// the layout and 44pt to a finger: it reaches 12pt into the padding above
-    /// and below, neither of which holds a control, and sits over the
-    /// transcript so its scroll view never claims the touch first.
+    /// the layout and 44pt to a finger: it reaches 16pt up over the transcript,
+    /// so the scroll view never claims the touch first, and 8pt down -- the
+    /// input bar's top padding and no further, because a grip that reached
+    /// into the box took taps meant for it.
     private var inputGrip: some View {
         let dragging = dragHeight != nil
         return ZStack {
@@ -261,9 +262,11 @@ struct ChatView: View {
                 .animation(Theme.Motion.pillState, value: dragging)
         }
         .frame(maxWidth: .infinity, minHeight: 20, maxHeight: 20)
-        .frame(height: Theme.Metric.hitTarget)
+        .padding(.top, Theme.Metric.hitTarget - 20 - Theme.Metric.s8)
+        .padding(.bottom, Theme.Metric.s8)
         .contentShape(Rectangle())
-        .padding(.vertical, -(Theme.Metric.hitTarget - 20) / 2)
+        .padding(.top, -(Theme.Metric.hitTarget - 20 - Theme.Metric.s8))
+        .padding(.bottom, -Theme.Metric.s8)
         .zIndex(1)
         .gesture(
             // GLOBAL coordinates: the grip moves as the box grows, so a
@@ -333,7 +336,17 @@ struct ChatView: View {
                 // plain rectangle under a capsule outline (rCtl is 999), so a
                 // tall box showed square paper corners outside a stadium-
                 // shaped ring -- Ali's "messy" (0.17.0).
-                .background(Theme.Surface.paper, in: Self.inputShape)
+                // The fill TAKES A TAP and focuses the field (0.19.1). The text
+                // view is only as tall as the text in it -- one 17pt line in an
+                // empty box -- and a box dragged taller is padding and frame
+                // around it, neither of which hit-tests. So most of the box
+                // ignored a tap, and Ali was tapping twice to type. Behind the
+                // field, so a tap ON the text still places the caret itself.
+                .background {
+                    Self.inputShape
+                        .fill(Theme.Surface.paper)
+                        .onTapGesture { inputFocused = true }
+                }
                 .overlay {
                     Self.inputShape
                         .stroke(inputFocused ? Theme.Accent.clay : Color.clear, lineWidth: 1.5)

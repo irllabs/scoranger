@@ -241,6 +241,27 @@ targets:
         #          asked for as one build: "build all of these necessary
         #          features for sharing playlists into the first 7.0 build."
         #          §11.9 records the difference, including what was left out.
+        #   0.19.1 THE CHAT BOX TAKES ONE TAP; DICTATION KEEPS WHAT WAS SAID
+        #          BEFORE A PAUSE (2026-10-10). Scope written before the work.
+        #          Fixes only, so the patch bumps. Ali on build 210: "i need
+        #          to double tap in the chat box to type", and "if i pause for
+        #          a few seconds the next phrase replaces the last phrase and
+        #          i lose my prompt". "We need to fix this immediately."
+        #
+        #          In this build:
+        #            1. One tap anywhere in the message box starts typing. The
+        #               text view is one line high inside a box the grip can
+        #               make eleven lines tall, and only that line took a tap
+        #               (reproduced on the simulator before the fix). The
+        #               grip's touch area stops at the box's edge.
+        #            2. Dictation keeps every phrase of a session. On-device
+        #               recognition starts each phrase after a pause from
+        #               nothing, and the field showed only the latest one.
+        #          NOT in this build, and said before it starts:
+        #            - no frame-rate measurement of the resize on a device:
+        #              Ali reports 210 "better", and the simulator recording
+        #              shows the box following the drag without jumping;
+        #            - NO OTHER CHANGE.
         #   0.19.0 BOOKS YOU CAN READ AND TAKE TUNES OUT OF; A CHAT BOX THAT
         #          RESIZES SMOOTHLY; ABC THAT ALWAYS IMPORTS (2026-10-06).
         #          Scope written before the work. Features and fixes in one
@@ -1272,7 +1293,7 @@ targets:
         # has no Firebase configuration". deploy_testflight.sh now refuses such
         # an archive outright.
         CURRENT_PROJECT_VERSION: 210
-        MARKETING_VERSION: 0.19.0
+        MARKETING_VERSION: 0.19.1
         SWIFT_VERSION: 5.10
         SWIFT_OBJC_BRIDGING_HEADER: Scoranger/PythonBridge/PythonBridge.h
         # BeeWare's install_python copies lib-$ARCHS, which requires single-arch builds
