@@ -1,5 +1,26 @@
 # Backlog
 
+## 0.19.1: the chat box's resize is not measured on a device
+
+Ali asked for "super smooth 120fps performance everywhere". 0.19.0 removed the
+cause of the judder in his recording (the drag read in the grip's own moving
+coordinates), and a simulator recording of 0.19.1 shows the box following the
+drag without jumping. Nobody has measured frame times on an iPad: a simulator
+records at its own rate and says nothing about a ProMotion display. To close
+it, profile the drag with Instruments' Animation Hitches on a device and
+record the hitch ratio here.
+
+## Gate: MixerTwoChannel depends on the order it runs in
+
+The 0.19.1 gate failed one test: `MixerTwoChannel.testTwoChannelTrayFitsInPortrait`
+counted 4 knobs on a fixture meant to have 2. It passed alone, all three of its
+cases, against the same build (`test-without-building` on the gate's
+xctestrun). Its launch arguments carry `-seedTestLibrary` but not
+`-resetLibrary`, so it opens whatever the tests before it on that worker left
+in the library (on worker 1: InlineCreate, then MixerFitsAnyTextSize). 0.19.1
+shipped on that isolated pass. Fix: add `-resetLibrary`, or open the fixture by
+slug and assert it is the one on screen.
+
 ## 0.19.0: books, Extract, the chat box, ABC -- what it does not do
 
 Built to design/BOOK_EXTRACT_0.19.md, with these differences and gaps:
