@@ -2798,7 +2798,40 @@ final class AppState: ObservableObject {
         }
     }
 
-    func receiveFile(at url: URL, intoPiece piece: String? = nil) {
+    /// Where Search asks thesession.org: the live site, or under
+    /// `-stubTheSession` the captured answers in samples-seed (0.20.0).
+    lazy var tuneFinder: TuneFinder = {
+        if ProcessInfo.processInfo.arguments.contains("-stubTheSession"),
+           let stub = FixtureTuneFinder(folder: FixtureTuneFinder.seedFolder) {
+            return stub
+        }
+        return TheSessionClient()
+    }()
+
+    /// Import a tune Search fetched: ABC text written to a file and taken
+    /// through the one import path, with the page it came from as origin.
+    /// Returns the first arrangement's slug, or nil after saying why not.
+    @discardableResult
+    func importTune(abc: String, fileName: String, origin: String) async -> String? {
+        let tmp = FileManager.default.temporaryDirectory.appending(path: fileName)
+        do {
+            try abc.write(to: tmp, atomically: true, encoding: .utf8)
+            defer { try? FileManager.default.removeItem(at: tmp) }
+            let (slug, said) = try await local.importScoreReporting(
+                fileURL: tmp, name: nil, piece: nil, origin: origin)
+            if let said { notice = said }
+            selectedSlug = slug
+            previewedSlug = slug
+            pinnedVersion = nil
+            await refresh()
+            return slug
+        } catch {
+            report("import that tune", error)
+            return nil
+        }
+    }
+
+    func receiveFile(at url: URL, intoPiece piece: String? = nil, origin: String? = nil) {
         // A bundle is somebody else's library arriving, not a file to import as
         // an arrangement. It is READ first and imported only if the reader says
         // so: a file that lands in Files and imports itself is not something
@@ -2832,7 +2865,7 @@ final class AppState: ObservableObject {
             // the explicit "make this editable" action will call.
             importPDF(at: url, intoPiece: piece)
         } else {
-            importScore(from: url, intoPiece: piece)
+            importScore(from: url, intoPiece: piece, origin: origin)
         }
     }
 
@@ -3205,7 +3238,7 @@ final class AppState: ObservableObject {
     }
 
     /// Import a MusicXML/MXL/MIDI file picked in the Files UI (local engine only).
-    func importScore(from url: URL, intoPiece piece: String? = nil) {
+    func importScore(from url: URL, intoPiece piece: String? = nil, origin: String? = nil) {
         Task {
             let scoped = url.startAccessingSecurityScopedResource()
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
@@ -3215,7 +3248,7 @@ final class AppState: ObservableObject {
                 try await IncomingCopy.make(url, at: tmp)
                 let name = url.deletingPathExtension().lastPathComponent
                 let (slug, said) = try await local.importScoreReporting(fileURL: tmp, name: name,
-                                                                        piece: piece)
+                                                                        piece: piece, origin: origin)
                 try? FileManager.default.removeItem(at: tmp)
                 if let said { notice = said }
                 selectedSlug = slug

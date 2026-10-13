@@ -86,6 +86,8 @@ def cmd_import(a):
         name = a.name or ops.engraved_title(score) or src.stem
         name = ops.clean_imported_metadata(score, name, source_stem=src.stem)["title"]
         args = {"source": str(src)}
+        if a.origin:
+            args["origin"] = a.origin
         if len(scores) > 1:
             args["tune"] = i + 1
         slug, entry = workspace.create_score(name, score, op="import", args=args)
@@ -711,6 +713,11 @@ def main() -> None:
                             "arrangements")
     s.add_argument("file")
     s.add_argument("--name")
+    # WHERE the file came from, kept on the version beside its path: a tune
+    # fetched from thesession.org or downloaded from musescore.com names its
+    # page, so a reader can go back to it (0.20.0). Free text, never read
+    # by any op.
+    s.add_argument("--origin")
     s.set_defaults(fn=cmd_import)
 
     s = sub.add_parser("list", help="List all scores")

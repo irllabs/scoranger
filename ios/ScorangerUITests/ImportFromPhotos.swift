@@ -44,7 +44,8 @@ final class ImportFromPhotos: XCTestCase {
         for (identifier, expected) in [("library-import-score", "Score"),
                                        ("library-import-photos", "Photos"),
                                        ("library-import-folder", "Folder"),
-                                       ("library-import-book", "Book")] {
+                                       ("library-import-book", "Book"),
+                                       ("library-import-search", "Search")] {
             let row = app.descendants(matching: .any)[identifier].firstMatch
             XCTAssertTrue(row.exists, "\(expected) is missing from the band")
             XCTAssertTrue(row.label.contains(expected),

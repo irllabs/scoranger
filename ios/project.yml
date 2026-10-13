@@ -182,9 +182,15 @@ targets:
           if [ "$CONFIGURATION" != "Debug" ]; then
             echo "note: $CONFIGURATION build -- no score fixtures bundled (copyright)"
             rm -rf "$CODESIGNING_FOLDER_PATH/samples-seed"
-          elif [ -d "$PROJECT_DIR/../testdata/app-samples" ]; then
+          else
             mkdir -p "$CODESIGNING_FOLDER_PATH/samples-seed"
-            cp "$PROJECT_DIR/../testdata/app-samples/"* "$CODESIGNING_FOLDER_PATH/samples-seed/"
+            if [ -d "$PROJECT_DIR/../testdata/app-samples" ]; then
+              cp "$PROJECT_DIR/../testdata/app-samples/"* "$CODESIGNING_FOLDER_PATH/samples-seed/"
+            fi
+            # thesession.org's captured answers for -stubTheSession (0.20.0):
+            # the unit tests' own fixtures, COMMITTED, so the stub exists on a
+            # checkout that has no testdata (which is gitignored)
+            cp "$PROJECT_DIR/ScorangerTests/Fixtures/"thesession-* "$CODESIGNING_FOLDER_PATH/samples-seed/"
           fi
         basedOnDependencyAnalysis: false
     settings:
@@ -241,6 +247,50 @@ targets:
         #          asked for as one build: "build all of these necessary
         #          features for sharing playlists into the first 7.0 build."
         #          §11.9 records the difference, including what was left out.
+        #   0.20.0 SEARCH: TUNES FROM THESESSION.ORG BY NAME, AND MUSESCORE
+        #          THROUGH ITS OWN SITE (2026-10-12). Scope written before the
+        #          work. A feature, so the minor bumps; the $4.99/month
+        #          subscription moves to 0.21.0. Ali: "look up a song by name
+        #          and find its score either in MuseScore or in thesession.org
+        #          ... another option under import for search ... the user can
+        #          check boxes select where they're searching". He is a paying
+        #          MuseScore member and wants that membership to count.
+        #
+        #          In this build:
+        #            1. Import gains a fifth way in, Search: one field, a tick
+        #               box per source, results grouped by source.
+        #            2. thesession.org: its JSON interface (format=json) is
+        #               searched by name; a tune lists its settings with key
+        #               and contributor; one setting or all of them import
+        #               through the ABC the site itself publishes
+        #               (/tunes/N/abc, filtered to the settings chosen), so
+        #               the engine's proven ABC path is the only path. The
+        #               tune's URL is recorded as the version's origin. One
+        #               request per search submitted, a named User-Agent,
+        #               and tune pages cached for the session (robots.txt
+        #               asks for a 10s crawl delay).
+        #            3. MuseScore: there is no API (shut down for abuse) and
+        #               the terms forbid automated download, so the app opens
+        #               musescore.com's own search in a web view. The reader
+        #               signs in there once (the web view keeps the session;
+        #               Scoranger never sees the password), presses the
+        #               site's own Download button, chooses MusicXML, and the
+        #               file lands in the library (WKDownload). MSCZ is
+        #               refused by name with the fix: choose MusicXML.
+        #            4. Settings' "What needs the network" names Search.
+        #          NOT in this build, and said before it starts:
+        #            - Ultimate Guitar: investigated, not built. No API, Pro
+        #              tabs are Guitar Pro files the engine cannot read, and
+        #              its terms forbid storing downloads (BACKLOG);
+        #            - no MuseScore search from inside the app's own field:
+        #              the site's search is the site's (Cloudflare refuses
+        #              anything but a browser), so the field hands the words
+        #              to the web view;
+        #            - no Google sign-in inside the web view: Google refuses
+        #              embedded web views; email/password and Apple work
+        #              (unverified on a real account -- Ali's to try);
+        #            - the subscription (0.21.0);
+        #            - NO OTHER CHANGE.
         #   0.19.1 THE CHAT BOX TAKES ONE TAP; DICTATION KEEPS WHAT WAS SAID
         #          BEFORE A PAUSE (2026-10-10). Scope written before the work.
         #          Fixes only, so the patch bumps. Ali on build 210: "i need
@@ -1293,7 +1343,7 @@ targets:
         # has no Firebase configuration". deploy_testflight.sh now refuses such
         # an archive outright.
         CURRENT_PROJECT_VERSION: 211
-        MARKETING_VERSION: 0.19.1
+        MARKETING_VERSION: 0.20.0
         SWIFT_VERSION: 5.10
         SWIFT_OBJC_BRIDGING_HEADER: Scoranger/PythonBridge/PythonBridge.h
         # BeeWare's install_python copies lib-$ARCHS, which requires single-arch builds

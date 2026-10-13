@@ -706,6 +706,32 @@ takes `.abc` like any other notation. What matters about it:
 - `.abc` is not a free extension: the system tags it `public.alembic` (Pixar's
   3D scene cache), which is why the app claims that type too.
 
+## Search (thesession.org and MuseScore, 0.20.0)
+
+Import's fifth row. The engine has no part in it beyond `import --origin`:
+it fetches nothing (`check_signed_out.py`), so the client is Swift.
+
+- **thesession.org** is searched through the site's own JSON interface
+  (`?format=json` on its ordinary URLs; `ios/Scoranger/TheSessionClient.swift`,
+  models in `ScoreModel/TuneSearch.swift`). A tune's settings import through
+  `/tunes/N/abc`, the ABC the site itself writes, cut down in Swift to the
+  settings chosen (`ABCSettings.select` keeps the `X:` blocks whose `S:` line
+  names the setting) and taken through the ordinary ABC import. Nothing is
+  rebuilt from JSON. One request per search pressed, a named User-Agent,
+  tune pages cached for the session: robots.txt asks for a 10s crawl delay.
+  The tests answer from captured JSON (`-stubTheSession`,
+  ios/ScorangerTests/Fixtures/thesession-*, copied into the Debug app's
+  samples-seed by project.yml).
+- **MuseScore** has no API and its terms forbid automated download, so the
+  app opens musescore.com's own search in a web view
+  (`Navigation/SourceBrowserScreen.swift`). The reader signs in there (the
+  web view keeps the session; the app never holds the password) and presses
+  the site's Download button; `WKDownload` lands the file in the library
+  through `receiveFile`, with the page as origin, and the score opens. MSCZ
+  is refused by name. `-sourceBrowserURL` points the screen at a test's own
+  server. Never add a scraper here: Apple 5.2.2 and the site's terms.
+- Rationale and what each site allows, verified: `design/SEARCH_0.20.md`.
+
 ## PDF ingestion (OMR)
 
 Audiveris 5.11 is installed at `~/Applications/Audiveris.app`. Pipeline for a PDF:

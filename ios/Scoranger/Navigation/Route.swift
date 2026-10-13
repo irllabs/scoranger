@@ -50,6 +50,14 @@ enum Route: Hashable {
     /// Taking tunes out of a book: found and ticked, or marked with Start and
     /// End (0.19.0, design/BOOK_EXTRACT_0.19.md §C).
     case bookExtract(String)
+    /// Looking a tune up by name on thesession.org and MuseScore (0.20.0,
+    /// design/SEARCH_0.20.md).
+    case search
+    /// A site opened in a web view to finish a search there, carrying the
+    /// page to start on. MuseScore has no API and its terms forbid automated
+    /// download, so the reader presses the site's own Download button and
+    /// the file lands here (0.20.0).
+    case sourceBrowser(String)
     /// What a file shared into the app should become (0.14.0 §1). Carries
     /// nothing: the files wait on AppState.importOffer, as a folder's plan
     /// waits on AppState for `folderImport`.
@@ -79,7 +87,7 @@ enum Route: Hashable {
     var presentation: Presentation {
         switch self {
         case .piece, .setlist, .sharedSetlist, .book, .bookEntry, .bookExtract, .importAs,
-             .settings, .settingsSection:
+             .settings, .settingsSection, .search, .sourceBrowser:
             return .page
         case .arrangement, .moveToPiece, .combinePieces, .setlistsFor,
              .addArrangements, .versions,
@@ -112,6 +120,8 @@ enum Route: Hashable {
         case .bookEntry:        return "Tune"
         case .bookExtract:      return "Extract"
         case .importAs:         return "Import as"
+        case .search:           return "Search"
+        case .sourceBrowser:    return "MuseScore"
         case .folderImport:     return "Import folder"
         case .sort:             return "Sort"
         case .filter:           return "Filter"
@@ -128,10 +138,12 @@ enum Route: Hashable {
     /// count taps out of.
     var backLabel: String {
         switch self {
-        case .piece, .setlist, .sharedSetlist, .joinSetlist, .settings, .importAs:
+        case .piece, .setlist, .sharedSetlist, .joinSetlist, .settings, .importAs, .search:
             return "Library"
         case .bookEntry, .bookExtract:
             return "Book"
+        case .sourceBrowser:
+            return "Search"
         case .arrangement, .moveToPiece, .combinePieces, .setlistsFor,
              .addArrangements,
              .versions, .parts, .details, .settingsSection, .folderImport, .book,
@@ -190,6 +202,7 @@ extension Route {
         case .thisPiece(let s):          return .thisPiece(s)
         case .piece, .setlist, .sharedSetlist, .joinSetlist, .settings,
              .settingsSection, .folderImport, .book, .bookEntry, .bookExtract, .importAs,
+             .search, .sourceBrowser,
              .sort, .filter, .importMenu, .thisSetlist, .setlistInvite:
             return self
         }

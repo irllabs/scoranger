@@ -1,5 +1,40 @@
 # Backlog
 
+## 0.20.0: Search -- what it does not do, and what to check
+
+- **thesession.org's terms are unread.** The site refuses its help page to
+  anything that is not a browser. The maintainer's data dump on GitHub is
+  share-and-adapt with a ban on processing the material with LLMs. Scoranger
+  sends an imported score's structure to OpenRouter when the reader chats
+  about it, so if the live site says the same, a tune imported through
+  Search is one the chat agent should not see. Ali can read the terms in
+  Safari; the app should then either say so on the tune or keep Search
+  imports out of chat context.
+- **Ultimate Guitar, investigated 2026-10-12, not built.** No API (the old
+  mobile one is private and keyed); Pro tabs download only as Guitar Pro
+  files (.gp/.gpx/.gp5), which music21 cannot read and no Python library
+  converts to MusicXML (PyGuitarPro and apollotab parse, neither writes);
+  Official tabs never download; terms (2026-08-24) forbid storing downloads
+  "onto any physical medium, memory or device". The only path is the same
+  web view as MuseScore plus a Guitar Pro reader in the engine, which is a
+  feature of its own. Songsterr has an undocumented search and a terms
+  clause allowing "independent tools that do not ... automate"; Plus
+  members download GP and MIDI.
+- **Google sign-in inside the MuseScore web view.** Google refuses OAuth in
+  embedded web views. Email/password and Sign in with Apple should work;
+  neither is verified on a real account (Ali's to try). If his MuseScore
+  account is Google-only, the fix is to set a password on musescore.com.
+- **MuseScore's download flow is verified against a stand-in server**, not
+  the live site: the test serves an attachment and the web view catches it.
+  The site's own Download button is expected to produce the same navigation
+  response. If it instead downloads through JavaScript (a blob URL), the
+  catch is `webView(_:navigationAction:didBecome:)`, already wired, or a
+  `WKDownload` from a data URL, not yet handled.
+- **MSCZ is refused**, not converted. MuseScore's own format needs MuseScore
+  to read it.
+- **More** fetches the next page of hits; a tune's 38 settings import as one
+  file in one engine call, which takes a while and shows only "Importing…".
+
 ## 0.19.1: the chat box's resize is not measured on a device
 
 Ali asked for "super smooth 120fps performance everywhere". 0.19.0 removed the
@@ -47,7 +82,7 @@ Built to design/BOOK_EXTRACT_0.19.md, with these differences and gaps:
   thesession settings: La Promeneuse, The Old Queen) is skipped and named;
   the rest of its file imports.
 
-## After the first App Store approval: a $4.99/month subscription (0.20.0)
+## After the first App Store approval: a $4.99/month subscription (0.21.0)
 
 Ali, 2026-10-05: the first App Store release ships FREE so it is not held up,
 and "we add subscription after review" at $4.99 a month. The app has no

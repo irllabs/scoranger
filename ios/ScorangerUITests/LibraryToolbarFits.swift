@@ -100,7 +100,8 @@ final class LibraryToolbarFits: XCTestCase {
 
         app.descendants(matching: .any)["library-import"].firstMatch.tap()
         for id in ["library-import-score", "library-import-photos",
-                   "library-import-folder", "library-import-book"] {
+                   "library-import-folder", "library-import-book",
+                   "library-import-search"] {
             let element = app.descendants(matching: .any)[id].firstMatch
             XCTAssertTrue(element.waitForExistence(timeout: 20),
                           "\(id) is not in the Import band")
@@ -108,7 +109,8 @@ final class LibraryToolbarFits: XCTestCase {
         }
         snap("library-import-band")
         assertFitsOnScreen(["library-import-score", "library-import-photos",
-                            "library-import-folder", "library-import-book"],
+                            "library-import-folder", "library-import-book",
+                            "library-import-search"],
                            in: app, context: "import band")
 
         // New CLOSES Import: it creates rather than offering (0.8.2 item 13),

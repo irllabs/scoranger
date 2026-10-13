@@ -8,7 +8,7 @@ import Foundation
 /// compact row of bordered buttons under the search field, deliberately quiet:
 /// the lists are what the screen is for.
 enum LibraryQuickAction: String, CaseIterable, Identifiable {
-    case importScore, importPhotos, importFolder, importBook
+    case importScore, importPhotos, importFolder, importBook, search
 
     var id: String { rawValue }
 
@@ -17,7 +17,7 @@ enum LibraryQuickAction: String, CaseIterable, Identifiable {
     /// where a question about an arrangement belongs, and the library's copy
     /// was a fourth button that spent most of its life dimmed.
     static let ordered: [LibraryQuickAction] = [.importScore, .importPhotos,
-                                                .importFolder, .importBook]
+                                                .importFolder, .importBook, .search]
 
     /// The two verbs these five actions actually are (§14.2). Three flavours
     /// of Import and two of New, which is why five permanent buttons was
@@ -29,8 +29,12 @@ enum LibraryQuickAction: String, CaseIterable, Identifiable {
     /// There is no separate "image from Files" row. An image from Files is a
     /// Score file the way a PDF is, and the subtitle on Score is what makes it
     /// findable -- which is why every row keeps one.
+    ///
+    /// Search is LAST (0.20.0): the four above bring in something the reader
+    /// already has; Search goes and finds one. A second rule after the
+    /// divider, which is why it does not get a divider of its own.
     static let imports: [LibraryQuickAction] = [.importScore, .importPhotos,
-                                                .importFolder, .importBook]
+                                                .importFolder, .importBook, .search]
 
     /// Where the band rules off: after Photos.
     static let importsDividerAfter: LibraryQuickAction = .importPhotos
@@ -50,6 +54,7 @@ enum LibraryQuickAction: String, CaseIterable, Identifiable {
         case .importPhotos: return "a picture of the music, from your photo library"
         case .importFolder: return "a whole exported library"
         case .importBook:   return "a collection to take arrangements out of"
+        case .search:       return "a tune by name, on thesession.org or MuseScore"
         }
     }
 
@@ -59,6 +64,7 @@ enum LibraryQuickAction: String, CaseIterable, Identifiable {
         case .importPhotos: return "Photos"
         case .importFolder: return "Folder"
         case .importBook:   return "Book"
+        case .search:       return "Search"
         }
     }
 
@@ -76,6 +82,7 @@ enum LibraryQuickAction: String, CaseIterable, Identifiable {
         case .importPhotos: return "library-import-photos"
         case .importFolder: return "library-import-folder"
         case .importBook:   return "library-import-book"
+        case .search:       return "library-import-search"
         }
     }
 
@@ -85,6 +92,7 @@ enum LibraryQuickAction: String, CaseIterable, Identifiable {
         case .importPhotos: return "photo.on.rectangle"
         case .importFolder: return "folder"
         case .importBook:   return "books.vertical"
+        case .search:       return "magnifyingglass"
         }
     }
 
@@ -98,6 +106,7 @@ enum LibraryQuickAction: String, CaseIterable, Identifiable {
         case .importPhotos: return "Photos"
         case .importFolder: return "Folder"
         case .importBook:   return "Book"
+        case .search:       return "Search"
         }
     }
 }

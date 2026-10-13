@@ -342,6 +342,7 @@ struct RootView: View {
         case .importPhotos: showPhotoImport = true
         case .importFolder: importIntent.ask(for: .folder)
         case .importBook:   importIntent.ask(for: .book)
+        case .search:       libraryPath.append(.search)
         }
     }
 
@@ -458,6 +459,17 @@ struct RootView: View {
                 .navigationBarHidden(true)
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("screen-book-entry")
+        case .search:
+            SearchScreen(onBack: pop, onOpen: { open($0) },
+                         onBrowse: { libraryPath.append(.sourceBrowser($0)) })
+                .navigationBarHidden(true)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("screen-search")
+        case .sourceBrowser(let start):
+            SourceBrowserScreen(start: start, onBack: pop)
+                .navigationBarHidden(true)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("screen-source-browser")
         case .importAs:
             ImportAsScreen(onBack: {
                                state.declineImport()

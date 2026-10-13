@@ -1,0 +1,1713 @@
+{
+    "format": "json",
+    "id": 27,
+    "name": "Drowsy Maggie",
+    "url": "https://thesession.org/tunes/27",
+    "member": {
+        "id": 1,
+        "name": "Jeremy",
+        "url": "https://thesession.org/members/1"
+    },
+    "date": "2001-05-21 03:47:39",
+    "type": "reel",
+    "tunebooks": 8006,
+    "recordings": 3,
+    "collections": 7,
+    "aliases": ["Drowsey Maggie","Drowsie Maggie","Drowsy Maggy","Maggie Drowsy","Maggie Tuirseach","Maggie's Drowsy"],
+    "settings": [
+        {
+            "id": 27,
+            "url": "https://thesession.org/tunes/27#setting27",
+            "key": "Edorian",
+            "abc": "|:E2BE dEBE|E2BE AFDF|E2BE dEBE|BABc dAFD:|! d2fd c2ec|defg afge|d2fd c2ec|BABc dAFA|! d2fd c2ec|defg afge|afge fded|BABc dAFD|",
+            "member": {
+                "id": 1,
+                "name": "Jeremy",
+                "url": "https://thesession.org/members/1"
+            },
+            "date": "2001-05-21 03:47:39"
+        },
+        {
+            "id": 12406,
+            "url": "https://thesession.org/tunes/27#setting12406",
+            "key": "Edorian",
+            "abc": "|:E2 GE BEGE|(3EEE GE BEGE|D2 FD ADFD|(3DDD FD ADFD|! E2 GE BEGE|(3EEE GE BEGE|G2 EF GABc|1 dBAF E2 A,C:|2 dBAF E2 Bc||! |:d2 fd c2 ec|d2 fd c2 Bc|d2 fd c2 ec|BABc dAFA|! d2 fd c2 ec|d2 fd c2 Bc|d2 fd c2 ec|Bdce dAFA:|",
+            "member": {
+                "id": 6225,
+                "name": "Jamie",
+                "url": "https://thesession.org/members/6225"
+            },
+            "date": "2003-05-27 14:55:51"
+        },
+        {
+            "id": 12407,
+            "url": "https://thesession.org/tunes/27#setting12407",
+            "key": "Edorian",
+            "abc": "d2fd c2ec|defg faaf|d2fd c2ec|BABc dAFA|! d2fd c2ec|defg faaf|bgaf gefd|BABc dAFD||",
+            "member": {
+                "id": 3150,
+                "name": "slainte",
+                "url": "https://thesession.org/members/3150"
+            },
+            "date": "2004-06-18 23:43:54"
+        },
+        {
+            "id": 12408,
+            "url": "https://thesession.org/tunes/27#setting12408",
+            "key": "Dmajor",
+            "abc": "|:E2BE dEBE|E2BE AFDF|E2BE dEBE|1 BABc dAFD:|2 BABc dAFA||! d2fd B\/c\/d ec|defg afge|d2fd B\/c\/d ec|BABc dAFA|! d2fd B\/c\/d ec|defg afge|afge fdec|BABc dAFA||! dBfB dBfB|cAeA fAeA|dBfB dBfB|fef^g aecA|! dBfB dBfB|cAeA fAeA|defd B\/c\/d ec|BABc dAFD||",
+            "member": {
+                "id": 9968,
+                "name": "Phantom Button",
+                "url": "https://thesession.org/members/9968"
+            },
+            "date": "2004-06-19 00:33:38"
+        },
+        {
+            "id": 12409,
+            "url": "https://thesession.org/tunes/27#setting12409",
+            "key": "Edorian",
+            "abc": "|:E2Bd cABE|E2BG FADF|E2Bd cABc|1 dfec dAFD:|2 dfec dAFA||! d2fe dcBd|(3cBA ed ceAc|defe dcBc|def^g aecA|! defe dcBd|(3cBA eA ceAg|fdec dcBa|^gbeg aecA||",
+            "member": {
+                "id": 7417,
+                "name": "dlowder",
+                "url": "https://thesession.org/members/7417"
+            },
+            "date": "2004-09-02 15:30:19"
+        },
+        {
+            "id": 12410,
+            "url": "https://thesession.org/tunes/27#setting12410",
+            "key": "Edorian",
+            "abc": "|:E2BE dEBE|E2BE AFDF|E2BE dEBE|1 BABc dAFD:|2 BABc dAFA||! |:d2fd cdec|defg afge|1 d2fd c2ec|BABc dAFA:|2 afge fdec|BABc dAFA||! |:dBfB dBfB|cAeA cAeA|1 dBfB dBfB|defg aece:|2 defg aecA|BABc dAFA||! |:dffe dfBf|ceed ceAe|1 dffe defg|a2ag aece:|2 af=ge fdec|BABc dAFD||",
+            "member": {
+                "id": 4763,
+                "name": "Dr. Dow",
+                "url": "https://thesession.org/members/4763"
+            },
+            "date": "2005-04-26 23:33:20"
+        },
+        {
+            "id": 12411,
+            "url": "https://thesession.org/tunes/27#setting12411",
+            "key": "Edorian",
+            "abc": "|:~E3d cABE|~E2BE FADF|~E3d cABc|1 dfec dAFD:|2 dfec dAFA||! defe dcBd|(3cBA eA ceAc|defe dcBc|def^g aecA|! defe dcBd|(3cBA eA ceAe|faec dcBa|^gbeg aecA||",
+            "member": {
+                "id": 4763,
+                "name": "Dr. Dow",
+                "url": "https://thesession.org/members/4763"
+            },
+            "date": "2005-04-27 05:24:03"
+        },
+        {
+            "id": 12412,
+            "url": "https://thesession.org/tunes/27#setting12412",
+            "key": "Edorian",
+            "abc": "|:~E2Bd cABE|~E2BE FADF|~E2Bd cABc|dfec dBAF:|! d2fe dcBd|c\/B\/A eA ceAc|defe dcBc|def^g aece|! dafe dcBA|B\/c\/d ef gecg|f\/g\/aec dcBa|^gbeg aecA||",
+            "member": {
+                "id": 9968,
+                "name": "Phantom Button",
+                "url": "https://thesession.org/members/9968"
+            },
+            "date": "2005-04-27 16:59:07"
+        },
+        {
+            "id": 12413,
+            "url": "https://thesession.org/tunes/27#setting12413",
+            "key": "Edorian",
+            "abc": "\"Em\"E2BE E2BE|E2BE \"D\"AFDF|\"Em\"E2BE B2Bc|dedB \"D\"AFDF||! \"Em\"EEBE dEBE|EEBE \"D\"AFDF|\"Em\"EEBE dEBE|dedB \"D\"AFDF||! \"Em\"EEB,D EB\"D\"AF|\"Em\"GABe \"D\"dBAF|\"Em\"EEB,D EB\"D\"AF|\"Em\"GAGF EDB,D||! EEB,D EB\"D\"AF|\"Em\"GABe \"D\"dBAF|\"Em\"EEB,D EB\"D\"AF|\"Em\"GAGF EDB,G,||! \"Am\"A,2EA, A,2EA,|A,2EA, \"G\"DB,G,B,|\"Am\"A,2EA, E2EF|GAGE \"G\"DB,G,B,||! \"Am\"A,A,EA, GA,EA,|A,A,EA, \"G\"DB,G,B,|\"Am\"A,A,EA, GA,EA,|DEDB, \"G\"DB,G,B,||! \"Am\"A,A,=CE AGE=C|A,A,=CE AGE=C|A,A,=CE ABAE|=cd=cA \"Em\"EDCB,||! \"Am\"A,A,=CE AGE=C|A,A,=CE AGE=C|A,A,=CE AB=cd|ed=ce \"Em\"BAGF||",
+            "member": {
+                "id": 13886,
+                "name": "bobgreen",
+                "url": "https://thesession.org/members/13886"
+            },
+            "date": "2006-04-26 06:29:45"
+        },
+        {
+            "id": 12414,
+            "url": "https://thesession.org/tunes/27#setting12414",
+            "key": "Edorian",
+            "abc": "d2fd cdec|defd faaf|d2fd cdec|BABc dAFA|! d2fd cdec|defd faa2|bgaf gfed|BABc dAFD||",
+            "member": {
+                "id": 38347,
+                "name": "Ramiro",
+                "url": "https://thesession.org/members/38347"
+            },
+            "date": "2008-03-18 16:16:55"
+        },
+        {
+            "id": 12415,
+            "url": "https://thesession.org/tunes/27#setting12415",
+            "key": "Gmajor",
+            "abc": "E2(BE dEBE)|E2(BE AFDF)|E2(BE dEBE)|T(BAB)^c dAFD|! E2(BE dEBE)|E2(BE AFDF)|E2(BE dEBE)|T(BAB)^c dAFD||! d2(fd) c2(ec)|defg afge|d2(fd) c2(ec)|T(BAB)c dAFA|! d2(fd) c2(ec)|defg afge|afge fdec|T(BAB)c dAFD||",
+            "member": {
+                "id": 50552,
+                "name": "flipe",
+                "url": "https://thesession.org/members/50552"
+            },
+            "date": "2008-10-21 18:07:18"
+        },
+        {
+            "id": 20867,
+            "url": "https://thesession.org/tunes/27#setting20867",
+            "key": "Edorian",
+            "abc": "~E2 BE dEBE|~E2 BE AFDF|(3EGE BE dEBE|dDdB AFDF|! ~E2 BE dEBE|~E2 BE AFDF|GFEF GABc|dcdB A2 FA|! Be (3eee e2 eg|fd (3ddd d2 ef|g3 g g3 g|fa (3aaa afed|! d2 (3bbb bage|fa (3aaa afed|~B3 B BAFA|~d3 B AFDF||",
+            "member": {
+                "id": 5892,
+                "name": "Edgar Bolton",
+                "url": "https://thesession.org/members/5892"
+            },
+            "date": "2013-02-09 05:47:41"
+        },
+        {
+            "id": 21232,
+            "url": "https://thesession.org/tunes/27#setting21232",
+            "key": "Edorian",
+            "abc": "|:\"Em\"E2 GE BE GE|\"Em\" E2 GB \"D\"AD FD|\"Em\" E2 GE BE GE|\"G\" BA Bc \"D\"dA FD|! \"Em\"E2 GE BE GE|\"Em\" E2 GB \"D\"AD FD|\"Em\" E2 GE BE GE|\"G\" BA Bc \"D\"dA FA:|! |:\"D\"d2 fd \"A\"c2 ec|\"D\" de fg \"D\"af \"Em\"ge|\"D\" d2 fd \"A\"c2 ec|\"G\" BA Bc \"D\"dA FA|! \"D\"d2 fd \"A\"c2 ec|\"D\" de fg \"D\"af \"Em\"ge|\"D\" af\"Em\"ge \"D\"fd\"Em\"ec|\"G\" BA Bc \"D\"dA FD:|",
+            "member": {
+                "id": 64264,
+                "name": "TomBom",
+                "url": "https://thesession.org/members/64264"
+            },
+            "date": "2013-03-24 13:55:50"
+        },
+        {
+            "id": 23223,
+            "url": "https://thesession.org/tunes/27#setting23223",
+            "key": "Bminor",
+            "abc": "B2 fB aBfB|B2 fB ecAc|B2 fB aBfB|fefg aecA|! B2 fB aBfB|B2 fB ecAc|B2 fB aBfB|fefg aece||! d2 fd c2 ec|defg afge|d2 fd c2 ec|BABc dAGA|! d2 fd c2 ec|defg afge|afge fdec|BABc dAGA||",
+            "member": {
+                "id": 84329,
+                "name": "jakethepeg",
+                "url": "https://thesession.org/members/84329"
+            },
+            "date": "2014-01-02 12:39:38"
+        },
+        {
+            "id": 23242,
+            "url": "https://thesession.org/tunes/27#setting23242",
+            "key": "Edorian",
+            "abc": "|:E2BE dEBE|E2BE dAFD|E2BE dEBE|BABc dAFD|! E~B3 E~B3|E~B3 dAFD|E2BE dEBE|BABc dAFA:|! |:d2fd c2ec|d2fd faaf|defd cdec|~B3c dAFA|! d2fd c2ec|dcde faaf|bgaf gfed|~B3c dAFD:|",
+            "member": {
+                "id": 8450,
+                "name": "Lucy Rietmann",
+                "url": "https://thesession.org/members/8450"
+            },
+            "date": "2014-01-07 17:39:51"
+        },
+        {
+            "id": 23248,
+            "url": "https://thesession.org/tunes/27#setting23248",
+            "key": "Edorian",
+            "abc": "|:E2~E2 ~E2~E2|~E2dB AFED|~E2BE d~E3|BABd BAFD|! E2 B~E2 ~E2|~E2dB AFED|E2~E2 d~E3|~B3d BAFD:|! |:d2fd c2ec|deg2 eaa2|dffd cded|BABd BAFA|! d2fd c2ec|deg2 eaa2|afge fdeA|~B3d BAFA:|",
+            "member": {
+                "id": 8450,
+                "name": "Lucy Rietmann",
+                "url": "https://thesession.org/members/8450"
+            },
+            "date": "2014-01-09 00:12:35"
+        },
+        {
+            "id": 24826,
+            "url": "https://thesession.org/tunes/27#setting24826",
+            "key": "Edorian",
+            "abc": "|:E2BE dEBE|E2BE ADFA|E2BE dEBE|BABc dDFA:|! d2fd c2ec|defg afge|d2fd c2ec|BABc dDFA|! d2fd c2ec|defg afge|a2fg fdec|BABc dDFA|",
+            "member": {
+                "id": 95787,
+                "name": "ebarr",
+                "url": "https://thesession.org/members/95787"
+            },
+            "date": "2014-09-11 07:55:46"
+        },
+        {
+            "id": 27945,
+            "url": "https://thesession.org/tunes/27#setting27945",
+            "key": "Edorian",
+            "abc": "E2BE dEBE|E2BE AFDF|E2BE dEBE|BABc dAFD|! E2BE E2 BE|E2 BE AF D2|E2BE dEBE|BABc dAFD||! defd cdec|defd fa a2|defd cdec|BABc dAFA|! defd cdec|defd fa a2|afge fdec|BABc dAFD||",
+            "member": {
+                "id": 6451,
+                "name": "JACKB",
+                "url": "https://thesession.org/members/6451"
+            },
+            "date": "2015-12-21 09:55:26"
+        },
+        {
+            "id": 27946,
+            "url": "https://thesession.org/tunes/27#setting27946",
+            "key": "Adorian",
+            "abc": "A2eA gAeA|A2eA dBGB|A2eA gAeA|edef gdBG|! A2eA A2 eA|A2 eA dB G2|A2eA gAeA|edef gdBd||! GABG FGAF|GABG Bd d2|GABG FGAF|EDEF GDBd|! GABG FGAF|GABG Bd d2|dBcA BGAF|EDEF GDBG||",
+            "member": {
+                "id": 6451,
+                "name": "JACKB",
+                "url": "https://thesession.org/members/6451"
+            },
+            "date": "2015-12-21 10:03:47"
+        },
+        {
+            "id": 29583,
+            "url": "https://thesession.org/tunes/27#setting29583",
+            "key": "Edorian",
+            "abc": "D2|E2BE dEBE|E2dB AGFD|E2BE dEBE|BABc dAFD|! E2BE dEcE|E2dB AGFD|E2BE dEBE|BABc dAFD|! E2BE dEcE|E2dB AGFD|E2BE dEBE|BABc dAFD|! E2BE dEcE|E2dB AGFD|E2BE dEBE|BABc dAFA||! d2fd cdec|dcde fgaf|d2fd cdec|B2Bc dAFA|! d2fd cdec|dcde fga2|abaf gfed|BBBc dAFA||! B2fB aBgB|fBaf edcA|B2fB aBgB|fBaf edcA|! B2fB aBgB|fBaf edcA|B\/c\/def aecA|BBBc dAFD||",
+            "member": {
+                "id": 69481,
+                "name": "G.Ryckeboer",
+                "url": "https://thesession.org/members/69481"
+            },
+            "date": "2016-12-31 13:46:29"
+        },
+        {
+            "id": 31098,
+            "url": "https://thesession.org/tunes/27#setting31098",
+            "key": "Edorian",
+            "abc": "|:\"Em\" E2 BE dEBE|E2 BE \"D\" AFDF|\"Em\" E2 BE dEBE|1 \"G\" BABc \"D\" dAFD:|2 \"G\" BABc \"D\" dAFA||! |:\"D\"d2 fd \"A\"c2 ec|\"D\" de fg \"D\"af \"Em\"ge|\"D\" d2 fd \"A\"c2 ec|\"G\" BA Bc \"D\"dA FA|! \"D\"d2 fd \"A\"c2 ec|\"D\" de fg \"D\"af \"Em\"ge|\"D\" af\"Em\"ge \"D\"fd\"Em\"ec|\"G\" BA Bc \"D\"dA FD:|",
+            "member": {
+                "id": 99854,
+                "name": "Chris Quarles",
+                "url": "https://thesession.org/members/99854"
+            },
+            "date": "2017-10-03 16:43:39"
+        },
+        {
+            "id": 31476,
+            "url": "https://thesession.org/tunes/27#setting31476",
+            "key": "Edorian",
+            "abc": "|:\"Em\"E2BE dEBE|E2BE \"D\"AFDF|\"Em\"E2BE dEBE|BABc \"D\"dAFD:|! \"D\"d2fd \"A\"c2ec|\"G\"defg afge|\"D\"d2fd \"A\"c2ec|\"G\"BABc dAFA|! \"D\"d2fd \"A\"c2ec|\"G\"defg afge|afge fdec|BABc \"D\"dAFD||",
+            "member": {
+                "id": 106600,
+                "name": "Sergei Ejov",
+                "url": "https://thesession.org/members/106600"
+            },
+            "date": "2017-12-11 10:41:57"
+        },
+        {
+            "id": 35491,
+            "url": "https://thesession.org/tunes/27#setting35491",
+            "key": "Edorian",
+            "abc": "E2BE dEBE|~E2BE AFDF|E2BE dEBE|BABc dAFD|! E2BE dEBE|~E2BE AFDF|E2BE dEBE|BABc dAFA||! d2fd c2ec|dcde fa ~a2|d2fd c2ec|BABc dAFA|! d2fd c2ec|dcde fa ~a2|bgaf gfed|BABc dAFD||",
+            "member": {
+                "id": 100583,
+                "name": "Bob Sturm",
+                "url": "https://thesession.org/members/100583"
+            },
+            "date": "2019-08-04 07:13:31"
+        },
+        {
+            "id": 37487,
+            "url": "https://thesession.org/tunes/27#setting37487",
+            "key": "Edorian",
+            "abc": "|:\"Em\"E2BE dEBE|E2BE \"D\"AFDF|\"Em\"E2BE dEBE|BABc \"D\"dAFD|! \"Em\"E2BE dEBE|E2BE \"D\"AFDF|\"Em\"E2BE dEBE|BABc \"D\"dAFD:|! |:\"D\"d2fd \"A\"c2ec|\"D\"defg afge|\"D\"d2fd \"A\"c2ec|\"D\"BABc dAFA|! \"D\"d2fd \"A\"c2ec|\"D\"defg afge|\"G\"afge fdec|\"A\"BABc dAFD:|\"Em\"E8||",
+            "member": {
+                "id": 92348,
+                "name": "Chris Fargen",
+                "url": "https://thesession.org/members/92348"
+            },
+            "date": "2020-03-20 21:21:24"
+        },
+        {
+            "id": 39017,
+            "url": "https://thesession.org/tunes/27#setting39017",
+            "key": "Edorian",
+            "abc": "E2BE dEBE|E2BE AFDF|E2BE dEBE|BABc dAFD|! E2BE E2 BE|E2 BE AF D2|E2BE dEBE|BABc dAFD||! d2 fd c2 ec|defg afge|d2 fd c2 ec|BABc dAFA|! d2 fd c2 ec|defg a2 fg|afge fdec|BABc dAFD||",
+            "member": {
+                "id": 6451,
+                "name": "JACKB",
+                "url": "https://thesession.org/members/6451"
+            },
+            "date": "2020-09-15 10:51:31"
+        },
+        {
+            "id": 39098,
+            "url": "https://thesession.org/tunes/27#setting39098",
+            "key": "Edorian",
+            "abc": "|:\"Em\"vE2BE dEBE|uE2BE \"D\"(AFDF)|\"Em\"uE2BE dEBE|1 (BA)Bc \"D\"(dA)FD:|2 (BA)Bc \"D\"(dA)FA||! \"D\"d2(fd) \"A\"c2(ec)|\"G\"(de)fg (af)ge|\"D\"d2(fd) \"A\"c2(ec)|\"G\"(BA)Bc (dA)FA|! \"D\"d2(fd) \"A\"c2(ec)|\"G\"(de)fg af\/g\/|(3(agf) (3(gfe) (fd)ec|(BA)Bc \"D\"(dA)FA||! \"Bm\"(3(dcB) fB (3(dcB) fB|\"A\"(3(cBA) eA fAeA|\"Bm\"(3(dcB) fB (3(dcB) fB|\"Bm\" (fe)fg \"A\" (ae)cA|! \"Bm\"(3(dcB) fB (3(dcB) fB|\"A\"(3(cBA) eA fAeA|\"Em\"d2 (fd) c2 (ec)|\"Em\"(BA)Bc \"D\"(dA)FD||",
+            "member": {
+                "id": 87373,
+                "name": "Michael Machado",
+                "url": "https://thesession.org/members/87373"
+            },
+            "date": "2020-09-25 18:20:47"
+        },
+        {
+            "id": 39125,
+            "url": "https://thesession.org/tunes/27#setting39125",
+            "key": "Edorian",
+            "abc": "E2 Bd cEBE|E2 BG FADF|E2 Bd cEBc|dfec dBAF|! E2 Be dEcE|E2 BG FADF|E2 Bd cEBc|dfec dBAc||! d2 fd {e}dcBd|cAeA ceAc|d2 fd {e}dcBA|^GABc dAFA|! d2 fd {e}dcBd|cdef gbag|fgec dcBA|^GABc dAFA|! d2 fd {e}dcBd|cAeA ceAc|d2 fd {e}dcB^g|abe^g aece|! d2 fd {e}dcBd|cdef gbag|fgec dcBA|^GABc dAFA||",
+            "member": {
+                "id": 11705,
+                "name": "ceolachan",
+                "url": "https://thesession.org/members/11705"
+            },
+            "date": "2020-09-30 11:54:13"
+        },
+        {
+            "id": 43099,
+            "url": "https://thesession.org/tunes/27#setting43099",
+            "key": "Edorian",
+            "abc": "|:E2BE dEBE|E2BE AFDF|E2BE dEBE|1 BABc dAFD:|2 BABc dAFA||! d2fd c2ec|defg afge|d2fd c2ec|BABc dAFA|! d2fd c2ec|defg afge|afge fdec|BABc dAFD||",
+            "member": {
+                "id": 88649,
+                "name": "Michael Toomey",
+                "url": "https://thesession.org/members/88649"
+            },
+            "date": "2022-02-12 15:57:02"
+        },
+        {
+            "id": 46363,
+            "url": "https://thesession.org/tunes/27#setting46363",
+            "key": "Edorian",
+            "abc": "|:\"Em\"E2 (BE) dEBE|E2 (BE) \"D\"AFDF|\"Em\"E2 (BE) dEBE|1 \"G\"B(ABc) \"D\"d(BAF):|2 \"G\"B(ABc) \"D\"d(AFA):|! \"D\"d2(fd) \"A\"c2(ec)|\"D\"def(g af)ge|\"D\"d2(fd)\"A\"c2(ec)|\"G\"B(ABc) \"D\"d(AFA)|! \"D\"d2(fd) \"A\"c2(ec)|\"D\"def(g af)\"Em\"ge|\"D\"a(AgA) \"D\"f(AeA)|\"G\"B(ABc) \"D\"d(AFD)||",
+            "member": {
+                "id": 141227,
+                "name": "Katherine Duff",
+                "url": "https://thesession.org/members/141227"
+            },
+            "date": "2023-03-06 11:16:01"
+        },
+        {
+            "id": 47097,
+            "url": "https://thesession.org/tunes/27#setting47097",
+            "key": "Edorian",
+            "abc": "|\"Em\"E2BE dEBE|E2BE \"D\"AFDF|\"Em\"E2BE dEBE|BABc \"D\"dAFD|! \"Em\"E2BE dEBE|E2BE \"D\"AFDF|\"Em\"E2BE dEBE|BABc \"D\"dAFD|! \"D\"d2fd \"A\"c2ec|\"D\"defg afge|\"D\"d2fd \"A\"c2ec|\"G\"BABc \"A\"dAFA|! \"D\"d2fd \"A\"c2ec|\"D\"defg afge|\"D\"afge \"A\" fdec|\"G\" BABc \"D\" dAFD|\"Em\"E8||",
+            "member": {
+                "id": 157971,
+                "name": "Aaron Bergen",
+                "url": "https://thesession.org/members/157971"
+            },
+            "date": "2023-05-11 01:32:23"
+        },
+        {
+            "id": 49709,
+            "url": "https://thesession.org/tunes/27#setting49709",
+            "key": "Edorian",
+            "abc": "|:\"Em\"E2BE dEBE|E2BE \"D\"AFDF|\"Em\"E2BE dEBE|BABc \"D\"dAFD:|! \"D\"d2fd \"A\"c2ec|\"D\"defg afge|\"D\"d2fd \"A\"c2ec|\"G\"BABc dAFA|! \"D\"d2fd \"A\"c2ec|\"D\"defg afge|\"G\"afge fdec|\"A\"BABc dAFD||",
+            "member": {
+                "id": 9399,
+                "name": "lusoceltibero",
+                "url": "https://thesession.org/members/9399"
+            },
+            "date": "2024-02-23 18:42:40"
+        },
+        {
+            "id": 51446,
+            "url": "https://thesession.org/tunes/27#setting51446",
+            "key": "Edorian",
+            "abc": "|:E2BE dEBE|E2BE AFDF|E2BE dEBE|1 BABc dAFD:|2 BABc dAFA||! |:d2fd c2ec|defg afge|d2fdc2ec|BABc dAFA|! d2fd c2ec|defg a2fg|afge fdec|1 BABc dAFA:|2 BABc dAFD||",
+            "member": {
+                "id": 176577,
+                "name": "Bodhr\u00e1nboy854",
+                "url": "https://thesession.org/members/176577"
+            },
+            "date": "2024-08-16 18:38:44"
+        },
+        {
+            "id": 51464,
+            "url": "https://thesession.org/tunes/27#setting51464",
+            "key": "Edorian",
+            "abc": "|:E2BE dEBE|~E2BE AFDF|{D}E2BE dEBE|{c}BABc dcAD:|! ~d2fd cdec|defg (3agf (3gfe|defd cdec|BABc dcAc|! defd cdec|defg af (3gfe|afge fdec|BABc dBAD||",
+            "member": {
+                "id": 171545,
+                "name": "Will The Whistler",
+                "url": "https://thesession.org/members/171545"
+            },
+            "date": "2024-08-18 14:45:05"
+        },
+        {
+            "id": 52627,
+            "url": "https://thesession.org/tunes/27#setting52627",
+            "key": "Edorian",
+            "abc": "|:E2Bd cABE|E\/E\/E BG FADF|E\/E\/E Bd cABc|1 dfec dBAF:|2 dfec dABA||! d2 fe dcBd|c\/B\/A eA ceAc|defe dcBc|def^g aecA|! defe dcBd|c\/B\/A eA ceAg|faec dcBa|^gbeg aecA||",
+            "member": {
+                "id": 8648,
+                "name": "Erik-Fiddler",
+                "url": "https://thesession.org/members/8648"
+            },
+            "date": "2024-12-10 02:28:35"
+        },
+        {
+            "id": 53220,
+            "url": "https://thesession.org/tunes/27#setting53220",
+            "key": "Edorian",
+            "abc": "|:E2BE dEBE|E2BE AFDF|E2BE dEBE|BABc dAFD:|! d2fd c2ec|defg afge|d2fd c2ec|BABc dAFA|! d2fd c2ec|defg afge|aAgA fAeA|BABc dAFD|",
+            "member": {
+                "id": 137347,
+                "name": "Em G",
+                "url": "https://thesession.org/members/137347"
+            },
+            "date": "2025-02-14 07:22:23"
+        },
+        {
+            "id": 53477,
+            "url": "https://thesession.org/tunes/27#setting53477",
+            "key": "Edorian",
+            "abc": "E2BE dEBE|E2BE AFDF|E2BE dEBE|BABc dAFD|! E2BE dEBE|E2BE AFDF|E2BE dEBE|BABc dAFA||! d2fd cdec|defd faaf|defd cdec|~B3c dAFA|! d2fd cdec|defdfa~a2|bgaf gfed|~B3c dAFD||",
+            "member": {
+                "id": 63481,
+                "name": "tziguk",
+                "url": "https://thesession.org/members/63481"
+            },
+            "date": "2025-03-10 12:46:57"
+        },
+        {
+            "id": 56821,
+            "url": "https://thesession.org/tunes/27#setting56821",
+            "key": "Ddorian",
+            "abc": "|: \"Dm\" D2AD cDAD | D2AD \"C\" GECE | \"Dm\" D2AD cDAD |1 AGAB \"C\"cGEC :|2 AGAB \"C\"cGEG ||! \"C\"c2ec \"G7\"B2dB| \"C\"cdef gefd|c2ec \"G7\"B2dB| \"F\"AGAB \"C\"cGEG |! \"C\"c2ec \"G7\"B2dB | \"C\" cdef gefd| \"F\"gefd \"G7\"ecdB | \"F\"AGAB \"C\"cGEC |",
+            "member": {
+                "id": 184608,
+                "name": "Murray Hobbs",
+                "url": "https://thesession.org/members/184608"
+            },
+            "date": "2026-03-14 05:52:00"
+        },
+        {
+            "id": 57728,
+            "url": "https://thesession.org/tunes/27#setting57728",
+            "key": "Cmajor",
+            "abc": "|:D2AD cDAD|D2AD GECE|D2AD cDAD|AGAB cGEC:|! c2ec B2dB|cdef gefd|c2ec B2dB|AGAB cGEG|! c2ec B2dB|cdef gefd|gefd ecdc|AGAB cGEC|",
+            "member": {
+                "id": 191000,
+                "name": "Joey Robichaux",
+                "url": "https://thesession.org/members/191000"
+            },
+            "date": "2026-07-27 14:37:43"
+        }
+    ],
+    "comments": [
+        {
+            "id": 26,
+            "url": "https://thesession.org/tunes/27#comment26",
+            "subject": "",
+            "content": "Don't let the title fool you; there's nothing drowsy about this tune. It's usually played at a very fast pace.    The melody itself is quite straightforward with plenty of those pipe-like jumps back to the E note. These jumps can be a bit tricky at first, especially on stringed instruments like the fiddle and banjo. The best solution is to have both the E and B notes permanently fingered for the first few bars.    When this tune gets up to breakneck speed, it might be a good idea to play less notes and lengthen them.",
+            "member": {
+                "id": 1,
+                "name": "Jeremy",
+                "url": "https://thesession.org/members/1"
+            },
+            "date": "2001-06-01 05:42:29"
+        },
+        {
+            "id": 2645,
+            "url": "https://thesession.org/tunes/27#comment2645",
+            "subject": "Drowsie Maggie",
+            "content": "I agree with Jeremy that there's absolutely nothing \"sleepy\" baout this tune when played at session speed...or, for that matter, when accompanying dancers shakin' their trotters in a reel.  But, slowed down a wee bit, the tune works marvelously as a compliment to several SONGS in the same key.  For example, my band (gee, that sounds so possessive!) currently uses \"Maggie\" as the intro, middle and ending to \"Whup, Jamboree,\" a trad nautical number.",
+            "member": {
+                "id": 291,
+                "name": "Munsondr",
+                "url": "https://thesession.org/members/291"
+            },
+            "date": "2001-11-15 19:04:56"
+        },
+        {
+            "id": 2647,
+            "url": "https://thesession.org/tunes/27#comment2647",
+            "subject": "Versions of Drowsey Maggie",
+            "content": "Just for info sake, (& not to burst anybody's bubble), this is not actually the version Altan play on their recordings.  They play the Donegal version (surprise surprise) which is significantly different than this more session type version.",
+            "member": {
+                "id": 334,
+                "name": "Francis Ward",
+                "url": "https://thesession.org/members/334"
+            },
+            "date": "2001-11-15 19:21:57"
+        },
+        {
+            "id": 11756,
+            "url": "https://thesession.org/tunes/27#comment11756",
+            "subject": "Wooden Flute Obsession",
+            "content": "I'm listening to Matt Molloy's slow (!!!) and incredibly beautiful interpretation of Drowsie Maggie in the \"Flute Obsession\" CD (taken from \"Heathery Breeze\", i think). Just incredible!",
+            "member": {
+                "id": 1305,
+                "name": "glauber",
+                "url": "https://thesession.org/members/1305"
+            },
+            "date": "2002-08-26 03:06:27"
+        },
+        {
+            "id": 19437,
+            "url": "https://thesession.org/tunes/27#comment19437",
+            "subject": "HELP!!! Need Simpler Tunes to Play with Drowsy Maggie",
+            "content": "What tunes do you all play with Drowsy Maggie? Looking for a couple of SIMPLER tunes I can master (D flute or high D whistle sith guitar accompaniment) for a benefit hooley in a week and a half. I just don't have the time to learn anthing too tricky between now and then:) Please respond with any easier to play tunes (no trickier than Drowsy Maggie please) that I could play to lead into Drowsy Maggie and then one after to finish a short reel set. It would be especially helpful if you knew the tunes to be posted here previously in sheetmusic form...even more helpful yet if you knew the guitar chords for my accompaniment!  thanks  fw",
+            "member": {
+                "id": 4035,
+                "name": "farquharson whistler",
+                "url": "https://thesession.org/members/4035"
+            },
+            "date": "2003-01-08 01:14:02"
+        },
+        {
+            "id": 19439,
+            "url": "https://thesession.org/tunes/27#comment19439",
+            "subject": "Re: HELP!!! Need Simpler Tunes to Play with Drowsy Maggie",
+            "content": "I used to play The Ash Plant, followed by Drowsy Maggie and  finished with Jenny's Chickens.  Now I think of it it was a really good set of reels and should be revived.   Credit for this set goes to a band called East of Eden who got high in the charts with this same set (in a different order I think) in the UK in 1969.  For some bizarre reason they called it \"Jig a Jig\".  Don't ask.    You are on your own  with the chords!    Good luck with the Hooley",
+            "member": {
+                "id": 2918,
+                "name": "Geoff Pollitt",
+                "url": "https://thesession.org/members/2918"
+            },
+            "date": "2003-01-08 02:13:34"
+        },
+        {
+            "id": 19444,
+            "url": "https://thesession.org/tunes/27#comment19444",
+            "subject": "Re: HELP!!! Need Simpler Tunes to Play with Drowsy Maggie",
+            "content": "At our session we always follow Drowsie Maggie with the Glass of Beer and Toss the Feathers in E minor; sometimes we'll continue with the D version of Toss the Feathers if the session is going really well.  I'll check if these have already been posted and will submit them if not.",
+            "member": {
+                "id": 2466,
+                "name": "Bannerman",
+                "url": "https://thesession.org/members/2466"
+            },
+            "date": "2003-01-08 03:09:33"
+        },
+        {
+            "id": 19451,
+            "url": "https://thesession.org/tunes/27#comment19451",
+            "subject": "How Simple?",
+            "content": "Try the Keel Row (D) Drowsie Maggie (Em) Sally Gardens (G). They are all fairly simple reels and if not available on this site (sorry I'm at work and don't have time to check before the boss is back) type in the names (with reel) into google and you should be able to find them, or try typing tunedb.  :o)",
+            "member": {
+                "id": 4988,
+                "name": "Greenwiggle",
+                "url": "https://thesession.org/members/4988"
+            },
+            "date": "2003-01-08 03:46:46"
+        },
+        {
+            "id": 19457,
+            "url": "https://thesession.org/tunes/27#comment19457",
+            "subject": "Re: HELP!!! Need Simpler Tunes to Play with Drowsy Maggie",
+            "content": "I like to play Glass of Beer\/ Humours of Tulla\/ Drowsy Maggie as a set.",
+            "member": {
+                "id": 3884,
+                "name": "Andee",
+                "url": "https://thesession.org/members/3884"
+            },
+            "date": "2003-01-08 05:13:15"
+        },
+        {
+            "id": 19461,
+            "url": "https://thesession.org/tunes/27#comment19461",
+            "subject": "Re: HELP!!! Need Simpler Tunes to Play with Drowsy Maggie",
+            "content": "My version of Rolling in the Barrel [https:\/\/thesession.org\/tunes\/500] (see the comment), and then Killarney Boys of Pleasure [https:\/\/thesession.org\/tunes\/733]  They are really easy to learn and play on the flute and whistle. But Ashplant and Glass of Beer are also simple and nice tunes to follow Drowsy Maggie.",
+            "member": {
+                "id": 3150,
+                "name": "slainte",
+                "url": "https://thesession.org/members/3150"
+            },
+            "date": "2003-01-08 05:28:51"
+        },
+        {
+            "id": 19485,
+            "url": "https://thesession.org/tunes/27#comment19485",
+            "subject": "Re: HELP!!! Need Simpler Tunes to Play with Drowsy Maggie",
+            "content": "we play Silver Spear, Merry Blacksmith and then Drowsie Maggie  They're both really simple easy to play tunes.  happy hooley :)",
+            "member": {
+                "id": 4630,
+                "name": "fiddlefeet",
+                "url": "https://thesession.org/members/4630"
+            },
+            "date": "2003-01-08 11:29:00"
+        },
+        {
+            "id": 19830,
+            "url": "https://thesession.org/tunes/27#comment19830",
+            "subject": "Re: HELP!!! Need Simpler Tunes to Play with Drowsy Maggie",
+            "content": "On the new Patrick Street album \"streetlife\" there is a set of : the old reel\/ drowsy maggie\/ Kay Girror. This might be of no help but i thought it may be useful.",
+            "member": {
+                "id": 2811,
+                "name": "Celtic1234",
+                "url": "https://thesession.org/members/2811"
+            },
+            "date": "2003-01-11 13:30:41"
+        },
+        {
+            "id": 19836,
+            "url": "https://thesession.org/tunes/27#comment19836",
+            "subject": "Re: HELP!!! Need Simpler Tunes to Play with Drowsy Maggie",
+            "content": "Thanks everyone. Lots of great help!  FW",
+            "member": {
+                "id": 4035,
+                "name": "farquharson whistler",
+                "url": "https://thesession.org/members/4035"
+            },
+            "date": "2003-01-11 17:30:35"
+        },
+        {
+            "id": 30078,
+            "url": "https://thesession.org/tunes/27#comment30078",
+            "subject": "Drowsy Maggie Street as on Patrick Street - Street life",
+            "content": "K:Edor  E2 GE BEGE|(3EEE GE BEGE|D2 FD ADFD|(3DDD FD ADFD|  E2 GE BEGE|(3EEE GE BEGE|G2 EF GABc|1dBAF E2 A,C:|2dBAF E2 Bc||  d2 fd c2 ec|d2 fd c2 Bc|d2 fd c2 ec|BABc dAFA|  d2 fd c2 ec|d2 fd c2 Bc|d2 fd c2 ec|Bdce dAFA:|    Jackie Daly and Kevin Burke play this smooth version of Drowsy on the \"Street Life\" album after \"the old reel\".  They follow it with a great Bmin tune called \"Kay Girroir\".",
+            "member": {
+                "id": 6225,
+                "name": "Jamie",
+                "url": "https://thesession.org/members/6225"
+            },
+            "date": "2003-05-27 14:55:51"
+        },
+        {
+            "id": 30082,
+            "url": "https://thesession.org/tunes/27#comment30082",
+            "subject": "Revision of patrick street version",
+            "content": "The first time bar should read:  1dBAF E2 B,D not 1dBAF E2 A,C",
+            "member": {
+                "id": 6225,
+                "name": "Jamie",
+                "url": "https://thesession.org/members/6225"
+            },
+            "date": "2003-05-27 15:51:45"
+        },
+        {
+            "id": 50219,
+            "url": "https://thesession.org/tunes/27#comment50219",
+            "subject": "Drowsy or sleepy?",
+            "content": "I have a question. Are Drowsy Maggie and Sleepy Maggie the same tune?",
+            "member": {
+                "id": 8843,
+                "name": "uilleannpiper",
+                "url": "https://thesession.org/members/8843"
+            },
+            "date": "2003-12-28 04:47:31"
+        },
+        {
+            "id": 54985,
+            "url": "https://thesession.org/tunes/27#comment54985",
+            "subject": "County Versions",
+            "content": "I'll post the .abc to the Donegal version one of these days when I have it in front of me, I promise. It's got lots of lovely G-sharps (it IS donegal, after all).    James Keane plays a Clare version with a COMPLETELY different B part that I'm very curious about. Anyone know what I'm talking about? He uses it to kick off a massive set on the \"Gaelic Roots\" double-CD compilation of the Boston College concert series (Kells Music, 1997); the set includes such multi-part monsters as \"Farewell to Erin\" and \"The Foxhunter\".",
+            "member": {
+                "id": 8292,
+                "name": "JHowley",
+                "url": "https://thesession.org/members/8292"
+            },
+            "date": "2004-01-27 19:54:01"
+        },
+        {
+            "id": 55044,
+            "url": "https://thesession.org/tunes/27#comment55044",
+            "subject": "",
+            "content": "Drowsy Maggie and Sleepy Maggie are not the same tune.",
+            "member": {
+                "id": 3080,
+                "name": "gian marco",
+                "url": "https://thesession.org/members/3080"
+            },
+            "date": "2004-01-28 02:15:26"
+        },
+        {
+            "id": 56574,
+            "url": "https://thesession.org/tunes/27#comment56574",
+            "subject": "",
+            "content": "...which means that it's a bit confusing when this recording:  https:\/\/thesession.org\/recordings\/242  references Sleepy Maggie, and it's actually the B minor tune, reminsicent of Jenny's Chickens, that's on the album. Actually I learnt Sleepy Maggie before both Jenny's Chickens and Drowsy Maggie, and I still play it, even though everyone hears the first few bars, assumes \"Jenny's Chickens\" and dives on in there, and so it goes...",
+            "member": {
+                "id": 6304,
+                "name": "rog",
+                "url": "https://thesession.org/members/6304"
+            },
+            "date": "2004-02-05 21:22:31"
+        },
+        {
+            "id": 60452,
+            "url": "https://thesession.org/tunes/27#comment60452",
+            "subject": "Re: County Versions...",
+            "content": "Wouls be e'er so kind as to post the Donegal version?    T'anks loads.    -P",
+            "member": {
+                "id": 5512,
+                "name": "P\u00e1draig",
+                "url": "https://thesession.org/members/5512"
+            },
+            "date": "2004-03-02 17:53:56"
+        },
+        {
+            "id": 60528,
+            "url": "https://thesession.org/tunes/27#comment60528",
+            "subject": "",
+            "content": "Padraig, I can't transcribe it, but here is the link to the great collection of Donegal music: http:\/\/misaok.hp.infoseek.co.jp\/fmod\/d_sakuin\/do_saku.html  You'll find what you are looking for.     I think the Clare setting of the tune JHowley mentioned is Reel with the Birl: https:\/\/thesession.org\/tunes\/189    H.",
+            "member": {
+                "id": 3150,
+                "name": "slainte",
+                "url": "https://thesession.org/members/3150"
+            },
+            "date": "2004-03-03 00:32:24"
+        },
+        {
+            "id": 65462,
+            "url": "https://thesession.org/tunes/27#comment65462",
+            "subject": "",
+            "content": "Rawlin's Cross also plays this piece on their Instramental Album, followed by the Gravel Walks and the Blind Beggerman.",
+            "member": {
+                "id": 4809,
+                "name": "Winnowill",
+                "url": "https://thesession.org/members/4809"
+            },
+            "date": "2004-04-11 23:21:39"
+        },
+        {
+            "id": 78033,
+            "url": "https://thesession.org/tunes/27#comment78033",
+            "subject": "Another Authoritative Setting",
+            "content": "I still remember when I played this popular tune in the real session for the first time, people had the different second part like this:     d2fd c2ec|defg faaf|d2fd c2ec|BABc dAFA|  d2fd c2ec|defg faaf|bgaf gefd|BABc dAFD||    I think it's not only me that had the same problem. Definitely, beginners should learn and be ready to play both in a new place. Which one do you normally play?",
+            "member": {
+                "id": 3150,
+                "name": "slainte",
+                "url": "https://thesession.org/members/3150"
+            },
+            "date": "2004-06-18 23:43:54"
+        },
+        {
+            "id": 78049,
+            "url": "https://thesession.org/tunes/27#comment78049",
+            "subject": "Drowsy Maggie with three parts",
+            "content": "Here's how we learned it and played it years ago with a third part allegedly made up by Joe Cooly.    K:Edor  |:E2BE dEBE|E2BE AFDF|E2BE dEBE|1BABc dAFD:|2BABc dAFA||  K:D  d2fd B\/c\/d ec|defg afge|d2fd B\/c\/d ec|BABc dAFA|  d2fd B\/c\/d ec|defg afge|afge fdec|BABc dAFA||  dBfB dBfB|cAeA fAeA|dBfB dBfB|fef^g aecA|  dBfB dBfB|cAeA fAeA|defd B\/c\/d ec|BABc dAFD||",
+            "member": {
+                "id": 9968,
+                "name": "Phantom Button",
+                "url": "https://thesession.org/members/9968"
+            },
+            "date": "2004-06-19 00:33:38"
+        },
+        {
+            "id": 78051,
+            "url": "https://thesession.org/tunes/27#comment78051",
+            "subject": "3?",
+            "content": "I didn't know this tune had a third part.  Cool!  It really fits with the rest of the tune, I think.    -Max",
+            "member": {
+                "id": 8045,
+                "name": "Max Becher",
+                "url": "https://thesession.org/members/8045"
+            },
+            "date": "2004-06-19 00:42:34"
+        },
+        {
+            "id": 86762,
+            "url": "https://thesession.org/tunes/27#comment86762",
+            "subject": "Pierre Schryer version of drowsey maggie sleepy maggie",
+            "content": "THis is a wicked set that Pierre Schreyer does. He has some wicked variations. He plays drowsy maggie with the same fingerings but starting on a string lower. then he plays it starting on the d string. if you want the music for some of the other variations contact me at celticmeg@hotmail.com",
+            "member": {
+                "id": 11611,
+                "name": "celticmegs",
+                "url": "https://thesession.org/members/11611"
+            },
+            "date": "2004-08-12 20:48:41"
+        },
+        {
+            "id": 87339,
+            "url": "https://thesession.org/tunes/27#comment87339",
+            "subject": "More maggie!!",
+            "content": "Folks, my understanding is Sleepy\/Drowsy Maggie is actually a four parter. Anyone have the other parts? I think I can find 'em, anyone interested? I'll need help authenticating expertly, of course.",
+            "member": {
+                "id": 6686,
+                "name": "GenghisKilt",
+                "url": "https://thesession.org/members/6686"
+            },
+            "date": "2004-08-17 12:15:08"
+        },
+        {
+            "id": 89986,
+            "url": "https://thesession.org/tunes/27#comment89986",
+            "subject": "Altan's version of Drowsy Maggie",
+            "content": "E2Bd cABE|E2BG FADF|E2Bd cABc|1 dfec dAFD:|2 dfec dAFA|  d2fe dcBd|(3cBA ed ceAc|defe dcBc|def^g aecA|  defe dcBd|(3cBA eA ceAg|fdec dcBa|^gbeg aecA||",
+            "member": {
+                "id": 7417,
+                "name": "dlowder",
+                "url": "https://thesession.org/members/7417"
+            },
+            "date": "2004-09-02 15:30:19"
+        },
+        {
+            "id": 90023,
+            "url": "https://thesession.org/tunes/27#comment90023",
+            "subject": "Con Cassidy's",
+            "content": "Altan recorded Con Cassidy's version of DM.",
+            "member": {
+                "id": 9968,
+                "name": "Phantom Button",
+                "url": "https://thesession.org/members/9968"
+            },
+            "date": "2004-09-02 22:10:13"
+        },
+        {
+            "id": 116720,
+            "url": "https://thesession.org/tunes/27#comment116720",
+            "subject": "Ockington stick dance",
+            "content": "this piece sounds very similar to a morris tune I play called ockington stick dance",
+            "member": {
+                "id": 15530,
+                "name": "banana512",
+                "url": "https://thesession.org/members/15530"
+            },
+            "date": "2005-01-13 14:28:15"
+        },
+        {
+            "id": 137718,
+            "url": "https://thesession.org/tunes/27#comment137718",
+            "subject": "Drowsy Maggie with four parts",
+            "content": "Can't believe Jack only knows 3 parts for this tune. It's time for him to learn the other part, I think:    X: 1  T: Drowsy Maggie  M: 4\/4  L: 1\/8  R: reel  K: Edor  |:E2BE dEBE|E2BE AFDF|E2BE dEBE|1 BABc dAFD:|2 BABc dAFA||  K: Dmaj  |:d2fd cdec|defg afge|1 d2fd c2ec|BABc dAFA:|2 afge fdec|BABc dAFA||  K: Bdor (watch G#)  |:dBfB dBfB|cAeA cAeA|1 dBfB dBfB|defg aece:|2 defg aecA|BABc dAFA||  |:dffe dfBf|ceed ceAe|1 dffe defg|a2ag aece:|2 af=ge fdec|BABc dAFD||",
+            "member": {
+                "id": 4763,
+                "name": "Dr. Dow",
+                "url": "https://thesession.org/members/4763"
+            },
+            "date": "2005-04-26 23:33:20"
+        },
+        {
+            "id": 137730,
+            "url": "https://thesession.org/tunes/27#comment137730",
+            "subject": "",
+            "content": "Dow... you can't just go around willy-nilly making up extra parts for tunes just so you can make shmart arsed quips.",
+            "member": {
+                "id": 9968,
+                "name": "Phantom Button",
+                "url": "https://thesession.org/members/9968"
+            },
+            "date": "2005-04-27 01:56:49"
+        },
+        {
+            "id": 137763,
+            "url": "https://thesession.org/tunes/27#comment137763",
+            "subject": "Drowsy Maggie Donegal setting",
+            "content": "I've had to adapt the Donegal setting a bit for my instrument - here's my take on it:    X: 1  T: Drowsy Maggie (Donegal Setting)  M: 4\/4  L: 1\/8  R: reel  K: Edor  ~E3d cABE|~E2BE FADF|~E3d cABc|1 dfec dAFD:|2 dfec dAFA||  defe dcBd|(3cBA eA ceAc|defe dcBc|def^g aecA|  defe dcBd|(3cBA eA ceAe|faec dcBa|^gbeg aecA||",
+            "member": {
+                "id": 4763,
+                "name": "Dr. Dow",
+                "url": "https://thesession.org/members/4763"
+            },
+            "date": "2005-04-27 05:24:03"
+        },
+        {
+            "id": 137774,
+            "url": "https://thesession.org/tunes/27#comment137774",
+            "subject": "",
+            "content": "You're just jealous of my sophisticated Drowsy Maggie settings, Jack.",
+            "member": {
+                "id": 4763,
+                "name": "Dr. Dow",
+                "url": "https://thesession.org/members/4763"
+            },
+            "date": "2005-04-27 06:55:35"
+        },
+        {
+            "id": 137883,
+            "url": "https://thesession.org/tunes/27#comment137883",
+            "subject": "Here's the setting I've been playing for that",
+            "content": "X: 1  T: Drowsy Maggie (Donegal Setting)  S: Brid Harper & Dermot Byrne  Z: Jack Gilder  M: 4\/4  L: 1\/8  R: reel  K: Edor  ~E2Bd cABE|~E2BE FADF|~E2Bd cABc| dfec dBAF:||  d2fe dcBd|c\/B\/A eA ceAc|defe dcBc|def^g aece|  dafe dcBA|B\/c\/d ef gecg|f\/g\/aec dcBa|^gbeg aecA||",
+            "member": {
+                "id": 9968,
+                "name": "Phantom Button",
+                "url": "https://thesession.org/members/9968"
+            },
+            "date": "2005-04-27 16:59:07"
+        },
+        {
+            "id": 152199,
+            "url": "https://thesession.org/tunes/27#comment152199",
+            "subject": "Drowsy Maggie",
+            "content": "2nd to last bar a bit dodgy it sound better dropping down to an A every other note and a bit  short!",
+            "member": {
+                "id": 19253,
+                "name": "cookrj",
+                "url": "https://thesession.org/members/19253"
+            },
+            "date": "2005-07-14 10:35:55"
+        },
+        {
+            "id": 201906,
+            "url": "https://thesession.org/tunes/27#comment201906",
+            "subject": "Drowsy Maggie (again!).. concertina question this time",
+            "content": "Since Drowsie Maggie has kept popping up here lately I decided to try and learn it myself. I play anglo concertina and I began playing just under a year ago and it just so happens that I've never yet learned a tune with that G# in it. The first two parts are nice and easy... but that third part is murder! Any suggestions from other concertina players out there? Also, when there's a run that calls for a B and a C# one after the other (or a similar combo where the buttons are located right on top of each other) what do you all tend to do? It's a little akward sometimes but I usually keep that fingering so I can do the whole thing on the pull.... it is better to look for an alternate fingering and switch the bellows direction?  Thanks so much for any help!",
+            "member": {
+                "id": 19206,
+                "name": "gretchen",
+                "url": "https://thesession.org/members/19206"
+            },
+            "date": "2006-03-20 00:45:10"
+        },
+        {
+            "id": 206552,
+            "url": "https://thesession.org/tunes/27#comment206552",
+            "subject": "Drowsy Maggie: expanding the fun of the opening four bars",
+            "content": "I love the rollicking fun of the first four bars of Drowsy Maggie, playing it on my fiddle with a dotted rhythm. I love it so much that I don't want to quit!  Instead, I expand it out as follows:    \"Em\"E2BE E2BE| E2BE \"D\"AFDF| \"Em\"E2BE B2Bc| dedB \"D\"AFDF||  \"Em\"EEBE dEBE| EEBE \"D\"AFDF| \"Em\"EEBE dEBE| dedB \"D\"AFDF||  \"Em\"EEB,D EB\"D\"AF | \"Em\"GABe \"D\"dBAF | \"Em\"EEB,D EB\"D\"AF | \"Em\"GAGF EDB,D ||  EEB,D EB\"D\"AF | \"Em\"GABe \"D\"dBAF | \"Em\"EEB,D EB\"D\"AF | \"Em\"GAGF EDB,G, ||  \"Am\"A,2EA, A,2EA,| A,2EA, \"G\"DB,G,B,| \"Am\"A,2EA, E2EF| GAGE \"G\"DB,G,B,||  \"Am\"A,A,EA, GA,EA,| A,A,EA, \"G\"DB,G,B,| \"Am\"A,A,EA, GA,EA,| DEDB, \"G\"DB,G,B,||  \"Am\"A,A,=CE AGE=C | A,A,=CE AGE=C | A,A,=CE ABAE | =cd=cA \"Em\"EDCB, ||   \"Am\"A,A,=CE AGE=C | A,A,=CE AGE=C | A,A,=CE AB=cd | ed=ce \"Em\"BAGF ||",
+            "member": {
+                "id": 13886,
+                "name": "bobgreen",
+                "url": "https://thesession.org/members/13886"
+            },
+            "date": "2006-04-26 06:29:45"
+        },
+        {
+            "id": 206554,
+            "url": "https://thesession.org/tunes/27#comment206554",
+            "subject": "Drowsy Maggie: expanding the fun....   ABC Headings",
+            "content": "The ABC headings for the above are:    X: 1  T:Drowsy Maggie Intro  M:C|  L:1\/8  C:Irish Trad.  R:reel  P:E Dorian  Z:Transcribed to abc by Robert Green  K:Edor",
+            "member": {
+                "id": 13886,
+                "name": "bobgreen",
+                "url": "https://thesession.org/members/13886"
+            },
+            "date": "2006-04-26 06:38:10"
+        },
+        {
+            "id": 206591,
+            "url": "https://thesession.org/tunes/27#comment206591",
+            "subject": "Maggie's Sisters",
+            "content": "The Reel with the Birl: https:\/\/thesession.org\/tunes\/189  The Tap Room: https:\/\/thesession.org\/tunes\/711  Handsome Sally: https:\/\/thesession.org\/tunes\/2215    There are some others.",
+            "member": {
+                "id": 3150,
+                "name": "slainte",
+                "url": "https://thesession.org/members/3150"
+            },
+            "date": "2006-04-26 11:14:00"
+        },
+        {
+            "id": 226713,
+            "url": "https://thesession.org/tunes/27#comment226713",
+            "subject": "Slide",
+            "content": "I like adding a slide to the first \"e\" note",
+            "member": {
+                "id": 28383,
+                "name": "fiddlertracy",
+                "url": "https://thesession.org/members/28383"
+            },
+            "date": "2006-08-27 16:40:05"
+        },
+        {
+            "id": 235584,
+            "url": "https://thesession.org/tunes/27#comment235584",
+            "subject": "Drowsey maggie + ?",
+            "content": "Does any one know what to play with drowsey maggie in a donegall irish style?",
+            "member": {
+                "id": 30101,
+                "name": "N.P.",
+                "url": "https://thesession.org/members/30101"
+            },
+            "date": "2006-10-25 08:10:26"
+        },
+        {
+            "id": 235585,
+            "url": "https://thesession.org/tunes/27#comment235585",
+            "subject": "Re: Drowsey maggie + ?",
+            "content": "Star of Munster",
+            "member": {
+                "id": 16692,
+                "name": "ecidralla",
+                "url": "https://thesession.org/members/16692"
+            },
+            "date": "2006-10-25 08:12:13"
+        },
+        {
+            "id": 235587,
+            "url": "https://thesession.org/tunes/27#comment235587",
+            "subject": "One option...........",
+            "content": "https:\/\/thesession.org\/recordings\/7    See track 7. That's certainly Donegal for you.  What you could do is go to \"Drowsy Maggie\", in the tunes section,and look at the recordings it's listed as appearing on. Click on the recording and you can find out what it's been paired up with on any particular recording. Better still, use your imagination, and create your own sets. Good luck.",
+            "member": {
+                "id": 726,
+                "name": "Kenny",
+                "url": "https://thesession.org/members/726"
+            },
+            "date": "2006-10-25 08:21:03"
+        },
+        {
+            "id": 311008,
+            "url": "https://thesession.org/tunes/27#comment311008",
+            "subject": "Violin",
+            "content": "hey ive been playing violin for four years any tips???",
+            "member": {
+                "id": 39445,
+                "name": "Kathryn123",
+                "url": "https://thesession.org/members/39445"
+            },
+            "date": "2007-09-08 12:21:38"
+        },
+        {
+            "id": 311009,
+            "url": "https://thesession.org/tunes/27#comment311009",
+            "subject": "Let me think",
+            "content": "i really like the tune drowsy maggie but it is quite a hard tune. when i learnt it my violin played it and it sounded great but im not that good and doesnt sound right when I play it!!!",
+            "member": {
+                "id": 39445,
+                "name": "Kathryn123",
+                "url": "https://thesession.org/members/39445"
+            },
+            "date": "2007-09-08 12:23:47"
+        },
+        {
+            "id": 314031,
+            "url": "https://thesession.org/tunes/27#comment314031",
+            "subject": "Drowsy Maggie",
+            "content": "Classic!! Love it",
+            "member": {
+                "id": 103806,
+                "name": "irishfiddleMA",
+                "url": "https://thesession.org/members/103806"
+            },
+            "date": "2007-09-20 11:11:41"
+        },
+        {
+            "id": 314374,
+            "url": "https://thesession.org/tunes/27#comment314374",
+            "subject": "",
+            "content": "I had a dream once that I wrote this tune and that I got payed royalties every time it was played at a session.    It was a good dream.",
+            "member": {
+                "id": 39218,
+                "name": "mehitabel23",
+                "url": "https://thesession.org/members/39218"
+            },
+            "date": "2007-09-21 11:10:07"
+        },
+        {
+            "id": 355472,
+            "url": "https://thesession.org/tunes/27#comment355472",
+            "subject": "A different take on the B Part",
+            "content": "similar to the one posted by slainte:    d2fd cdec|defd faaf|d2fd cdec|BABc dAFA|  d2fd cdec|defd faa2|bgaf gfed|BABc dAFD||",
+            "member": {
+                "id": 38347,
+                "name": "Ramiro",
+                "url": "https://thesession.org/members/38347"
+            },
+            "date": "2008-03-18 16:16:55"
+        },
+        {
+            "id": 360287,
+            "url": "https://thesession.org/tunes/27#comment360287",
+            "subject": "Connects cleverly to Maudabawn Chapel",
+            "content": "For a bit of trickery in my last band, we played Maudabawn Chapel 2.5 times then went straight to (the Donegal) Drowsy Maggie instead of the B part...",
+            "member": {
+                "id": 10275,
+                "name": "dlovrien",
+                "url": "https://thesession.org/members/10275"
+            },
+            "date": "2008-04-07 16:52:54"
+        },
+        {
+            "id": 367599,
+            "url": "https://thesession.org/tunes/27#comment367599",
+            "subject": "History or background on Drowsy Maggie",
+            "content": "Anyone know the background of Drowsy Maggie? Any interesting tidbits or stories etc?",
+            "member": {
+                "id": 30834,
+                "name": "aaronashton",
+                "url": "https://thesession.org/members/30834"
+            },
+            "date": "2008-05-05 15:14:45"
+        },
+        {
+            "id": 407752,
+            "url": "https://thesession.org/tunes/27#comment407752",
+            "subject": "Version from \"O'Neill's Music of Ireland\"",
+            "content": "X: 1  T: Drowsy Maggie (O'Neill's Music of Ireland)  B: O'Neill's Music of Ireland  M: C|  R: reel  K: G  E2(BE dEBE)|E2(BE AFDF)|E2(BE dEBE)|T(BAB)^c dAFD|  E2(BE dEBE)|E2(BE AFDF)|E2(BE dEBE)|T(BAB)^c dAFD||  d2(fd) c2(ec)|defg afge|d2(fd) c2(ec)|T(BAB)c dAFA|  d2(fd) c2(ec)|defg afge|afge fdec|T(BAB)c dAFD|]",
+            "member": {
+                "id": 50552,
+                "name": "flipe",
+                "url": "https://thesession.org/members/50552"
+            },
+            "date": "2008-10-21 18:07:18"
+        },
+        {
+            "id": 429316,
+            "url": "https://thesession.org/tunes/27#comment429316",
+            "subject": "The second to last bar",
+            "content": "in the second to last bar the tune is mch more interesting if you cross to an A insted of the F,E,D,and C. this also looks alot better if you do this especialy if youre a fiddle player like myself.    Did you know that this tune is used in the film Titanic in the kaly scene",
+            "member": {
+                "id": 53453,
+                "name": "Rob Cook",
+                "url": "https://thesession.org/members/53453"
+            },
+            "date": "2009-02-04 11:04:29"
+        },
+        {
+            "id": 465445,
+            "url": "https://thesession.org/tunes/27#comment465445",
+            "subject": "Re: HELP!!! Need Simpler Tunes to Play with Drowsy Maggie",
+            "content": "I play first, a more complicated tune, Monaghan Jig, then Swallowtail Jig-a simple tune to play on whistle, then Drowsy Maggie",
+            "member": {
+                "id": 58344,
+                "name": "buailteoir",
+                "url": "https://thesession.org/members/58344"
+            },
+            "date": "2009-08-23 07:46:35"
+        },
+        {
+            "id": 465650,
+            "url": "https://thesession.org/tunes/27#comment465650",
+            "subject": "",
+            "content": "Why is this $\u20ac%&ing tune so damn popular?!? It's not even that good!!",
+            "member": {
+                "id": 11205,
+                "name": "Joe CSS",
+                "url": "https://thesession.org/members/11205"
+            },
+            "date": "2009-08-24 13:21:42"
+        },
+        {
+            "id": 465652,
+            "url": "https://thesession.org/tunes/27#comment465652",
+            "subject": "",
+            "content": "I agree Joe CSS",
+            "member": {
+                "id": 53183,
+                "name": "Power27",
+                "url": "https://thesession.org/members/53183"
+            },
+            "date": "2009-08-24 13:40:58"
+        },
+        {
+            "id": 465688,
+            "url": "https://thesession.org/tunes/27#comment465688",
+            "subject": "",
+            "content": "Thank you, Power27!",
+            "member": {
+                "id": 11205,
+                "name": "Joe CSS",
+                "url": "https://thesession.org/members/11205"
+            },
+            "date": "2009-08-24 19:21:40"
+        },
+        {
+            "id": 528486,
+            "url": "https://thesession.org/tunes/27#comment528486",
+            "subject": "\"Drowsy Maggie\" \/ \"Drowsie Maggy\" ~ notes from a doppelg\u00e4nger",
+            "content": "Submitted on July 26th 2010 by ? ? ?  ~ \/tunes\/10610    \"I remember watching the film Titanic and was spellbound by the third class Irish party scene.     I found the video on YouTube...  http:\/\/www.youtube.com\/watch?v=U50hqJS2ock    ...and have made an attempt at working out the notes to this tune. (by copying and pasting Jeremy's ABCs here)  It's not often played in sessions so I guess not many people know it.\" (tongue-in-cheek?)    There's a bit of a laugh there, so I've rescued it before the stolen alias, mine, and the daft resubmission of Jeremy's ABCs goes \"POOF!\" and disappears into the digital quagmire.  Here's the number of the beast, which may switch from using my alias, 'ceolachan', to digital oblivion.  However, I guess they can, as many have, come back under some other guise.  I just hope they think of something more useful than pretending to be me...  :-\/",
+            "member": {
+                "id": 11705,
+                "name": "ceolachan",
+                "url": "https://thesession.org/members/11705"
+            },
+            "date": "2010-07-26 07:14:55"
+        },
+        {
+            "id": 528487,
+            "url": "https://thesession.org/tunes/27#comment528487",
+            "subject": "",
+            "content": "https:\/\/thesession.org\/members\/66351",
+            "member": {
+                "id": 11705,
+                "name": "ceolachan",
+                "url": "https://thesession.org/members/11705"
+            },
+            "date": "2010-07-26 07:15:39"
+        },
+        {
+            "id": 622678,
+            "url": "https://thesession.org/tunes/27#comment622678",
+            "subject": "\"Maggie's other sister Bridget ~ \"\"Bridget's Reel\"",
+            "content": "Submitted on February 2nd 2012 by ceolachan.  https:\/\/thesession.org\/tunes\/11755",
+            "member": {
+                "id": 11705,
+                "name": "ceolachan",
+                "url": "https://thesession.org/members/11705"
+            },
+            "date": "2012-02-04 06:46:50"
+        },
+        {
+            "id": 671827,
+            "url": "https://thesession.org/tunes/27#comment671827",
+            "subject": "Setting 12",
+            "content": "Is from Sean Keane (Fifty Fiddle Solos). He plays octaves on some triplets (which I could not figure out in ABC syntax so have simplified)",
+            "member": {
+                "id": 5892,
+                "name": "Edgar Bolton",
+                "url": "https://thesession.org/members/5892"
+            },
+            "date": "2013-02-09 05:49:18"
+        },
+        {
+            "id": 673813,
+            "url": "https://thesession.org/tunes/27#comment673813",
+            "subject": "Echoing JoeCSS",
+            "content": "WHY IS THIS SO DARN POPULAR???    https:\/\/thesession.org\/tunes\/27#comment465650",
+            "member": {
+                "id": 57801,
+                "name": "Dr. T\u00f8m",
+                "url": "https://thesession.org/members/57801"
+            },
+            "date": "2013-02-25 08:45:27"
+        },
+        {
+            "id": 673962,
+            "url": "https://thesession.org/tunes/27#comment673962",
+            "subject": "Origins, Composer?",
+            "content": "I second Aaronashton's movement - does anyone know anything of the origins of this tune? The composer? Dates? Insights into why it is so popular perhaps? Cheers!",
+            "member": {
+                "id": 87904,
+                "name": "Alfie Gidley",
+                "url": "https://thesession.org/members/87904"
+            },
+            "date": "2013-02-26 14:57:00"
+        },
+        {
+            "id": 676822,
+            "url": "https://thesession.org/tunes/27#comment676822",
+            "subject": "Mary's",
+            "content": "I just started learning to play the melodeon and searched for simple tunes.     I found this:  http:\/\/www.youtube.com\/watch?v=CRiSHBEKYek",
+            "member": {
+                "id": 64264,
+                "name": "TomBom",
+                "url": "https://thesession.org/members/64264"
+            },
+            "date": "2013-03-24 13:55:50"
+        },
+        {
+            "id": 688236,
+            "url": "https://thesession.org/tunes/27#comment688236",
+            "subject": "Why so many different versions?",
+            "content": "Why are there so many different versions of Drowsy Maggie? It's a bit concerning to me, as it seems like it's like playing musical telephone; even if the melody is different, would the audience know what the song is? And is there a \"accurate\" or \"original\" version?",
+            "member": {
+                "id": 90071,
+                "name": "AMWeitz",
+                "url": "https://thesession.org/members/90071"
+            },
+            "date": "2013-07-05 00:00:36"
+        },
+        {
+            "id": 688243,
+            "url": "https://thesession.org/tunes/27#comment688243",
+            "subject": "",
+            "content": "It's the nature of the music. There isn't an \"accurate\" version, though, obviously, there must have been an \"original\" tune at some time.  Irish traditional music is much to do with variation, and you will very often find that a player will vary the tune (\"song\" is frowned upon in these parts) each time through the repeats.",
+            "member": {
+                "id": 39486,
+                "name": "Weejie",
+                "url": "https://thesession.org/members/39486"
+            },
+            "date": "2013-07-05 03:03:56"
+        },
+        {
+            "id": 688336,
+            "url": "https://thesession.org/tunes/27#comment688336",
+            "subject": "",
+            "content": "Nicely put Weejie, but there will always be those rare dogmatic few who think there's only one 'right' way to play a given melody, and one should never vary from that.  They are hard on the ears but not difficult to suss out, their playing tends to be leaden and often they have a music stand and sheets of dots in front of them for a secure hold on that notion of things being cut into stone.  Others tend to pretty much keep to the way they'd learned it, with only few and subtle variations in the repeats, sometimes as little as the direction of the bow or where a breath is taken, and yet ~ they breath life into it and it dances, lifts the spirits.  The possibilities are endless, and I am always interested and fascinated in how things are given that spark of life by others, their take on a tune, thei way with it.  It's like all the many recipes for Lancashire Hot Pot.  Though there are some I prefer over others, I'm still interested in how others take it, and the stories behind it all.  I love it - those personal touches, rough or polished ~ inherited, personal choice, failing memory or accident.",
+            "member": {
+                "id": 11705,
+                "name": "ceolachan",
+                "url": "https://thesession.org/members/11705"
+            },
+            "date": "2013-07-06 07:10:43"
+        },
+        {
+            "id": 690786,
+            "url": "https://thesession.org/tunes/27#comment690786",
+            "subject": "Re: HELP!!! Need Simpler Tunes to Play with Drowsy Maggie",
+            "content": "We do it after the song Star of the Country Down.",
+            "member": {
+                "id": 90442,
+                "name": "Joe.",
+                "url": "https://thesession.org/members/90442"
+            },
+            "date": "2013-08-02 07:06:21"
+        },
+        {
+            "id": 690789,
+            "url": "https://thesession.org/tunes/27#comment690789",
+            "subject": "",
+            "content": "Joe, what about Mountain road:  https:\/\/thesession.org\/tunes\/68  nice and simple.",
+            "member": {
+                "id": 2311,
+                "name": "ceili",
+                "url": "https://thesession.org/members/2311"
+            },
+            "date": "2013-08-02 07:56:09"
+        },
+        {
+            "id": 707039,
+            "url": "https://thesession.org/tunes/27#comment707039",
+            "subject": "Drowsy Maggie",
+            "content": "X:15 from a 1937 recording of Paddy Killoran:  https:\/\/archive.org\/details\/PaddyKilloranDrowsyMaggieTosstheFeathers  Paddy Cronin recorded this exact same medley and setting in the 50s, along with the Flax in Bloom\/Millstone\/Dairy Maid as another tribute or homage to another Sligo fiddler, James Morrison.",
+            "member": {
+                "id": 8450,
+                "name": "Lucy Rietmann",
+                "url": "https://thesession.org/members/8450"
+            },
+            "date": "2014-01-07 17:43:42"
+        },
+        {
+            "id": 707227,
+            "url": "https://thesession.org/tunes/27#comment707227",
+            "subject": "Drowsy Maggie",
+            "content": "X:16 from famous traveling piper Felix Doran:  https:\/\/app.box.com\/s\/rgrksage31kjyitvta2u  About as off-the-beaten-path as you can go.  Quite the avalanche of multiple rolls, Felix and his brother Johnny used those as a common variation and Willie Clancy picked up this technique from them, among many others of course.",
+            "member": {
+                "id": 8450,
+                "name": "Lucy Rietmann",
+                "url": "https://thesession.org/members/8450"
+            },
+            "date": "2014-01-09 00:15:03"
+        },
+        {
+            "id": 728424,
+            "url": "https://thesession.org/tunes/27#comment728424",
+            "subject": "Drowsy Maggie (third part)",
+            "content": "We can know certainly that the third part to Drowsy Maggie was not composed by Joe Cooley (though Liz Carroll for some reason attributed it to him on one of her old albums). The fiddler Frank O'Higgins recorded Drowsy Maggie with this third part in 1931; (Joe Cooley was born in 1924 and took up the box at the age of 10.) Neillidh Boyle met and played with Frank O'Higgins in the 1920s; both played Drowsy Maggie with three parts, but who learned it from whom and where the third part originated is unknown.",
+            "member": {
+                "id": 67058,
+                "name": "Charles Carolan",
+                "url": "https://thesession.org/members/67058"
+            },
+            "date": "2014-07-05 17:09:38"
+        },
+        {
+            "id": 736583,
+            "url": "https://thesession.org/tunes/27#comment736583",
+            "subject": "Johnny Doherty setting",
+            "content": "Like anyone needs another setting of this tune :-) Truth to tell I still really like it even if it's one of those tunes that's so popular no one plays it anymore. I'm not too cool for school--I'll come right out and admit I like this tune and will play it with anyone anytime. And then, people talk about the so-called Donegal version, as if there's only one, and it's the only setting that ever gets played in Donegal. I don't have the album--maybe that's how Altan describe it? Anyway, here's my transcription of Johnny Doherty playing it on this youtube video: http:\/\/www.youtube.com\/watch?v=DL_9r0kSGYA    X:1  T: Drowsy Maggie (Johnny Doherty setting)  M: 4\/4  R: reel  K: E dorian  E2 Bd cEBE | E2 BG FADF | E2 Bd cEBc |1 dfec dBAF :|2 dfec dBAc ||   d2 fd {e}dcBd | cAeA ceAc | d2 fd {e}dcBA | ^GABc dAFA |   d2 fd {e}dcBd | cdef gbag | fgec dcBA | ^GABc dAFA :|   \"variation m. 1\" E2 Be dEcE |] \"m. 7 - 8\" d2 fd {e}dcB^g | abe^g aece |",
+            "member": {
+                "id": 12308,
+                "name": "fidkid",
+                "url": "https://thesession.org/members/12308"
+            },
+            "date": "2014-09-14 16:40:01"
+        },
+        {
+            "id": 769965,
+            "url": "https://thesession.org/tunes/27#comment769965",
+            "subject": "Drowsy Maggie",
+            "content": "This is the Altan version. Starts after about 1 min of niceties.    https:\/\/www.youtube.com\/watch?v=FKkJurwycXA",
+            "member": {
+                "id": 98304,
+                "name": "aidriano",
+                "url": "https://thesession.org/members/98304"
+            },
+            "date": "2015-08-25 10:57:45"
+        },
+        {
+            "id": 783975,
+            "url": "https://thesession.org/tunes/27#comment783975",
+            "subject": "Tin Whistle version here:",
+            "content": "https:\/\/www.youtube.com\/watch?v=q3L_G-FrqVc",
+            "member": {
+                "id": 63653,
+                "name": "fluther",
+                "url": "https://thesession.org/members/63653"
+            },
+            "date": "2016-02-18 19:18:58"
+        },
+        {
+            "id": 793851,
+            "url": "https://thesession.org/tunes/27#comment793851",
+            "subject": "Re: Drowsy Maggie",
+            "content": "This seems to be the most popular tune on the session but I have yet to hear it played anywhere! It just doesn't seem to be that popular around where I'm from.",
+            "member": {
+                "id": 100565,
+                "name": "Michael",
+                "url": "https://thesession.org/members/100565"
+            },
+            "date": "2016-07-15 21:34:50"
+        },
+        {
+            "id": 793854,
+            "url": "https://thesession.org/tunes/27#comment793854",
+            "subject": "Re: Drowsy Maggie",
+            "content": "I had played Irish music for a number of years before I saw the dots to Drowsy Maggie (which predates my hearing the tune played by a real musician). And to this day, the only recording I have it on is Harvest Storm by Altan, and they play a very local setting of it.    This doesn't mean anything, besides that \"global\" repertoire sometimes isn't global. Hey, the other week, we played old tunes like Saddle the Pony, Tobin's Favourite and Garrett Barry's, and some people in the group had never heard them.",
+            "member": {
+                "id": 970,
+                "name": "jeff_lindqvist",
+                "url": "https://thesession.org/members/970"
+            },
+            "date": "2016-07-15 23:50:36"
+        },
+        {
+            "id": 793870,
+            "url": "https://thesession.org/tunes/27#comment793870",
+            "subject": "Re: Drowsy Maggie",
+            "content": "Michael - we play it almost every week - it goes with everything!",
+            "member": {
+                "id": 100438,
+                "name": "norska",
+                "url": "https://thesession.org/members/100438"
+            },
+            "date": "2016-07-16 09:57:44"
+        },
+        {
+            "id": 807713,
+            "url": "https://thesession.org/tunes/27#comment807713",
+            "subject": "Drowsy Maggie, X:20",
+            "content": "Transcripted from the record \"Rain na Feirste - Ceol agus amhr\u00e1in\" (first released as an LP in 1973 et now available on CD), track \"Drowsy Maggie\" (n\u00b0 16 on the CD, n\u00b08 side 2 on the LP) played by S\u00e9amus & D\u00f3nal \u00d3 Baoighill on fiddles. It\u2019s the 1rst reel of the set which is: Drowsy Maggie \/ Heather Breathe \/ Swallow\u2019s Tail.  The pitch is about one tone lower.  I\u2019ve transcript the 1rst turn of the tune of which part A is played twice (not in following turns).  bar 2 and 6 f the 3d part may be also : fBaf adcA  (the 2 fiddles don't play the same)    I\u2019ve also transcript the whole set, see Heather Breathe (https:\/\/thesession.org\/tunes\/411), with a variation on 1rst part with F naturals, and Swallow\u2019s Tail (https:\/\/thesession.org\/tunes\/105).",
+            "member": {
+                "id": 69481,
+                "name": "G.Ryckeboer",
+                "url": "https://thesession.org/members/69481"
+            },
+            "date": "2016-12-31 13:46:29"
+        },
+        {
+            "id": 807718,
+            "url": "https://thesession.org/tunes/27#comment807718",
+            "subject": "Re: Drowsy Maggie",
+            "content": "Drowsy Maggie, X:20  Oooops  : \"Heather Breeze\", and not \"Breathe\" !!! Sorry for the mistake   It would be nice to be able to update our own comments \u2026",
+            "member": {
+                "id": 69481,
+                "name": "G.Ryckeboer",
+                "url": "https://thesession.org/members/69481"
+            },
+            "date": "2016-12-31 14:18:10"
+        },
+        {
+            "id": 831169,
+            "url": "https://thesession.org/tunes/27#comment831169",
+            "subject": "Drowsy Maggie, X:21",
+            "content": "You may want to double check my chords as I am a fiddler trying to be helpful and chords are a foreign language to me.",
+            "member": {
+                "id": 99854,
+                "name": "Chris Quarles",
+                "url": "https://thesession.org/members/99854"
+            },
+            "date": "2017-10-03 16:43:39"
+        },
+        {
+            "id": 862982,
+            "url": "https://thesession.org/tunes/27#comment862982",
+            "subject": "The Third Part",
+            "content": "is also played by Randal Bays on the album \"Katy Bar the Door\", where he plays the entire tune down a string on the fiddle, so the first part is in A dorian and so on, \u00e0 la Liz Carroll. Very cool version, although I'm a sucker for tunes played this way.",
+            "member": {
+                "id": 107911,
+                "name": "Daniel Parker",
+                "url": "https://thesession.org/members/107911"
+            },
+            "date": "2019-02-14 12:05:15"
+        },
+        {
+            "id": 875826,
+            "url": "https://thesession.org/tunes/27#comment875826",
+            "subject": "Drowsy Maggie, X:23",
+            "content": "This version is taught by Daire Mulhern on the Online Academy of Irish Music.",
+            "member": {
+                "id": 100583,
+                "name": "Bob Sturm",
+                "url": "https://thesession.org/members/100583"
+            },
+            "date": "2019-08-04 07:13:31"
+        },
+        {
+            "id": 893396,
+            "url": "https://thesession.org/tunes/27#comment893396",
+            "subject": "Drowsy Maggie, X:24",
+            "content": "Heard it played this way by Croghan\u2019s Crossing out of Louisville, KY, USA.",
+            "member": {
+                "id": 92348,
+                "name": "Chris Fargen",
+                "url": "https://thesession.org/members/92348"
+            },
+            "date": "2020-03-20 21:21:24"
+        },
+        {
+            "id": 903059,
+            "url": "https://thesession.org/tunes/27#comment903059",
+            "subject": "Drowsy Maggie",
+            "content": "Anyone have the Johnny Doherty not Docerty version of Drowsy Maggie with the third part.",
+            "member": {
+                "id": 39195,
+                "name": "gooseinthenettles",
+                "url": "https://thesession.org/members/39195"
+            },
+            "date": "2020-08-02 19:10:55"
+        },
+        {
+            "id": 903060,
+            "url": "https://thesession.org/tunes/27#comment903060",
+            "subject": "Re: Drowsy Maggie",
+            "content": "You mean the Scottish version? ;-)",
+            "member": {
+                "id": 220,
+                "name": "CreadurMawnOrganig",
+                "url": "https://thesession.org/members/220"
+            },
+            "date": "2020-08-02 19:14:05"
+        },
+        {
+            "id": 903062,
+            "url": "https://thesession.org/tunes/27#comment903062",
+            "subject": "Re: Drowsy Maggie",
+            "content": "Not really,  that's why I'm asking on this site.",
+            "member": {
+                "id": 39195,
+                "name": "gooseinthenettles",
+                "url": "https://thesession.org/members/39195"
+            },
+            "date": "2020-08-02 19:16:44"
+        },
+        {
+            "id": 903064,
+            "url": "https://thesession.org/tunes/27#comment903064",
+            "subject": "Re: Drowsy Maggie",
+            "content": "You do know that you can look at the tunes on here, Goose, and read the comments, where you might just find something useful?    https:\/\/thesession.org\/tunes\/27#comment736583",
+            "member": {
+                "id": 6929,
+                "name": "Calum",
+                "url": "https://thesession.org/members/6929"
+            },
+            "date": "2020-08-02 19:19:39"
+        },
+        {
+            "id": 903065,
+            "url": "https://thesession.org/tunes/27#comment903065",
+            "subject": "Re: Drowsy Maggie",
+            "content": "Looked but he plays only two parts.",
+            "member": {
+                "id": 39195,
+                "name": "gooseinthenettles",
+                "url": "https://thesession.org/members/39195"
+            },
+            "date": "2020-08-02 19:28:08"
+        },
+        {
+            "id": 903067,
+            "url": "https://thesession.org/tunes/27#comment903067",
+            "subject": "Re: Drowsy Maggie",
+            "content": "Which is what he plays on the video, a four bar A part and an eight bar B part with a variation.    Maybe some of the other three part variations or indeed four part variations listed might be more to your taste?",
+            "member": {
+                "id": 6929,
+                "name": "Calum",
+                "url": "https://thesession.org/members/6929"
+            },
+            "date": "2020-08-02 19:37:44"
+        },
+        {
+            "id": 903079,
+            "url": "https://thesession.org/tunes/27#comment903079",
+            "subject": "Re: Drowsy Maggie",
+            "content": "Miss McLeod's is also on the classic 70's album 'Music from the Coleman Country' with Seamus Tansey et al , goose - about as hardcore Irish trad as you could want???",
+            "member": {
+                "id": 50711,
+                "name": "christy  taylor",
+                "url": "https://thesession.org/members/50711"
+            },
+            "date": "2020-08-02 21:31:35"
+        },
+        {
+            "id": 906022,
+            "url": "https://thesession.org/tunes/27#comment906022",
+            "subject": "Drowsy Maggie, X:26",
+            "content": "I got this version from Simon Spalding who got the C part from Joe Cooley.",
+            "member": {
+                "id": 87373,
+                "name": "Michael Machado",
+                "url": "https://thesession.org/members/87373"
+            },
+            "date": "2020-09-25 18:20:47"
+        },
+        {
+            "id": 915428,
+            "url": "https://thesession.org/tunes/27#comment915428",
+            "subject": "Re: Drowsy Maggie",
+            "content": "Hello! Im wokring on a big project with recording all tunes I know in slow tempo togehter   with som tools and flute exercises for anyone to use and learn and practice along with.  Hope you find good use of it!    TUNE:  https:\/\/www.youtube.com\/watch?v=Yhn3HR2W5Vc    BODHR\u00c1N METRONOME PLAYLIST:  https:\/\/www.youtube.com\/playlist?list=PLeBSuVJgG93QKA8HBk0mJVjAmi50G52T7    DRONES PLAYLIST:  https:\/\/www.youtube.com\/playlist?list=PLeBSuVJgG93QgET4g19H-QkC49uOA77wv    Irish Flute Course | 10 Essential Exercises:  https:\/\/www.youtube.com\/watch?v=xOyp6L0urhw    Website:  https:\/\/jonantonsson.wixsite.com\/tunes",
+            "member": {
+                "id": 132860,
+                "name": "Jon Antonsson",
+                "url": "https://thesession.org/members/132860"
+            },
+            "date": "2021-02-14 19:18:18"
+        },
+        {
+            "id": 969364,
+            "url": "https://thesession.org/tunes/27#comment969364",
+            "subject": "Re: Drowsy Maggie",
+            "content": "It's different  -  2.2 million \"views\", 49,000 \"likes\"  :  https:\/\/youtu.be\/XK-wHSqus9g    PS - with reference to a recent discussion, how would Mr. Tansey have viewed this, do you think ?",
+            "member": {
+                "id": 726,
+                "name": "Kenny",
+                "url": "https://thesession.org/members/726"
+            },
+            "date": "2023-07-03 18:31:13"
+        },
+        {
+            "id": 986993,
+            "url": "https://thesession.org/tunes/27#comment986993",
+            "subject": "Re: Drowsy Maggie",
+            "content": "Seamus Tansey might have seen that as a Punjab in the ribs?     Can 'visuals' versions of a tune ever count as versions?   Aversion to such versions?    Such a pity to let such good Punjabi moves ruined by drone age tartanry!  The apparently flesh and bone 'musicians' have stripped the tune of all flesh and left only the bones. Bone app\u00e9tit!   Such sights have of course become such familiar targets for irony that irony tires itself out trying and risks becoming itself a clich\u00e9.",
+            "member": {
+                "id": 13094,
+                "name": "birlibirdie",
+                "url": "https://thesession.org/members/13094"
+            },
+            "date": "2024-03-13 14:52:10"
+        },
+        {
+            "id": 995302,
+            "url": "https://thesession.org/tunes/27#comment995302",
+            "subject": "Drowsy Maggie, X:33",
+            "content": "Although I am almost always on my McNeela Wild Whistle, recently I've been using my Feadog instead for this tune, which in my opinion gives it the tone it needs. It also keeps ornamentation from getting in the way of the rhythm (a weak spot in my playing), due to its unmatched responsiveness. A good lesson that a $20 whistle can be as beautiful as a $100 one, given good breath control and usage in the \"right\" tunes!",
+            "member": {
+                "id": 171545,
+                "name": "Will The Whistler",
+                "url": "https://thesession.org/members/171545"
+            },
+            "date": "2024-08-18 14:45:05"
+        },
+        {
+            "id": 995726,
+            "url": "https://thesession.org/tunes/27#comment995726",
+            "subject": "Re: Drowsy Maggie - Variations on a Theme",
+            "content": "For a really interesting interpretation of \"Drowsy Maggie\" give Angus Lyon and Ruaridh Campbell a listen: https:\/\/soundcloud.com\/anguslyon14\/04-drowsy-maggie-variations-on    It's an answer to the question, what would it be like if you put it in a minor key and explored variations of the theme? What a great thematic development from the sweet statement at 3:25 through a minimalist exploration to the big drop at 6:25 - brilliant.    I heard this live in Nova Scotia and I haven't stopped listening to Lyon and Campbell since.",
+            "member": {
+                "id": 48139,
+                "name": "dmac",
+                "url": "https://thesession.org/members/48139"
+            },
+            "date": "2024-08-25 15:49:07"
+        },
+        {
+            "id": 1007180,
+            "url": "https://thesession.org/tunes/27#comment1007180",
+            "subject": "Drowsy Maggie, X:36",
+            "content": "from Foinn Seisi\u00fan version",
+            "member": {
+                "id": 63481,
+                "name": "tziguk",
+                "url": "https://thesession.org/members/63481"
+            },
+            "date": "2025-03-10 12:46:57"
+        },
+        {
+            "id": 1007646,
+            "url": "https://thesession.org/tunes/27#comment1007646",
+            "subject": "Re: Drowsy Maggie",
+            "content": "I found the Altan version on YouTube (all hail the YouTube) and it's amazing!  It's a little different than the one I am familiar with but I love it!",
+            "member": {
+                "id": 94235,
+                "name": "Suzanne Spinelli",
+                "url": "https://thesession.org/members/94235"
+            },
+            "date": "2025-03-18 13:55:41"
+        },
+        {
+            "id": 1007647,
+            "url": "https://thesession.org/tunes/27#comment1007647",
+            "subject": "Re: Drowsy Maggie",
+            "content": "I saw this:   https:\/\/youtu.be\/XK-wHSqus9g   from a previous post and I am in love with it!    I am easily amused as you all can tell but...this one is really awesome!  I like the mix of cultures in it.   A Punjab in the ribs indeed :D    ",
+            "member": {
+                "id": 94235,
+                "name": "Suzanne Spinelli",
+                "url": "https://thesession.org/members/94235"
+            },
+            "date": "2025-03-18 13:59:23"
+        },
+        {
+            "id": 1018906,
+            "url": "https://thesession.org/tunes/27#comment1018906",
+            "subject": "Re: Drowsy Maggie",
+            "content": "Is Drowsy Maggie considered a beginner tune?  I'm a beginner-intermediate whistler, and I'm finding Drowsy Maggie quite challenging to learn, especially at a faster pace.",
+            "member": {
+                "id": 165613,
+                "name": "Tim-whistle",
+                "url": "https://thesession.org/members/165613"
+            },
+            "date": "2025-09-17 03:54:11"
+        },
+        {
+            "id": 1028228,
+            "url": "https://thesession.org/tunes/27#comment1028228",
+            "subject": "Drowsy Maggie, X:37",
+            "content": "This is basically the first version but configured for a CGDA tenor banjo capoed on the second fret. So you're playing D Dorian shape but it's actually E Dorian.  Makes it much easier to play than trying to get the stretches needed to play it in E Dorian.  The chording is also aimed at the CGDA tenor.",
+            "member": {
+                "id": 184608,
+                "name": "Murray Hobbs",
+                "url": "https://thesession.org/members/184608"
+            },
+            "date": "2026-03-14 05:52:00"
+        },
+        {
+            "id": 1034501,
+            "url": "https://thesession.org/tunes/27#comment1034501",
+            "subject": "Drowsy Maggie In C",
+            "content": "Make it easier",
+            "member": {
+                "id": 191000,
+                "name": "Joey Robichaux",
+                "url": "https://thesession.org/members/191000"
+            },
+            "date": "2026-07-27 14:37:43"
+        }
+    ]
+}

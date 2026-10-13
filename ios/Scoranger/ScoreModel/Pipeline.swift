@@ -162,12 +162,13 @@ enum Pipeline {
           + "engraver are inside this app and run on this iPad. Importing, arranging, "
           + "versioning, engraving, exporting, marking up with the pencil and playback "
           + "all work with the network switched off.\n\n"
-          + "Two things do not. Scanning a PDF or a photograph sends it to a "
-          + "recognition service, and the chat agent talks to a language model over the "
-          + "internet.\n\n"
+          + "Three things do not. Scanning a PDF or a photograph sends it to a "
+          + "recognition service; the chat agent talks to a language model over the "
+          + "internet; and Search asks thesession.org for tunes and opens "
+          + "musescore.com for scores.\n\n"
           + "So on a stage with no wifi you can still open, read, play, transpose and "
-          + "export everything already in your library. You cannot scan a new PDF, and "
-          + "you cannot ask the agent for anything."),
+          + "export everything already in your library. You cannot scan a new PDF, "
+          + "search for a tune, or ask the agent for anything."),
     ]
 
     // MARK: - Credits

@@ -49,11 +49,14 @@ struct LocalEngine {
 
     /// The same import, and what the reader should be told about it: a file of
     /// many tunes can import some and name the rest (`ImportReport`).
-    func importScoreReporting(fileURL: URL, name: String?, piece: String? = nil)
+    func importScoreReporting(fileURL: URL, name: String?, piece: String? = nil,
+                              origin: String? = nil)
         async throws -> (slug: String, notice: String?) {
         var args: [String: Any] = ["path": fileURL.path]
         if let name { args["name"] = name }
         if let piece { args["piece"] = piece }
+        // the page a fetched tune came from, kept on the version (0.20.0)
+        if let origin { args["origin"] = origin }
         let r = try await result(op: "import", args: args)
         return ((r["score"] as? String) ?? "", ImportReport.notice(from: r))
     }

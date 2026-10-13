@@ -251,8 +251,12 @@ def _dispatch(op, a):
             # keeps its own name and a file of tunes imports as the tunes.
             name = a.get("name") or stem
             name = ops.clean_imported_metadata(score, name, source_stem=stem)["title"]
+            args = {"source": a["path"]}
+            if a.get("origin"):
+                # the page a fetched tune came from (0.20.0; cli.cmd_import)
+                args["origin"] = a["origin"]
             slug, entry = workspace.create_score(name, score, op="import",
-                                                 args={"source": a["path"]})
+                                                 args=args)
             if a.get("piece"):
                 piece = workspace.assign_score_to_piece(slug, a["piece"])["piece"]
             else:
