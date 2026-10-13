@@ -168,7 +168,7 @@ enum Pipeline {
           + "musescore.com for scores.\n\n"
           + "So on a stage with no wifi you can still open, read, play, transpose and "
           + "export everything already in your library. You cannot scan a new PDF, "
-          + "search for a tune, or ask the agent for anything."),
+          + "you cannot search for a tune, and you cannot ask the agent for anything."),
     ]
 
     // MARK: - Credits

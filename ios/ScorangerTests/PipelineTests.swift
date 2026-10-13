@@ -98,6 +98,7 @@ final class PipelineTests: XCTestCase {
         let offline = Pipeline.passages.first { $0.id == "offline" }?.body ?? ""
         XCTAssertTrue(offline.contains("no wifi"), offline)
         XCTAssertTrue(offline.contains("You cannot scan a new PDF"), offline)
+        XCTAssertTrue(offline.contains("you cannot search for a tune"), offline)   // 0.20.0
         XCTAssertTrue(offline.contains("you cannot ask the agent"), offline)
     }
 
