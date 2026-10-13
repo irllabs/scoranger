@@ -45,7 +45,14 @@ records at its own rate and says nothing about a ProMotion display. To close
 it, profile the drag with Instruments' Animation Hitches on a device and
 record the hitch ratio here.
 
-## Gate: MixerTwoChannel depends on the order it runs in
+## Gate: two mixer tests pass alone and fail in the pool
+
+`MixerTwoChannel.testTwoChannelTrayFitsInPortrait` (0.19.1) and
+`ScorangerUITests.testTheMixerChoosesTheSoundAChannelIsPlayedWith` (0.20.1,
+"the strips did not come back") each failed once in a four-worker gate and
+passed alone against the same build. Order and load dependence in the mixer
+tests; neither release waited on them.
+
 
 The 0.19.1 gate failed one test: `MixerTwoChannel.testTwoChannelTrayFitsInPortrait`
 counted 4 knobs on a fixture meant to have 2. It passed alone, all three of its
