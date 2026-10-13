@@ -247,6 +247,26 @@ targets:
         #          asked for as one build: "build all of these necessary
         #          features for sharing playlists into the first 7.0 build."
         #          §11.9 records the difference, including what was left out.
+        #   0.20.1 A SET LIST'S TITLES LINE UP; THE CHAT BOX DRAGS WITHOUT
+        #          REBUILDING THE CONVERSATION (2026-10-13). Scope written
+        #          before the work. Fixes only, so the patch bumps. Ali's
+        #          photograph of Echo and Baba: "the # arrangement numbers in
+        #          the list make the text NOT left justified; move the # to
+        #          the right", and "make sure dragging and resizing the chat
+        #          box is not glitchy".
+        #
+        #          In this build:
+        #            1. A set list row's arrangement stamp (#1, #5) moves to
+        #               the end of the row, beside the menu. Only some rows
+        #               carry one, so the titles sat in two columns.
+        #            2. The conversation above the chat box is its own view,
+        #               compared by value: a drag of the grip no longer
+        #               rebuilds every bubble on every move. The box still
+        #               follows the finger (0.19.0) and takes one tap (0.19.1).
+        #          NOT in this build, and said before it starts:
+        #            - still no frame-time measurement on a device; the
+        #              simulator recording is the evidence (BACKLOG 0.19.1);
+        #            - NO OTHER CHANGE.
         #   0.20.0 SEARCH: TUNES FROM THESESSION.ORG BY NAME, AND MUSESCORE
         #          THROUGH ITS OWN SITE (2026-10-12). Scope written before the
         #          work. A feature, so the minor bumps; the $4.99/month
@@ -1343,7 +1363,7 @@ targets:
         # has no Firebase configuration". deploy_testflight.sh now refuses such
         # an archive outright.
         CURRENT_PROJECT_VERSION: 212
-        MARKETING_VERSION: 0.20.0
+        MARKETING_VERSION: 0.20.1
         SWIFT_VERSION: 5.10
         SWIFT_OBJC_BRIDGING_HEADER: Scoranger/PythonBridge/PythonBridge.h
         # BeeWare's install_python copies lib-$ARCHS, which requires single-arch builds

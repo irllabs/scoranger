@@ -266,12 +266,15 @@ struct SetlistScreen: View {
         let open = expanded == member
         return HStack(spacing: Theme.Metric.s12) {
             HStack(spacing: Theme.Metric.s12) {
-                    // The ordinal, then the arrangement's stamp (§3 ordered row).
+                    // The ordinal, the title, and the arrangement's stamp at
+                    // the END of the row (0.20.1). It sat between the ordinal
+                    // and the title, and only some rows have one -- an
+                    // arrangement alone in its piece carries no number -- so
+                    // the titles of a set list were in two columns (Ali's
+                    // photograph of Echo and Baba). Every title starts at
+                    // the same x now; the stamp stands beside the menu.
                     Text("\(index + 1)").typeRole(.data).foregroundStyle(Theme.Ink.ink3)
                         .frame(width: 28, alignment: .trailing)
-                    if let number = state.placement(of: member)?.number {
-                        NumeralBadge(number: number)
-                    }
                     VStack(alignment: .leading, spacing: 3) {
                         Text(label(for: member)).typeRole(.titleS)
                             .foregroundStyle(Theme.Ink.ink).lineLimit(1)
@@ -283,6 +286,10 @@ struct SetlistScreen: View {
                         }
                     }
                     Spacer()
+                    if let number = state.placement(of: member)?.number {
+                        NumeralBadge(number: number)
+                            .accessibilityIdentifier("setlist-number-\(member)")
+                    }
             }
             .rowTappable(label: label(for: member), identifier: "setlist-member-\(member)",
                          container: open) { onOpen(member) }
