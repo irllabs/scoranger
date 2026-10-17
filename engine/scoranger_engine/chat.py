@@ -88,9 +88,14 @@ Working rules:
     modal keys included (Edor, Amix). You do not import files yourself -- the
     reader does, from Import -- so say it can be done rather than offering to
     do it. Two things to say if it comes up: a file holding several tunes
-    imports as several ARRANGEMENTS, and ABC's `~` rolls and `!...!`
-    decorations are not carried into the notation. Scoranger cannot WRITE ABC;
-    export is MusicXML, MIDI or PDF.
+    imports as several ARRANGEMENTS, and its `~` rolls, `!...!` decorations,
+    chord symbols and `w:` words all arrive in the notation (a roll is drawn
+    as a turn). Scoranger cannot WRITE ABC; export is MusicXML, MIDI or PDF.
+11. Words: read them with list_lyrics before changing any you did not just
+    write. A whole line of words is set_lyrics, one word is edit_lyric, a
+    verse off is clear_lyrics, size and italic/bold are adjust_element with
+    kind="lyric", and a word that belongs under another note is
+    move_element. Verses are counted from 1.
 Answer concisely; the user sees the score update live.
 """
 
@@ -583,8 +588,9 @@ def adjust_element(ctx: RunContext[str], part: str, measure: int | None = None,
                    kind: str = "harm", ordinal: int = 0, scale: float | None = None,
                    size: float | None = None,
                    offset_x: float | None = None, offset_y: float | None = None,
-                   reset: bool = False, all_elements: bool = False) -> dict:
-    """Change how big an added element is, or where it sits.
+                   reset: bool = False, all_elements: bool = False,
+                   style: str | None = None) -> dict:
+    """Change how big an added element is, how a word is set, or where it sits.
 
     `kind` is "harm" (a chord symbol), "diagram" (a guitar chord diagram),
     "tab" (a tablature column), or one of the six marks add_element writes:
@@ -595,8 +601,9 @@ def adjust_element(ctx: RunContext[str], part: str, measure: int | None = None,
     which squiggle it is is the `value` add_element took. A fermata is its
     own kind, not an ornament.
 
-    A LYRIC TAKES A SIZE AND NOTHING ELSE. "Make the words bigger" is a scale
-    and works; "move the lyric to the left" is refused by name, because a word
+    A LYRIC TAKES A SIZE AND A STYLE AND NOTHING ELSE. "Make the words bigger"
+    is a scale; "put the chorus in italics" is style="italic" (normal, italic,
+    bold, bold-italic). "Move the lyric to the left" is refused by name, because a word
     is drawn under the note it belongs to and no renderer here honours an
     offset on one. A word that belongs somewhere else belongs under another
     NOTE: that is move_element, not an offset.
@@ -617,10 +624,60 @@ def adjust_element(ctx: RunContext[str], part: str, measure: int | None = None,
         return ops.adjust_element(s, part, kind=kind, measure=measure, ordinal=ordinal,
                                   size=size, scale=scale,
                                   offset_x=offset_x, offset_y=offset_y,
-                                  reset=reset, all_elements=all_elements)
+                                  reset=reset, all_elements=all_elements, style=style)
     return _apply(ctx.deps, "adjust-element",
                   {"part": part, "kind": kind, "measure": measure,
-                   "scale": scale, "size": size, "reset": reset}, fn)
+                   "scale": scale, "size": size, "reset": reset, "style": style}, fn)
+
+
+def list_lyrics(ctx: RunContext[str], parts: list[str] | None = None) -> dict:
+    """Every word on the score, bar by bar: each word's ORDINAL in its bar
+    (what edit_lyric, adjust_element, move_element and remove_element take
+    with kind="lyric"), its verse counted from 1, its offset from the barline,
+    its syllabic (a hyphen follows begin and middle), its size and style.
+    Read it before changing words you have not just written."""
+    try:
+        return ops.list_lyrics(_latest(ctx.deps), parts)
+    except Exception as e:
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+
+def set_lyrics(ctx: RunContext[str], part: str, text: str, measure: int,
+               offset: float = 0.0, verse: int = 1, to_measure: int | None = None) -> dict:
+    """Write ONE VERSE over a run of notes from a line of words, the way ABC
+    writes words under a tune: a hyphen splits a word into syllables
+    ("Ban-bridge"), ~ keeps two words on one note, _ holds a syllable over one
+    more note, * skips a note, | moves on to the next bar. Starts on the note
+    that begins at measure + offset and goes note by note (rests and grace
+    notes take none); a bar that opens on a rest starts on its first note.
+    That verse is REPLACED on every note the words cover.
+    Words past the last note are reported as left over."""
+    def fn(s):
+        return ops.set_lyrics(s, part, text, measure, offset=offset, verse=verse,
+                              to_measure=to_measure)
+    return _apply(ctx.deps, "set-lyrics",
+                  {"part": part, "verse": verse, "measure": measure, "text": text}, fn)
+
+
+def edit_lyric(ctx: RunContext[str], part: str, measure: int, text: str,
+               ordinal: int = 0, syllabic: str | None = None) -> dict:
+    """Change what ONE word says, addressed by bar and ordinal as list_lyrics
+    gives them. It keeps its note, verse, size and style. End the text with a
+    hyphen when the word goes on into the next syllable."""
+    def fn(s):
+        return ops.edit_lyric(s, part, measure, ordinal, text, syllabic=syllabic)
+    return _apply(ctx.deps, "edit-lyric",
+                  {"part": part, "measure": measure, "ordinal": ordinal, "text": text}, fn)
+
+
+def clear_lyrics(ctx: RunContext[str], part: str, verse: int | None = None,
+                 from_measure: int | None = None, to_measure: int | None = None) -> dict:
+    """Take words off a part: one verse or every verse, over a range of bars
+    or the whole part. ONE word is remove_element with kind="lyric"."""
+    def fn(s):
+        return ops.clear_lyrics(s, part, verse=verse, from_measure=from_measure,
+                                to_measure=to_measure)
+    return _apply(ctx.deps, "clear-lyrics", {"part": part, "verse": verse}, fn)
 
 
 def add_element(ctx: RunContext[str], part: str, kind: str, measure: int,
@@ -833,7 +890,7 @@ TOOLS = [get_score_info, list_versions, keep_parts, remove_parts, transpose,
          guitar_tablature,
          set_structure, paginate, measure_numbers, staff_spacing,
          add_element, adjust_element, move_element, duplicate_element,
-         remove_element,
+         remove_element, list_lyrics, set_lyrics, edit_lyric, clear_lyrics,
          assign_to_piece]
 
 

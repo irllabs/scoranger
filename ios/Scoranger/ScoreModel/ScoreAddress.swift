@@ -10,6 +10,10 @@ enum ScoreElementKind: String, Codable, Hashable, CaseIterable {
     /// A text mark -- "dolce", "rit." -- which MEI calls a `<dir>`. Added last
     /// so every other raw value keeps the string it is already persisted as.
     case text
+    /// A sung word: one verse under one note (0.21.0). Its ordinal is the
+    /// ENGINE's -- every word of the bar on that staff, note by note and then
+    /// verse by verse -- not a count within one layer: see MEISemanticsParser.
+    case verse
 
     /// Kinds a "notes" selection should return.
     static let noteLike: Set<ScoreElementKind> = [.note, .chord, .rest]
@@ -18,7 +22,7 @@ enum ScoreElementKind: String, Codable, Hashable, CaseIterable {
     /// Everything else a user might lasso: markings rather than pitches.
     static let markingLike: Set<ScoreElementKind> = [
         .harm, .clef, .accid, .slur, .tie, .dynam, .fermata, .articulation,
-        .text
+        .text, .verse
     ]
 
     /// MEI tag -> kind. Tags absent here are not addressable.
@@ -41,6 +45,9 @@ enum ScoreElementKind: String, Codable, Hashable, CaseIterable {
         // ordinals here count the same text marks `ops._elements_in_measure`
         // counts, which is what makes an address usable by the engine.
         case "dir":          self = .text
+        // A whistle's fingerings and a guitar tab's frets are verses too; the
+        // MEI parser gives those no address, so only WORDS are selectable.
+        case "verse":        self = .verse
         case "beam":         self = .beam
         case "staff":        self = .staff
         case "layer":        self = .layer
@@ -84,6 +91,7 @@ struct ScoreAddress: Hashable, Codable, CustomStringConvertible {
     var musicalDescription: String {
         switch kind {
         case .measure: return "bar \(measure)"
+        case .verse:   return "word in bar \(measure), staff \(staff)"
         default:       return "\(kind.rawValue) in bar \(measure), staff \(staff)"
         }
     }

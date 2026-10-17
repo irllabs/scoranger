@@ -50,13 +50,16 @@ struct LocalEngine {
     /// The same import, and what the reader should be told about it: a file of
     /// many tunes can import some and name the rest (`ImportReport`).
     func importScoreReporting(fileURL: URL, name: String?, piece: String? = nil,
-                              origin: String? = nil)
+                              origin: String? = nil, pdf: URL? = nil)
         async throws -> (slug: String, notice: String?) {
         var args: [String: Any] = ["path": fileURL.path]
         if let name { args["name"] = name }
         if let piece { args["piece"] = piece }
         // the page a fetched tune came from, kept on the version (0.20.0)
         if let origin { args["origin"] = origin }
+        // the PDF this file is a scanner's reading of: its printed words
+        // correct the scanner's (pdftext, 0.21.0)
+        if let pdf { args["pdf"] = pdf.path }
         let r = try await result(op: "import", args: args)
         return ((r["score"] as? String) ?? "", ImportReport.notice(from: r))
     }
@@ -99,9 +102,17 @@ struct LocalEngine {
     @discardableResult
     func addVersion(from fileURL: URL, score: String,
                     recordedAs label: String) async throws -> String {
+        try await addVersionReporting(from: fileURL, score: score, recordedAs: label).version
+    }
+
+    /// The same, and what the reader should be told: a transcription of a
+    /// PDF says what the PDF's own text corrected (`TextPassReport`).
+    func addVersionReporting(from fileURL: URL, score: String, recordedAs label: String)
+        async throws -> (version: String, notice: String?) {
         let r = try await result(op: "add-version-from-file",
                                  args: ["score": score, "path": fileURL.path, "op": label])
-        return (r["version"] as? String) ?? ""
+        return ((r["version"] as? String) ?? "",
+                TextPassReport.notice(from: r["text_pass"] as? [String: Any]))
     }
 
     /// Import a PDF as a BOOK: a collection to take arrangements out of.

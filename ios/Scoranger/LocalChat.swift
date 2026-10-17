@@ -74,9 +74,16 @@ struct LocalChat {
     modal keys included (Edor, Amix). You do not import files yourself -- the
     reader does, from Import -- so say it can be done rather than offering to
     do it. Two things to say if it comes up: a file holding several tunes
-    imports as several ARRANGEMENTS, and ABC's `~` rolls and `!...!`
-    decorations are not carried into the notation. Scoranger cannot WRITE ABC;
-    export is MusicXML, MIDI or PDF.
+    imports as several ARRANGEMENTS, and its `~` rolls, `!...!` decorations,
+    chord symbols and `w:` words all arrive in the notation (a roll is drawn
+    as a turn). Scoranger cannot WRITE ABC; export is MusicXML, MIDI or PDF.
+    11. Words: read them with list_lyrics before changing any you did not just
+    write. A whole line of words is set_lyrics, one word is edit_lyric, a
+    verse off is clear_lyrics, size and italic/bold are adjust_element with
+    kind="lyric", and a word that belongs under another note is
+    move_element. Verses are counted from 1. When the reader has SELECTED
+    words or marks, the selection names each one's part, bar, kind and
+    ordinal: pass exactly those.
     Answer concisely; the user sees the score update live.
     """
 

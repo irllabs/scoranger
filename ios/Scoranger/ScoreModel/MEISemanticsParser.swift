@@ -41,6 +41,18 @@ enum MEISemanticsParser {
         /// (measure, staff, layer, kind) -> how many seen, for `ordinal`.
         private var counters: [String: Int] = [:]
 
+        /// WORDS are numbered the ENGINE's way, not per layer (0.21.0).
+        /// `ops._elements_in_measure(kind="lyric")` takes a bar's notes in
+        /// document order across every voice -- a chord is one -- and each
+        /// note's words in VERSE order. A verse's place in the MEI is neither
+        /// of those: a word moved onto a note is appended after the verses it
+        /// already had, and a lifted whistle column reorders a note's verses.
+        /// So a bar's words are held until the bar ends and numbered then.
+        private var notesInStaff: [Int: Int] = [:]
+        private var chordDepth = 0
+        private var currentNote = 0
+        private var words: [(staff: Int, layer: Int, note: Int, verse: Int, id: String)] = []
+
         func parser(_ parser: XMLParser, didStartElement name: String,
                     namespaceURI: String?, qualifiedName: String?,
                     attributes attrs: [String: String]) {
@@ -48,6 +60,17 @@ enum MEISemanticsParser {
             case "measure":
                 measureCount += 1
                 measure = Int(attrs["n"] ?? "") ?? measureCount
+                notesInStaff = [:]
+                words = []
+            case "chord":
+                let staff = staffStack.last ?? 0
+                currentNote = notesInStaff[staff, default: 0]
+                notesInStaff[staff] = currentNote + 1
+                chordDepth += 1
+            case "note" where chordDepth == 0:
+                let staff = staffStack.last ?? 0
+                currentNote = notesInStaff[staff, default: 0]
+                notesInStaff[staff] = currentNote + 1
             case "staff":
                 staffStack.append(Int(attrs["n"] ?? "") ?? (staffStack.last ?? 0) + 1)
             case "layer":
@@ -64,6 +87,15 @@ enum MEISemanticsParser {
             // an attribute instead.
             let staff = staffStack.last ?? Int(attrs["staff"] ?? "") ?? 0
             let layer = layerStack.last ?? Int(attrs["layer"] ?? "") ?? 0
+            if kind == .verse {
+                // a fingering column (`wf`, packed `wf|...`) and a tab column
+                // (`gt`, `gt@...`) are verses and are not words
+                let label = attrs["label"] ?? ""
+                if !label.hasPrefix("wf"), !label.hasPrefix("gt") {
+                    words.append((staff, layer, currentNote, Int(attrs["n"] ?? "") ?? 0, id))
+                }
+                return
+            }
             // A <dir> is held until its body has been read: a chord DIAGRAM is
             // a <dir> whose text is a six-fret shape, and giving one an
             // address would shift every later text mark's ordinal off the one
@@ -98,6 +130,18 @@ enum MEISemanticsParser {
             switch name {
             case "staff": _ = staffStack.popLast()
             case "layer": _ = layerStack.popLast()
+            case "chord": chordDepth = max(chordDepth - 1, 0)
+            case "measure":
+                for staff in Set(words.map(\.staff)) {
+                    let mine = words.filter { $0.staff == staff }
+                        .sorted { ($0.note, $0.verse) < ($1.note, $1.verse) }
+                    for (ordinal, word) in mine.enumerated() {
+                        addresses[word.id] = ScoreAddress(staff: staff, measure: measure,
+                                                          layer: word.layer, kind: .verse,
+                                                          ordinal: ordinal)
+                    }
+                }
+                words = []
             case "dir":
                 if let held = pendingText,
                    ChordDiagrams.parseShape(pendingBody) == nil {

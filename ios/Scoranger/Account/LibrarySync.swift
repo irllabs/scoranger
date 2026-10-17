@@ -3,6 +3,7 @@ import FirebaseFirestore
 import FirebaseStorage
 import Foundation
 import Network
+import UIKit
 
 /// A signed-in account's library, the same on every device (0.16.0).
 ///
@@ -32,11 +33,15 @@ import Network
 /// **A cycle is push, then pull**, never both at once and never two at once.
 /// Pushing first means a document this device still owes is not overwritten
 /// by an older copy on the way down; the engine also refuses to overwrite one
-/// it still owes.
+/// it still owes. A push that fails does not stop the pull: the status says
+/// what could not be sent, and what the other devices did still arrives.
 @MainActor
 final class LibrarySync: ObservableObject {
 
     @Published private(set) var status: LibrarySyncModel.Status = .off
+    /// What the last pull was told of and could not apply yet. The status
+    /// line says "up to date" only while this is empty.
+    @Published private(set) var arriving: LibrarySyncModel.Arriving = .none
     /// Bytes of books waiting while on cellular, for the reader to be asked
     /// about. Nil when nothing is waiting or the reader has already answered.
     @Published var cellularQuestion: Int?
@@ -94,6 +99,7 @@ final class LibrarySync: ObservableObject {
         guard let uid, SignIn.pretendedAccount == nil, FirebaseApp.app() != nil,
               state?.useLocalEngine == true else {
             status = .off
+            arriving = .none
             cellularQuestion = nil
             return
         }
@@ -127,6 +133,8 @@ final class LibrarySync: ObservableObject {
         if running { again = true; return }
         running = true
         Task {
+            let time = BackgroundTime("Library sync")
+            defer { time.end() }
             repeat {
                 again = false
                 await cycle()
@@ -169,11 +177,23 @@ final class LibrarySync: ObservableObject {
         do {
             let library = try await library(for: account)
             _ = try await engine.librarySyncBind(account: "\(account)/\(library)")
-            try await push(library)
+            // The two directions fail for different reasons -- a file this
+            // device cannot send, a write the server turns down -- so a
+            // failure on the way up does not stop the way down. If it did, a
+            // device with one record it cannot send would never receive
+            // anything again.
+            var unsent: String?
+            do {
+                try await push(library)
+            } catch {
+                unsent = Self.readable(error)
+            }
             let changed = try await pull(library)
             if changed { await state?.refresh() }
             let pending = await pendingCount()
-            if heldBookBytes > 0, network == .cellular {
+            if let unsent {
+                status = .unsent(pending, unsent)
+            } else if heldBookBytes > 0, network == .cellular {
                 status = .askCellular(bytes: heldBookBytes)
                 if !cellularAllowed && !cellularDeclined { cellularQuestion = heldBookBytes }
             } else {
@@ -232,16 +252,29 @@ final class LibrarySync: ObservableObject {
         storage.reference(withPath: "libraries/\(library)/files/\(name)")
     }
 
-    private var device: String {
-        let key = "librarySync.device"
-        if let id = UserDefaults.standard.string(forKey: key) { return id }
-        let id = UUID().uuidString
-        UserDefaults.standard.set(id, forKey: key)
-        return id
-    }
+    /// See `LibrarySyncModel.deviceIdentity` for why the vendor id is kept
+    /// beside it. Settled once per launch: every record of a push carries it,
+    /// and a pull compares against it.
+    private lazy var device: String = {
+        let defaults = UserDefaults.standard
+        let identity = LibrarySyncModel.deviceIdentity(
+            storedID: defaults.string(forKey: Self.deviceKey),
+            storedVendor: defaults.string(forKey: Self.deviceVendorKey),
+            vendor: UIDevice.current.identifierForVendor?.uuidString,
+            mint: { UUID().uuidString })
+        defaults.set(identity.id, forKey: Self.deviceKey)
+        defaults.set(identity.vendor, forKey: Self.deviceVendorKey)
+        return identity.id
+    }()
+    private static let deviceKey = "librarySync.device"
+    private static let deviceVendorKey = "librarySync.deviceVendor"
 
     // MARK: - up
 
+    /// Records go up in the engine's order (`librarysync._push_order`), and
+    /// are committed and acknowledged a window at a time
+    /// (`LibrarySyncModel.windowIsFull`), so a push that is cut off keeps
+    /// everything before the window it was in.
     private func push(_ library: String) async throws {
         while true {
             let box = try await engine.librarySyncOutbox(limit: 400)
@@ -250,6 +283,7 @@ final class LibrarySync: ObservableObject {
             var acks: [[String: Any]] = []
             var batch = db.batch()
             var inBatch = 0
+            var bytesInBatch = 0
             var held = 0
             for record in records {
                 guard let collection = record["collection"] as? String,
@@ -279,24 +313,32 @@ final class LibrarySync: ObservableObject {
                         data["fileName"] = name
                         data["fileBytes"] = sent.bytes
                         data["fileEncoding"] = sent.encoding as Any
+                        bytesInBatch += sent.bytes
                     }
                 }
                 batch.setData(data, forDocument: documents(library, collection).document(uid))
                 acks.append(contentsOf: record["acks"] as? [[String: Any]] ?? [])
                 inBatch += 1
-                if inBatch == 400 {
-                    try await batch.commit()
-                    _ = try await engine.librarySyncAck(acks)
+                if LibrarySyncModel.windowIsFull(records: inBatch, bytes: bytesInBatch) {
+                    try await commit(batch, acknowledging: acks)
                     acks = []
                     batch = db.batch()
                     inBatch = 0
+                    bytesInBatch = 0
                 }
             }
-            if inBatch > 0 { try await batch.commit() }
-            if !acks.isEmpty { _ = try await engine.librarySyncAck(acks) }
-            // Held books stay owed. Asking for more would hand them back again.
+            if inBatch > 0 { try await commit(batch, acknowledging: acks) }
+            // Held books stay owed. Asking for more would hand them back
+            // again; books go up last, so nothing else is waiting behind them.
             if held > 0 || !(box["more"] as? Bool ?? false) { return }
         }
+    }
+
+    /// The server first, then the engine: an acknowledgement for a write the
+    /// server never got would leave a record that no device ever sends.
+    private func commit(_ batch: WriteBatch, acknowledging acks: [[String: Any]]) async throws {
+        try await batch.commit()
+        _ = try await engine.librarySyncAck(acks)
     }
 
     /// Upload one file. Notation is packed with zlib; a PDF is sent as it is.
@@ -355,6 +397,8 @@ final class LibrarySync: ObservableObject {
         let offered = LibrarySyncModel.merge(held: loadHeld(library), fresh: fresh)
         guard !offered.isEmpty else {
             saveCursors(cursors, library)
+            // Nothing new and nothing held back: nothing is on its way.
+            arriving = .none
             return false
         }
         var applied = loadApplied(library)
@@ -430,7 +474,23 @@ final class LibrarySync: ObservableObject {
         saveHeld(offered.filter { deferred.contains($0.key) }, library)
         saveApplied(applied, library)
         saveCursors(cursors, library)
+        arriving = try Self.arriving(result["waiting"])
         return (result["applied"] as? Int ?? 0) + (result["removed"] as? Int ?? 0) > 0
+    }
+
+    /// The engine's count of what it held back (`librarysync._waiting`). An
+    /// engine that does not send one is older than this app and was vendored
+    /// without it; saying "up to date" over it would be the bug this count
+    /// exists to fix.
+    private static func arriving(_ waiting: Any?) throws -> LibrarySyncModel.Arriving {
+        guard let counts = waiting as? [String: Int],
+              let arrangements = counts["arrangements"],
+              let setlists = counts["setlists"],
+              let books = counts["books"] else {
+            throw Trouble.engineReply("what is still arriving")
+        }
+        return LibrarySyncModel.Arriving(arrangements: arrangements, setlists: setlists,
+                                         books: books)
     }
 
     private func fetch(_ name: String, from library: String, to target: URL,
@@ -511,8 +571,15 @@ final class LibrarySync: ObservableObject {
 
     enum Trouble: LocalizedError {
         case noLibrary
+        /// The engine's reply lacked something this build relies on.
+        case engineReply(String)
         var errorDescription: String? {
-            "the account's library could not be found or made."
+            switch self {
+            case .noLibrary:
+                return "the account's library could not be found or made."
+            case .engineReply(let what):
+                return "the engine did not say \(what)."
+            }
         }
     }
 
@@ -527,5 +594,32 @@ final class LibrarySync: ObservableObject {
             return "the server could not be reached. It will try again."
         }
         return (error as? LocalizedError)?.errorDescription ?? ns.localizedDescription
+    }
+}
+
+/// Time for a cycle to finish after the reader leaves the app.
+///
+/// A first push of a large library runs for minutes, and iOS suspends an app
+/// seconds after it leaves the screen, so without this a push stops wherever
+/// it was when the reader switched away. When the time runs out iOS calls the
+/// expiration handler, and the task has to end in it or the app is killed.
+/// What that costs is the window in flight (`LibrarySyncModel.windowIsFull`);
+/// everything before it is acknowledged.
+@MainActor
+private final class BackgroundTime {
+    private var task: UIBackgroundTaskIdentifier = .invalid
+
+    init(_ name: String) {
+        task = UIApplication.shared.beginBackgroundTask(withName: name) { [weak self] in
+            MainActor.assumeIsolated { self?.end() }
+        }
+    }
+
+    /// Safe to call twice: once from the expiration handler, once when the
+    /// cycle that asked resumes and finishes.
+    func end() {
+        guard task != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(task)
+        task = .invalid
     }
 }

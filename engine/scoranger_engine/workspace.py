@@ -453,6 +453,15 @@ def abc_report(path, scores: list) -> dict:
       `tunes_skipped`         tunes in the file that could not be read even
                               repaired, each {title, reason}: the rest of the
                               file imports, and these are NAMED (0.19.0)
+      `lyrics_carried`        `w:` syllables that reached a note, and
+      `lyric_verses`          the most verses any tune sings (0.21.0;
+                              `enrich.restore_lyrics`)
+      `lyrics_unplaced`       syllables past the last note their line covers,
+                              which ABC 2.1 says to ignore
+      `lyrics_withheld`       tunes whose words were NOT placed, each {title,
+                              reason}: counting disagreed, or several voices
+      `words_after_tune`      `W:` lines -- words printed after the tune, with
+                              no notes to sit under. Reported, not engraved.
       `tune_types`            `R:`, which names the tune type -- reel, jig,
                               hornpipe. It is not notation and has nowhere to
                               live in MusicXML, so it is REPORTED and not
@@ -474,6 +483,16 @@ def abc_report(path, scores: list) -> dict:
         out["chords_repaired"] = report["chords_repaired"]
     if report.get("tunes_skipped"):
         out["tunes_skipped"] = report["tunes_skipped"]
+    lyrics = report.get("lyrics") or {}
+    if lyrics.get("syllables"):
+        out["lyrics_carried"] = lyrics["syllables"]
+        out["lyric_verses"] = lyrics["verses"]
+    if lyrics.get("excess"):
+        out["lyrics_unplaced"] = lyrics["excess"]
+    if lyrics.get("withheld"):
+        out["lyrics_withheld"] = lyrics["withheld"]
+    if lyrics.get("words_after"):
+        out["words_after_tune"] = lyrics["words_after"]
 
     # `R:` is read off the TEXT: it never reaches a stream at all.
     try:
@@ -970,7 +989,46 @@ def add_version_from_file(slug: str, path, op: str, args: dict) -> dict:
     doc = _repo().get_score(slug) or {}
     ops.carry_title_into_version(m21_score, doc.get("title") or doc.get("name"),
                                  source_stem=source.stem)
-    return add_version(slug, m21_score, op, args)
+    # A transcription of a PDF: the PDF's own text corrects the words and
+    # chord names the scanner read, and drops what it read as verses from
+    # under the music (`pdftext`). The scan is the version being transcribed.
+    parent = latest_version(slug)
+    report = None
+    if version_kind(slug, parent["id"]) == "pdf":
+        report = text_pass(m21_score, source, resolve_path(slug, parent["id"]))
+        args = {**args, "text_pass": summarize_text_pass(report)}
+    entry = add_version(slug, m21_score, op, args)
+    if report is not None:
+        entry = {**entry, "text_pass": report}
+    return entry
+
+
+def text_pass(m21_score, notation_path, pdf_path) -> dict:
+    """`pdftext.correct`, which must never cost the reader their transcription.
+
+    The scanner's reading is already a complete version. If the pass that
+    would improve it fails, the reading is kept as it came and the failure is
+    REPORTED -- in the version's history and in what the import returns.
+    """
+    from . import pdftext
+
+    try:
+        return pdftext.correct(m21_score, notation_path, pdf_path)
+    except Exception as exc:  # noqa: BLE001 -- any failure here leaves the scan's reading intact
+        return {"failed": f"{type(exc).__name__}: {exc}"}
+
+
+def summarize_text_pass(report: dict) -> dict:
+    """The counts a version's history keeps; the full text stays in the reply."""
+    keep = ("failed", "text_layer", "pages_lined_up", "syllables",
+            "syllables_scanner_read", "lines_not_verses", "chords",
+            "chords_scanner_read", "measures_not_matched")
+    out = {k: report[k] for k in keep if k in report}
+    if report.get("text_below_music"):
+        out["lines_below_music"] = len(report["text_below_music"])
+    if report.get("credits_dropped"):
+        out["credits_dropped"] = len(report["credits_dropped"])
+    return out
 
 
 def add_source(slug: str, m21_score, name: str, origin: str) -> dict:

@@ -160,6 +160,15 @@ JIG_STEPS: list[tuple[str, dict]] = [
                            "to_measure": 4, "to_offset": 0}),
     ("remove_element", {"part": "#0", "kind": "articulation", "measure": 5,
                         "ordinal": 0}),
+    # words (0.21.0): a verse from one line, read back, one word changed and
+    # styled, and a verse off
+    ("set_lyrics", {"part": "#0", "measure": 1, "text": "Ban-bridge town in~the"}),
+    ("set_lyrics", {"part": "#0", "measure": 1, "verse": 2, "text": "un deux"}),
+    ("list_lyrics", {}),
+    ("edit_lyric", {"part": "#0", "measure": 1, "ordinal": 0, "text": "Bann-"}),
+    ("adjust_element", {"part": "#0", "kind": "lyric", "measure": 1, "ordinal": 0,
+                        "style": "italic"}),
+    ("clear_lyrics", {"part": "#0", "verse": 2}),
     ("set_structure", {"kind": "repeat-end", "measure": 4}),
     ("paginate", {"measures_per_line": 4}),
     ("paginate", {"end_at": [3]}),
@@ -288,6 +297,20 @@ def main() -> int:
           "adjust_element passed `scale` on: 1.5 arrived as 18.0pt of the "
           f"12.0 default (got scale={adjusted.get('scale')}, "
           f"size={adjusted.get('size')})")
+
+    listed = (answers.get("list_lyrics") or [{}])[0]
+    first = ((listed.get("parts") or [{}])[0].get("bars") or [{}])[0].get("words", [])
+    check([w.get("text") for w in first[:4]] == ["Ban", "un", "bridge", "deux"]
+          and (listed.get("parts") or [{}])[0].get("verses") == [1, 2],
+          f"set_lyrics wrote two verses and list_lyrics read them back: {first[:2]}")
+    edited = (answers.get("edit_lyric") or [{}])[0].get("details", {})
+    check(edited.get("was") == "Ban" and edited.get("now") == "Bann"
+          and edited.get("syllabic") == "begin",
+          f"edit_lyric changed one word and kept it going on: {edited}")
+    styled = (answers.get("adjust_element") or [{}, {}])[1].get("details", {})
+    check(styled.get("style") == "italic", f"adjust_element took a lyric's style: {styled}")
+    cleared = (answers.get("clear_lyrics") or [{}])[0].get("details", {})
+    check(cleared.get("removed") == 2, f"clear_lyrics took verse 2 off: {cleared}")
 
     moved = (answers.get("move_element") or [{}])[0].get("details", {})
     check(moved.get("op") == "move"

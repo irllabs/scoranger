@@ -29,6 +29,14 @@ What has to hold:
   7. pulling what you already have changes nothing and owes nothing
   8. an arrangement whose music has not arrived yet is DEFERRED, not written
      empty, and arrives whole when it has
+  9. a first push goes up arrangement by arrangement -- piece, latest version,
+     arrangement -- then set lists, then older history, then books, and one
+     cut off part way keeps what was acknowledged: the other device already
+     shows those arrangements, and resuming sends nothing twice. This is the
+     ENGINE half (outbox order, acknowledgement); the windowing itself is
+     LibrarySync.push, held to its rule by LibrarySyncModelTests
+ 10. a set list or a piece's order that arrives before one of its
+     arrangements keeps that entry, and the device says what is still waiting
 
 Run: engine/.venv/bin/python engine/scripts/check_library_sync.py
 """
@@ -116,6 +124,30 @@ class Device:
                 server.write(record, self.name)
             librarysync.acknowledge([a for r in box["records"] for a in r["acks"]])
             sent += len(box["records"])
+            if not box["more"]:
+                return sent
+
+    def push_in_windows(self, server: Server, window: int,
+                        windows: int | None = None) -> list[tuple[str, str]]:
+        """LibrarySync.push: the server is written and the engine acknowledged
+        `window` records at a time. Stopping after `windows` of them is the
+        app leaving the screen mid-push. Returns what reached the server."""
+        self.use()
+        from scoranger_engine import librarysync
+        sent: list[tuple[str, str]] = []
+        done = 0
+        while True:
+            box = librarysync.outbox(limit=400)
+            records = box["records"]
+            for start in range(0, len(records), window):
+                if windows is not None and done == windows:
+                    return sent
+                chunk = records[start:start + window]
+                for record in chunk:
+                    server.write(record, self.name)
+                    sent.append((record["collection"], record["uid"]))
+                librarysync.acknowledge([a for r in chunk for a in r["acks"]])
+                done += 1
             if not box["more"]:
                 return sent
 
@@ -389,6 +421,122 @@ def an_arrangement_deleted_in_its_undo_window_is_not_made_elsewhere() -> None:
     check(not (b.root / gone).exists(), "and no folder was made for the other")
 
 
+def a_first_push_cut_off_keeps_what_it_sent() -> None:
+    print("\n10. a first push cut off part way keeps what it sent, and sent the "
+          "arrangements first")
+    import fixtures
+    server, ipad, iphone = Server(), Device("ipad3"), Device("iphone3")
+    ws = ipad.use()
+    for tune in ("Kesh", "Banshee", "Tarbolton"):
+        for n, name in enumerate((tune, f"{tune} (duet)")):
+            slug, _ = ws.create_score(name, fixtures.jig(bars=4))
+            ws.assign_score_to_piece(slug, tune)
+            for interval in ("M2", "m3")[:n + 1]:
+                ws.add_version(slug, transposed(ws, slug, interval), "transpose",
+                               {"interval": interval})
+            ws.add_score_to_setlist("Friday", slug)
+    ws.add_source("kesh", fixtures.jig(bars=4), "The Session setting", "thesession.org")
+    ws.create_book("Session Tunebook", a_pdf(3))
+    ipad.sign_in("ali")
+
+    # The order the outbox hands records over in, taken without sending.
+    from scoranger_engine import librarysync
+    ws = ipad.use()
+    repo = ws._repo()
+    queue = [(r["collection"], r["uid"]) for r in librarysync.outbox(limit=10_000)["records"]]
+    at = {key: i for i, key in enumerate(queue)}
+    of = lambda c: [i for i, (col, _) in enumerate(queue) if col == c]
+    latest = {s["uid"]: s["latest"] for s in repo.list_scores()}
+    piece_of = {s["uid"]: next(p["uid"] for p in repo.list_pieces() if p["slug"] == s["piece"])
+                for s in repo.list_scores()}
+    check(max(of("pieces") + of("scores") + of("versions") + of("sources") + of("setlists"))
+          < min(of("books")), "the book goes up last")
+    check(max(of("scores")) < min(of("setlists")),
+          "set lists go up after every arrangement they could name")
+    check(all(queue[at[("scores", s)] - 1] == ("versions", v) for s, v in latest.items()),
+          "each arrangement goes up straight after its latest version")
+    check(all(at[("pieces", p)] < at[("scores", s)] for s, p in piece_of.items()),
+          "each piece goes up before its arrangements")
+    older = [i for i, (c, u) in enumerate(queue)
+             if c in ("versions", "sources") and u not in latest.values()]
+    check(min(older) > max(of("setlists")),
+          "older history and sources go up after the set lists")
+
+    owed = ipad.pending()
+    first = ipad.push_in_windows(server, window=3, windows=4)
+    check(len(first) == 12 and ipad.pending() == owed - 12,
+          f"four windows of three reached the server and are no longer owed "
+          f"({owed} -> {ipad.pending()})")
+    iphone.sign_in("ali")
+    result = iphone.pull(server)
+    seen = iphone.view()
+    check(len(seen["scores"]) >= 3 and len(seen["pieces"]) >= 2,
+          f"the other device already shows pieces and arrangements: "
+          f"{len(seen['pieces'])} pieces, {len(seen['scores'])} arrangements")
+    check(all(s["latest"] in s["versions"] and s["piece"] for s in seen["scores"].values()),
+          "every arrangement there opens at its latest version, filed in its piece")
+    check(not seen["books"], "and the book has not held any of it up")
+    check(not [d for d in result["deferred"] if d["collection"] == "scores"],
+          f"no arrangement that arrived waits for its music: {result['deferred']}")
+
+    rest = ipad.push_in_windows(server, window=3)
+    check(not set(rest) & set(first),
+          "resuming sends nothing the server already acknowledged")
+    check(len(first) + len(rest) == len(queue) and ipad.pending() == 0,
+          f"and sends everything else ({len(first)} + {len(rest)} of {len(queue)})")
+    iphone.pull(server)
+    check(iphone.view() == ipad.view(), "after which the two libraries are the same")
+
+
+def an_order_waits_for_its_arrangements() -> None:
+    print("\n11. a set list and a piece's order that arrive before an arrangement keep it")
+    import fixtures
+    server, a, b = Server(), Device("a3"), Device("b3")
+    ws = a.use()
+    first, _ = ws.create_score("Kesh", fixtures.jig(bars=4))
+    ws.assign_score_to_piece(first, "Kesh")
+    second, _ = ws.create_score("Kesh (duet)", fixtures.jig(bars=4))
+    ws.assign_score_to_piece(second, "Kesh")
+    ws.set_piece_order("kesh", [second, first])
+    ws.add_score_to_setlist("Sunday", second)
+    ws.add_score_to_setlist("Sunday", first)
+    repo = ws._repo()
+    second_uid = repo.get_score(second)["uid"]
+    a.sign_in("ali")
+    a.push(server)
+    # The duet's arrangement is on the server, its music is not yet.
+    held_back = {k: v for k, v in server.docs.items()
+                 if k[0] == "versions" and v["fields"].get("score") == second_uid}
+    for k in held_back:
+        del server.docs[k]
+    b.sign_in("ali")
+    result = b.pull(server)
+    seen = b.view()
+    check([s["name"] for s in seen["scores"].values()] == ["Kesh"],
+          "only the arrangement whose music is there has arrived")
+    check(not seen["setlists"],
+          f"the set list waits for its other arrangement instead of arriving "
+          f"without it: {seen['setlists']}")
+    check(result.get("waiting") == {"arrangements": 1, "setlists": 1, "books": 0},
+          f"and what waits is counted for the reader: {result.get('waiting')}")
+    for k, v in held_back.items():
+        server.clock += 1
+        server.docs[k] = {**v, "stamp": server.clock}
+    result = b.pull(server)
+    seen, want = b.view(), a.view()
+    names = lambda view, uids: [view["scores"][u]["name"] for u in uids]
+    setlist = next(iter(seen["setlists"].values()), {"scores": []})
+    check(names(seen, setlist["scores"]) == ["Kesh (duet)", "Kesh"],
+          f"once it is there the set list has both, in order: "
+          f"{names(seen, setlist['scores'])}")
+    piece = next(iter(seen["pieces"].values()))
+    check(names(seen, piece["order"]) == ["Kesh (duet)", "Kesh"],
+          f"and so does the piece's order: {names(seen, piece['order'])}")
+    check(result.get("waiting") == {"arrangements": 0, "setlists": 0, "books": 0},
+          f"nothing is waiting any more: {result.get('waiting')}")
+    check(seen == want and b.pending() == 0, "the two devices agree and owe nothing")
+
+
 def a_different_account_is_owed_everything() -> None:
     print("\n8. another account on the same device is owed the whole library")
     import fixtures
@@ -414,6 +562,8 @@ def main() -> int:
     music_before_pointer()
     a_different_account_is_owed_everything()
     an_arrangement_deleted_in_its_undo_window_is_not_made_elsewhere()
+    a_first_push_cut_off_keeps_what_it_sent()
+    an_order_waits_for_its_arrangements()
     print()
     if FAILURES:
         print(f"FAILED: {len(FAILURES)} check(s)")

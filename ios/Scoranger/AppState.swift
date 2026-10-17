@@ -302,8 +302,10 @@ final class AppState: ObservableObject {
               let commit = session.commit(),
               let slug = selectedScore?.slug,
               let kind = AddedMark.engineKind(address.kind),
-              let part = partName(forStaff: address.staff) else { return }
-        adjustSession = session   // the commit clears what was pending
+              let part = partReference(forStaff: address.staff) else { return }
+        // what was pending is now what the notation carries, so a second
+        // commit -- the next selection change, Move... -- finds nothing to write
+        adjustSession = session.afterCommit()
         // Group this sitting's versions the way a chat turn's steps are
         // grouped, using the SAME mechanism rather than a parallel one -- four
         // nudges should read as one adjustment in the version list, not as four
@@ -338,8 +340,12 @@ final class AppState: ObservableObject {
                         args["size"] = size
                     }
                 }
-                if let x = commit.offsetX { args["offset_x"] = x }
-                if let y = commit.offsetY { args["offset_y"] = y }
+                // A word takes no offset -- the engine refuses one by name --
+                // and the session carries the committed (zero) one through.
+                if AddedMark.takesOffset(address.kind) {
+                    if let x = commit.offsetX { args["offset_x"] = x }
+                    if let y = commit.offsetY { args["offset_y"] = y }
+                }
             }
             do {
                 _ = try await local.call(op: "adjust-element", args: args)
@@ -403,7 +409,7 @@ final class AppState: ObservableObject {
         guard let destination = placing, let bar = destination.bar,
               let slug = selectedScore?.slug,
               let kind = AddedMark.engineKind(destination.kind),
-              let part = partName(forStaff: destination.source.staff) else { return }
+              let part = partReference(forStaff: destination.source.staff) else { return }
         let op = destination.intent == .move ? "move-element" : "duplicate-element"
         let args: [String: Any] = [
             "score": slug, "part": part, "kind": kind,
@@ -461,7 +467,7 @@ final class AppState: ObservableObject {
 
     /// One op over every chord symbol in the part.
     private func applyChordDefault() {
-        guard let slug = selectedScore?.slug, let part = chordPartName() else { return }
+        guard let slug = selectedScore?.slug, let part = chordPartReference() else { return }
         Task {
             do {
                 _ = try await local.call(op: "adjust-element",
@@ -477,7 +483,7 @@ final class AppState: ObservableObject {
     /// Put every chord symbol in the part back to the inherited size and no
     /// offset. The way out of a part someone has nudged ten symbols in.
     func resetAllChordAdjustments() {
-        guard let slug = selectedScore?.slug, let part = chordPartName() else { return }
+        guard let slug = selectedScore?.slug, let part = chordPartReference() else { return }
         chordDefaultSize = ChordAdjustSession.defaultSize
         Task {
             do {
@@ -513,11 +519,29 @@ final class AppState: ObservableObject {
         Task { _ = try? await local.call(op: "end-turn", args: [:]) }
     }
 
-    /// The part a staff belongs to, which is what the op is addressed by.
+    /// The part a staff belongs to, by name, for a sentence a reader sees.
     private func partName(forStaff staff: Int) -> String? {
         let parts = selectedScore?.versions.last?.parts ?? []
         guard staff >= 1, staff <= parts.count else { return parts.first?.name }
         return parts[staff - 1].name
+    }
+
+    /// The part a staff belongs to, as an OP must be told it: by name, or by
+    /// index when two parts share the name. A scan's parts are all "Voice"
+    /// until someone renames them, and the name alone sent every adjust and
+    /// every move on such a score to the FIRST "Voice" -- "No lyric #0 in
+    /// measure 1 of 'Voice'" on a word the reader had just tapped on staff 2.
+    private func partReference(forStaff staff: Int) -> String? {
+        let names = (selectedScore?.versions.last?.parts ?? []).map(\.name)
+        return SelectionMarks.partReference(staff: staff, names: names) ?? names.first
+    }
+
+    /// `chordPartName`, as an op must be told it (see `partReference`).
+    func chordPartReference() -> String? {
+        if let address = adjustTarget, let reference = partReference(forStaff: address.staff) {
+            return reference
+        }
+        return selectedScore?.versions.last?.parts?.first?.name
     }
 
     /// What the notation already carries for this mark, in the unit its own
@@ -1746,6 +1770,33 @@ final class AppState: ObservableObject {
                 seedOutcome = "marks:"
                     + (outcome.isEmpty ? "ok" : outcome.joined(separator: " "))
             }
+            // WORDS under the first part (0.21.0), written through the same
+            // op the chat agent uses, so WordSelectShot has a staff whose
+            // only adjustable marks are words.
+            if ProcessInfo.processInfo.arguments.contains("-seedWordChart"),
+               let first = (try await local.manifest()).scores
+                    .sorted(by: { $0.slug < $1.slug }).first {
+                // Under EVERY part, from the first note each one has: the
+                // test library's first part opens on rests, and the shot
+                // looks wherever its zoom lands. On every OTHER note (`*`
+                // skips one), so a word has a free note beside it to be
+                // moved onto.
+                let line = Array(repeating: "la * lo * li *", count: 10).joined(separator: " ")
+                let parts = (try? await local.call(op: "info", args: ["score": first.slug]))?["parts"]
+                    as? [[String: Any]] ?? []
+                var outcome: [String] = []
+                for index in parts.indices {
+                    do {
+                        _ = try await local.call(op: "set-lyrics",
+                                                 args: ["score": first.slug, "part": "#\(index)",
+                                                        "measure": 1, "text": line])
+                    } catch {
+                        outcome.append("#\(index)=FAILED(\(error.localizedDescription))")
+                    }
+                }
+                seedOutcome = "words:" + (parts.isEmpty ? "FAILED(no parts)"
+                    : outcome.count == parts.count ? outcome.joined(separator: " ") : "ok")
+            }
             // A guitar tab, which is the other half of the pagination
             // fixture. Ali's report is that a chat op which ADDS material --
             // a staff, a tab, chords -- collapses the page layout to one long
@@ -2942,11 +2993,25 @@ final class AppState: ObservableObject {
         // Data is a queue of tens of megabytes, and the reader is invited to
         // put several pieces in it.
         let spool: URL
+        let spoolID = claimed ?? UUID()
         do {
-            spool = try spoolOMRUpload(preflight.data, id: claimed ?? UUID())
+            spool = try spoolOMRUpload(preflight.data, id: spoolID)
         } catch {
             return abandon("Couldn't hold on to that scan: "
                            + OperationReport.reason(error))
+        }
+        // The PDF AS IT ARRIVED, beside the upload, when it is becoming an
+        // arrangement of its own: the preflight may have redrawn it as an
+        // image, and the engine reads the words the original prints
+        // (pdftext, 0.21.0). A transcription INTO a scan arrangement needs
+        // none -- the engine holds that scan already.
+        let textSource: URL?
+        if intoScore != nil {
+            textSource = nil
+        } else if preflight.data == pdfData {
+            textSource = spool
+        } else {
+            textSource = try? spoolOMRUpload(pdfData, id: spoolID, suffix: "source")
         }
 
         let id: UUID
@@ -2962,7 +3027,8 @@ final class AppState: ObservableObject {
         }
         omrWork[id] = OMRWork(id: id, name: name, piece: piece,
                               arrangement: intoScore, endpoint: endpoint,
-                              spool: spool, preflightNote: preflight.note)
+                              spool: spool, textSource: textSource,
+                              preflightNote: preflight.note)
         restateTheQueue()
         pumpOMRQueue()
     }
@@ -2980,13 +3046,16 @@ final class AppState: ObservableObject {
         let endpoint: URL
         /// The preflighted upload bytes, on disk.
         let spool: URL
+        /// The PDF the engine reads printed words from, when no scan
+        /// arrangement holds it (see `convertPDF`).
+        let textSource: URL?
         let preflightNote: String?
     }
 
-    private func spoolOMRUpload(_ data: Data, id: UUID) throws -> URL {
+    private func spoolOMRUpload(_ data: Data, id: UUID, suffix: String? = nil) throws -> URL {
         let directory = FileManager.default.temporaryDirectory.appending(path: "omr-queue")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let file = directory.appending(path: "\(id.uuidString).pdf")
+        let file = directory.appending(path: "\(id.uuidString)\(suffix.map { "." + $0 } ?? "").pdf")
         try data.write(to: file, options: .atomic)
         return file
     }
@@ -3019,6 +3088,7 @@ final class AppState: ObservableObject {
 
     private func finishTranscription(_ id: UUID) {
         if let spool = omrWork[id]?.spool { try? FileManager.default.removeItem(at: spool) }
+        if let source = omrWork[id]?.textSource { try? FileManager.default.removeItem(at: source) }
         omrWork[id] = nil
         pendingImports.removeAll { $0.id == id }
         restateTheQueue()
@@ -3186,11 +3256,15 @@ final class AppState: ObservableObject {
                         return
                     }
                     // the transcription joins the scan's own history
-                    _ = try await local.addVersion(from: tmp, score: intoScore,
-                                                   recordedAs: "omr")
+                    let added = try await local.addVersionReporting(from: tmp, score: intoScore,
+                                                                    recordedAs: "omr")
+                    if let said = added.notice { notice = said }
                     slug = intoScore
                 } else {
-                    slug = try await local.importScore(fileURL: tmp, name: work.name, piece: work.piece)
+                    let imported = try await local.importScoreReporting(
+                        fileURL: tmp, name: work.name, piece: work.piece, pdf: work.textSource)
+                    if let said = imported.notice { notice = said }
+                    slug = imported.slug
                 }
                 try? FileManager.default.removeItem(at: tmp)
                 // Follow it ONLY if the reader is already there, or if it is
@@ -4015,17 +4089,35 @@ final class AppState: ObservableObject {
             // whole bar moved: the selection was degraded to its bar number
             // before the model ever saw it, and the op did exactly what it was
             // told. The addresses are what the lasso actually caught.
-            let list = selection.addressList.joined(separator: ", ")
+            // The NOTES' addresses only: a lasso across a line of notes also
+            // catches the words under them (0.21.0), and a word is not
+            // something transpose_elements can move.
+            let notes = selection.addresses
+                .filter { ScoreElementKind.noteLike.contains($0.kind) }
+                .map(\.description).joined(separator: ", ")
             pieces.append(
                 "The user has selected \(selection.headline)"
                 + (selection.placeLine.map { " (\($0))" } ?? "") + ". "
-                + "Their addresses are: \(list). "
                 + "'The selection', 'these notes' and 'the highlighted passage' mean "
-                + "EXACTLY those elements. Use transpose_elements with that exact list "
-                + "of addresses. Do NOT use transpose with from_measure/to_measure for a "
-                + "selection: that moves every note in the bar, including ones the user "
-                + "did not select. Ask before making whole-piece changes while a "
-                + "selection is active.")
+                + "EXACTLY those elements. "
+                + (notes.isEmpty ? "" :
+                    "The selected NOTES' addresses are: \(notes). Use transpose_elements "
+                    + "with that exact list of addresses. Do NOT use transpose with "
+                    + "from_measure/to_measure for a selection: that moves every note in "
+                    + "the bar, including ones the user did not select. ")
+                + "Ask before making whole-piece changes while a selection is active.")
+            // Words and marks are addressed by the element tools as part, bar,
+            // kind and ordinal -- not by these strings -- and the model was
+            // never told how to turn one into the other (0.21.0).
+            let names = (selectedScore?.versions.last?.parts ?? []).map(\.name)
+            let marks = SelectionMarks.describe(selection.addresses, part: {
+                SelectionMarks.partReference(staff: $0, names: names)
+            })
+            if !marks.isEmpty {
+                pieces.append("Selected words and marks, as edit_lyric, adjust_element, "
+                              + "move_element and remove_element take them: "
+                              + marks.joined(separator: "; ") + ".")
+            }
         }
         return pieces.isEmpty ? nil : pieces.joined(separator: " ")
     }

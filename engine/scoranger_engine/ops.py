@@ -2306,7 +2306,8 @@ def whistle_fingerings(score, part, whistle_key: str = "D", clear: bool = False)
         writes the TEXT of the verse at that number and leaves its NAME alone,
         which put fret numbers under a `wf` label and drew "3" as a row of
         circles. Whichever op runs last takes those verses outright, and the
-        report says how many notes it took them from.
+        report says how many notes it took them from. Sung words are not in
+        them: they were moved above the column before this runs (0.21.0).
         """
         return [ly for ly in n.lyrics if (ly.number or 0) > WHISTLE_VERSES]
 
@@ -2317,7 +2318,12 @@ def whistle_fingerings(score, part, whistle_key: str = "D", clear: bool = False)
             if len(kept) != len(n.lyrics):
                 n.lyrics = kept
                 cleared += 1
-        return {"part": part_label(part), "cleared": cleared}
+        # the words come back down to where the part's numbering now starts
+        moved = _move_words(part, word_base(part))
+        out = {"part": part_label(part), "cleared": cleared}
+        if moved:
+            out["words_renumbered"] = moved
+        return out
 
     key = whistle_key.upper().replace("EB", "E-").replace("BB", "B-")
     if key not in WHISTLE_KEYS:
@@ -2328,6 +2334,11 @@ def whistle_fingerings(score, part, whistle_key: str = "D", clear: bool = False)
     written = 0
     displaced = 0
     unplayable: list[dict] = []
+    # SUNG WORDS move above the column instead of under it (0.21.0): this op
+    # took verses 1-7 outright and a word there was deleted. See `word_base`.
+    words_moved = _move_words(part, WHISTLE_VERSES) if any(
+        int(ly.number or 0) <= WHISTLE_VERSES
+        for n in playable_notes(part) for ly in word_verses(n)) else 0
     for n in playable_notes(part):
         pitches = n.pitches if isinstance(n, m21chord.Chord) else [n.pitch]
         # a whistle plays one note at a time; the top of a chord is the tune
@@ -2372,6 +2383,8 @@ def whistle_fingerings(score, part, whistle_key: str = "D", clear: bool = False)
         "guitar_tab_replaced": displaced,
         "unplayable": unplayable[:20],
         "unplayable_count": len(unplayable),
+        # the sung words, renumbered above the column rather than deleted
+        "words_renumbered": words_moved,
     }
 
 
@@ -2890,6 +2903,8 @@ def chord_diagrams(score, part, tuning: str = "EADGBE", clear: bool = False,
 # letters and circles have.
 
 TAB_LYRIC_TAG = "gt"
+#: one verse per string, and every tuning this op knows has six
+TAB_VERSES = 6
 
 
 def tab_label(size: float | None = None, dx: float | None = None,
@@ -2950,15 +2965,37 @@ def _parse_verse_label(tag: str, label: str):
 LYRIC_LABEL_TAG = "ly"
 
 
-def lyric_label(size: float | None = None) -> str:
-    """The verse name a resized word carries: `ly`, or `ly@1.5`."""
-    return _verse_label(LYRIC_LABEL_TAG, size, None, None)
+#: How a word is SET, after its size: `ly~i`, `ly@1.5~b`, `ly~bi`. Italic and
+#: bold have no home a round trip keeps either: music21 writes no font-style
+#: or font-weight on a <lyric> and reads none back, so a style written there
+#: would last until the next op. The name lasts (0.21.0).
+LYRIC_STYLES = {"normal": "", "italic": "i", "bold": "b", "bold-italic": "bi"}
+
+
+def lyric_label(size: float | None = None, style: str = "") -> str:
+    """The verse name a resized or restyled word carries: `ly@1.5`, `ly~i`."""
+    label = _verse_label(LYRIC_LABEL_TAG, size, None, None)
+    return f"{label}~{style}" if style else label
+
+
+def _split_lyric_label(label: str) -> tuple[str, str]:
+    head, _, style = str(label or "").partition("~")
+    return head, style
 
 
 def parse_lyric_label(label: str) -> float | None:
     """The size ratio written on a word's verse name, or None if it has none."""
-    parsed = _parse_verse_label(LYRIC_LABEL_TAG, str(label or ""))
+    head, _ = _split_lyric_label(label)
+    parsed = _parse_verse_label(LYRIC_LABEL_TAG, head)
     return None if parsed is None else parsed[0]
+
+
+def parse_lyric_style(label: str) -> str:
+    """"", "i", "b" or "bi": how a word's verse name says it is set."""
+    head, style = _split_lyric_label(label)
+    if _parse_verse_label(LYRIC_LABEL_TAG, head) is None:
+        return ""
+    return "".join(c for c in "bi" if c in style)
 
 
 def word_verses(note) -> list:
@@ -2974,13 +3011,237 @@ def word_verses(note) -> list:
             and parse_tab_label(str(ly.identifier or "")) is None]
 
 
-def _free_verse(note) -> int:
-    """The lowest verse number nothing on this note is already using."""
+def _free_verse(note, base: int = 0) -> int:
+    """The lowest verse number above `base` nothing on this note is using."""
     taken = {int(ly.number) for ly in note.lyrics if ly.number}
-    verse = 1
+    verse = base + 1
     while verse in taken:
         verse += 1
     return verse
+
+
+def word_base(part) -> int:
+    """Where a part's WORDS are numbered from, less one (0.21.0).
+
+    A whistle's fingerings are verses 1-7 and a tab's frets verses 1-6, on
+    every note they are written on. A sung word in one of those verses was
+    deleted by whichever of the two ops ran -- harmless while words were rare,
+    and a loss once they arrive on import. So a part that carries a column
+    numbers its words above it: verse 1 of the words is verse 8 under a
+    whistle and verse 7 under a tab. Every lyric op counts a reader's "verse
+    1" from here, and the renderers draw a lifted whistle column's words
+    from the first line again (render._words_under_lifted_columns).
+    """
+    tab = False
+    for n in part.recurse().notes:
+        for lyric in n.lyrics:
+            label = str(lyric.identifier or "")
+            if label == WHISTLE_LYRIC_TAG:
+                return WHISTLE_VERSES
+            tab = tab or parse_tab_label(label) is not None
+    return TAB_VERSES if tab else 0
+
+
+def _sung(part) -> list:
+    from music21 import harmony as m21harmony
+
+    return [n for n in part.recurse().notes if not isinstance(n, m21harmony.Harmony)]
+
+
+def _sung_notes_from(part, measure: int, offset: float):
+    """The part's notes from the one that starts at (measure, offset) on.
+
+    "From bar 9" is the DOWNBEAT, and a bar that opens on a rest has no note
+    there; the words then start on the first note after it, in that bar or a
+    later one, and the caller reports where. An offset INSIDE a bar names a
+    note, and one that names none is refused with the bar's onsets.
+    """
+    measures = {m.number: m for m in part.getElementsByClass(stream.Measure)}
+    if measure not in measures:
+        raise ValueError(f"No measure {measure} in part '{part_label(part)}'")
+    sung = _sung(part)
+    start = _note_starting_at(measures[measure], offset)
+    if start is None and offset == 0:
+        later = [n for n in sung if (n.measureNumber or 0) >= measure]
+        start = later[0] if later else None
+        if start is None:
+            raise ValueError(f"No note in '{part_label(part)}' from measure {measure} on")
+    if start is None:
+        raise ValueError(
+            f"No note starts at offset {offset} of measure {measure} in "
+            f"'{part_label(part)}'; that bar starts notes at {_onsets(measures[measure])}")
+    return sung[next(i for i, n in enumerate(sung) if n is start):]
+
+
+def set_lyrics(score, name: str, text: str, measure: int, offset: float = 0.0,
+               verse: int = 1, to_measure: int | None = None) -> dict:
+    """Write one verse over a run of notes, from a line of words (0.21.0).
+
+    The words are written the way ABC writes them under a tune, because that
+    is a notation for exactly this and a reader may already know it:
+    "Ban-bridge town in~the" -- a hyphen splits a word into syllables, `~`
+    keeps two words on one note, `_` holds a syllable over the next note,
+    `*` leaves a note without one, `|` moves on to the next bar. The same
+    tokenizer as the ABC import (`enrich._lyric_tokens`), so the two cannot
+    read the same line two ways.
+
+    Starts on the note that begins at (measure, offset) and goes on note by
+    note -- rests and grace notes take none -- as far as the words go or to
+    the end of `to_measure`. That verse is REPLACED on every note the words
+    cover; other verses, and the same verse past the last word, are left.
+    `verse` counts from 1 as a reader does (see `word_base`).
+    """
+    from music21 import note as m21note
+
+    from . import enrich
+
+    if verse < 1:
+        raise ValueError(f"Verses are counted from 1 (got {verse})")
+    part = find_parts(score, [name])[0]
+    run = [n for n in _sung_notes_from(part, measure, offset) if not n.duration.isGrace]
+    if to_measure is not None:
+        run = [n for n in run if n.measureNumber is not None and n.measureNumber <= to_measure]
+    tokens = enrich._lyric_tokens(text)
+    if not any(t[0] == "syl" for t in tokens):
+        raise ValueError("No words to write. To take a verse off, use clear-lyrics.")
+    notes = [(getattr(n, "step", None), n.measureNumber) for n in run]
+    placed, excess, _ = enrich._lay_verse(tokens, notes, 0, len(run), False)
+    stored = word_base(part) + verse
+    covered = run[:placed[-1][0] + 1] if placed else []
+    for n in covered:
+        for lyric in [ly for ly in word_verses(n) if int(ly.number or 0) == stored]:
+            n.lyrics.remove(lyric)
+    for index, word, syllabic in placed:
+        run[index].lyrics.append(
+            m21note.Lyric(text=word, number=stored, syllabic=syllabic, applyRaw=True))
+    first = run[0] if run else None
+    out = {"part": part_label(part), "verse": verse, "syllables": len(placed),
+           # where the words START, which is later than asked when the bar
+           # opens on a rest
+           "from": {"bar": bar_label(first) if first is not None else None,
+                    "offset": (round(float(first.getOffsetInHierarchy(
+                        first.getContextByClass(stream.Measure))), 4)
+                        if first is not None else offset)},
+           "to": {"bar": bar_label(covered[-1])} if covered else None}
+    if excess:
+        # words past the last note: the reader asked for more than fits
+        out["words_left_over"] = excess
+    return out
+
+
+def clear_lyrics(score, name: str, verse: int | None = None,
+                 from_measure: int | None = None, to_measure: int | None = None) -> dict:
+    """Take words off a part: one verse or all, in a range of bars or all of it."""
+    part = find_parts(score, [name])[0]
+    base = word_base(part)
+    removed = 0
+    for n in _sung(part):
+        number = n.measureNumber
+        if from_measure is not None and (number is None or number < from_measure):
+            continue
+        if to_measure is not None and (number is None or number > to_measure):
+            continue
+        for lyric in word_verses(n):
+            if verse is None or int(lyric.number or 0) == base + verse:
+                n.lyrics.remove(lyric)
+                removed += 1
+    if not removed:
+        raise ValueError(f"No words to take off part '{part_label(part)}'"
+                         + (f" in verse {verse}" if verse is not None else ""))
+    return {"part": part_label(part), "verse": verse, "removed": removed}
+
+
+def edit_lyric(score, name: str, measure: int, ordinal: int, text: str,
+               syllabic: str | None = None) -> dict:
+    """Change one word's text, addressed as every other mark is (bar + ordinal).
+
+    The syllable keeps its note, its verse, its size and its style; only what
+    it says changes. A word ending in a hyphen ("lan-") continues into the
+    next syllable, which is how a reader types it.
+    """
+    part = find_parts(score, [name])[0]
+    measures = {m.number: m for m in part.getElementsByClass(stream.Measure)}
+    found = _elements_in_measure(measures[measure], "lyric") if measure in measures else []
+    if not 0 <= ordinal < len(found):
+        raise ValueError(f"No lyric #{ordinal} in measure {measure} of "
+                         f"'{part_label(part)}' (it has {len(found)})")
+    _note, lyric = found[ordinal]
+    word = text.strip()
+    if not word:
+        raise ValueError("A word cannot be empty; to take it off, use remove-element "
+                         "--kind lyric")
+    was = lyric.text
+    if word.endswith("-") and len(word) > 1:
+        word = word[:-1]
+        if syllabic is None:
+            syllabic = "middle" if lyric.syllabic in ("middle", "end") else "begin"
+    lyric.text = word
+    if syllabic is not None:
+        if syllabic not in ("single", "begin", "middle", "end"):
+            raise ValueError(f"No syllabic '{syllabic}'. Have: single, begin, middle, end")
+        lyric.syllabic = syllabic
+    return {"part": part_label(part), "measure": measure, "ordinal": ordinal,
+            "was": was, "now": lyric.text, "syllabic": lyric.syllabic,
+            "verse": int(lyric.number or 0) - word_base(part)}
+
+
+def list_lyrics(score, names: list[str] | None = None) -> dict:
+    """Every word, bar by bar, as the element ops address it. Read-only.
+
+    So the agent can read what is there before it changes it: each word's bar,
+    its ORDINAL in that bar (what adjust/move/remove/edit take), its verse
+    counted from 1, its offset from the barline, and how it is set.
+    """
+    parts = find_parts(score, names) if names else list(score.parts)
+    out = []
+    for part in parts:
+        base = word_base(part)
+        bars = []
+        verses: set[int] = set()
+        for m in part.getElementsByClass(stream.Measure):
+            words = []
+            found = _elements_in_measure(m, "lyric")
+            for ordinal, (n, lyric) in enumerate(found):
+                verse = int(lyric.number or 0) - base
+                verses.add(verse)
+                label = str(lyric.identifier or "")
+                entry = {"ordinal": ordinal, "verse": verse, "text": lyric.text,
+                         "syllabic": lyric.syllabic,
+                         "offset": round(float(n.getOffsetInHierarchy(m)), 4)}
+                if parse_lyric_label(label) is not None:
+                    entry["scale"] = parse_lyric_label(label)
+                style = parse_lyric_style(label)
+                if style:
+                    entry["style"] = {"i": "italic", "b": "bold", "bi": "bold-italic"}[style]
+                words.append(entry)
+            if words:
+                bars.append({"bar": bar_label(found[0][0]), "measure": m.number,
+                             "words": words})
+        out.append({"part": part_label(part), "verses": sorted(verses),
+                    "bars": bars})
+    return {"parts": out}
+
+
+def _move_words(part, base: int) -> int:
+    """Renumber a part's words so their first verse is `base + 1`.
+
+    Every word on the part moves by the same amount, so a verse stays one
+    line and verse 2 stays below verse 1. A word's NAME follows its number
+    when the name was only ever the number (music21's default), and keeps a
+    size or style it carries. Returns the number of words moved.
+    """
+    words = [ly for n in _sung(part) for ly in word_verses(n) if ly.number]
+    if not words:
+        return 0
+    shift = base + 1 - min(int(ly.number) for ly in words)
+    if shift == 0:
+        return 0
+    for lyric in words:
+        old = int(lyric.number)
+        if str(lyric.identifier or "") == str(old):
+            lyric.identifier = str(old + shift)
+        lyric.number = old + shift
+    return len(words)
 # A string that is not played on this beat. It is a character every font has,
 # unlike the box glyphs a tab staff would otherwise want.
 TAB_REST = "-"
@@ -3251,7 +3512,11 @@ def guitar_tab(score, part, tuning: str = "EADGBE", capo: int = 0,
             if len(kept) != len(n.lyrics):
                 n.lyrics = kept
                 cleared += 1
-        return {"part": part_label(part), "cleared": cleared}
+        moved = _move_words(part, word_base(part))
+        out = {"part": part_label(part), "cleared": cleared}
+        if moved:
+            out["words_renumbered"] = moved
+        return out
 
     opens = [m21pitch.Pitch(p).ps for p in guitar_tuning(tuning)]
     if capo < 0 or capo > TAB_MAX_FRET:
@@ -3274,8 +3539,12 @@ def guitar_tab(score, part, tuning: str = "EADGBE", capo: int = 0,
         # verses 1-6, and the whistle's seventh: the overblown mark would
         # otherwise be left hanging under a tab that has no octave to mark
         n.lyrics = [ly for ly in n.lyrics
-                    if (ly.number or 0) > len(opens)
+                    if ((ly.number or 0) > len(opens) or ly in word_verses(n))
                     and str(ly.identifier or "") != WHISTLE_LYRIC_TAG]
+    # SUNG WORDS move below the tab rather than being deleted (0.21.0): the
+    # whistle's column is gone from this part, so they are numbered from the
+    # tab's six. See `word_base`.
+    words_moved = _move_words(part, len(opens))
     voiced = [sorted(n.pitches, key=lambda p: p.ps) for n in notes]
     # more notes than strings is not a hand the planner should be asked about
     events = [pitches if len(pitches) <= len(opens) else [] for pitches in voiced]
@@ -3354,6 +3623,8 @@ def guitar_tab(score, part, tuning: str = "EADGBE", capo: int = 0,
         "positions_raised_count": len(raised),
         "unplayable": unplayable[:20],
         "unplayable_count": len(unplayable),
+        # the sung words, renumbered below the tab rather than deleted
+        "words_renumbered": words_moved,
     }
 
 
@@ -3625,7 +3896,8 @@ def adjust_element(score, name: str, kind: str = "harm",
                    measure: int | None = None, ordinal: int = 0,
                    size: float | None = None, scale: float | None = None,
                    offset_x: float | None = None, offset_y: float | None = None,
-                   reset: bool = False, all_elements: bool = False) -> dict:
+                   reset: bool = False, all_elements: bool = False,
+                   style: str | None = None) -> dict:
     """Change how big an added element is, and where it sits.
 
     The adjustment lives in the notation -- MusicXML's `font-size`,
@@ -3652,8 +3924,16 @@ def adjust_element(score, name: str, kind: str = "harm",
     `measure` + `ordinal` addresses one element the way the app's ScoreAddress
     does, so the UI passes exactly what the user selected. `all_elements`
     reaches every one in the part, for "make all the chord names bigger".
+
+    `style` is a WORD's alone: normal, italic, bold or bold-italic, written
+    in its verse name beside its size (`LYRIC_STYLES`, 0.21.0).
     """
     spec = _element_kind(kind, "adjust", ADJUSTABLE_KINDS)
+    if style is not None and kind != "lyric":
+        raise ValueError(f"Only a lyric takes a style; a {spec.noun} has one size and "
+                         f"no italic or bold of its own")
+    if style is not None and style not in LYRIC_STYLES:
+        raise ValueError(f"No style '{style}'. Have: {sorted(LYRIC_STYLES)}")
 
     if kind == "lyric" and (offset_x is not None or offset_y is not None):
         # Refused by name rather than written and ignored. A verse is laid out
@@ -3674,9 +3954,10 @@ def adjust_element(score, name: str, kind: str = "harm",
         if scale <= 0:
             raise ValueError(f"A scale must be greater than 0 (got {scale})")
         size = float(scale) * DEFAULT_ELEMENT_POINTS
-    if not reset and size is None and offset_x is None and offset_y is None:
+    if (not reset and size is None and offset_x is None and offset_y is None
+            and style is None):
         raise ValueError("Nothing to change: pass a size, a scale, an offset, "
-                         "or --reset")
+                         "a style, or --reset")
 
     part = find_parts(score, [name])[0]
     measures = {m.number: m for m in part.getElementsByClass(stream.Measure)}
@@ -3699,11 +3980,20 @@ def adjust_element(score, name: str, kind: str = "harm",
 
     for element in targets:
         if kind == "lyric":
-            # The size rides in the verse NAME (see LYRIC_LABEL_TAG); a reset
-            # puts the plain verse number back, which is what the name said
-            # before anybody resized anything.
-            element.identifier = (str(element.number or 1) if reset
-                                  else lyric_label(size / DEFAULT_ELEMENT_POINTS))
+            # The size and the style ride in the verse NAME (see
+            # LYRIC_LABEL_TAG); a reset puts the plain verse number back,
+            # which is what the name said before anybody changed anything.
+            # Each keeps what the other already said.
+            if reset:
+                element.identifier = str(element.number or 1)
+                continue
+            label = str(element.identifier or "")
+            ratio = (size / DEFAULT_ELEMENT_POINTS if size is not None
+                     else parse_lyric_label(label))
+            look = (LYRIC_STYLES[style] if style is not None
+                    else parse_lyric_style(label))
+            element.identifier = (lyric_label(ratio, look) if (ratio is not None or look)
+                                  else str(element.number or 1))
             continue
         if spec.anchor == "lyric":
             # A tab column's size and offset ride in the lyric NAME as well as
@@ -3743,6 +4033,7 @@ def adjust_element(score, name: str, kind: str = "harm",
 
     return {"part": part_label(part), "kind": kind, "adjusted": len(targets),
             "reset": reset,
+            **({"style": style} if style is not None else {}),
             "size": None if reset else size,
             "scale": None if (reset or size is None)
             else size / DEFAULT_ELEMENT_POINTS,
@@ -3901,7 +4192,7 @@ def add_element(score, name: str, kind: str, measure: int,
             # A note carries one syllable per verse, so the new word takes the
             # lowest verse nothing is using -- verse 1 on a note with no words
             # under it, verse 2 on a note that already sings one.
-            element.number = _free_verse(target)
+            element.number = _free_verse(target, word_base(part))
         _attached_list(target, kind).append(element)
 
     landed = [e for _holder, e in _elements_in_measure(destination, kind)]
@@ -4147,6 +4438,21 @@ def is_chord_symbol_text(value) -> bool:
     return bool(match) and match.group(3) in QUALITY_KINDS
 
 
+def chord_symbol_from_text(sym: str):
+    """The ChordSymbol set-chords writes for a lead-sheet name, or None.
+
+    One vocabulary (`QUALITY_KINDS`) for every way a chord name becomes a
+    symbol: set-chords, and the chord names a PDF prints (`pdftext`).
+    """
+    from music21 import harmony as m21harmony
+
+    match = _CHORD_TEXT_RE.fullmatch(str(sym or "").strip())
+    if not match or match.group(3) not in QUALITY_KINDS:
+        return None
+    root = match.group(1) + {"b": "-", "#": "#", None: ""}[match.group(2)]
+    return m21harmony.ChordSymbol(root=root, kind=QUALITY_KINDS[match.group(3)])
+
+
 def set_chord_symbols(score, name: str, chords: list[dict]) -> dict:
     """Write chord symbols (MusicXML <harmony>) onto a part at given measures.
 
@@ -4154,8 +4460,6 @@ def set_chord_symbols(score, name: str, chords: list[dict]) -> dict:
     Symbols use lead-sheet spelling: F, Fm, F7, Fmaj7, Fm7, Fm7b5, Fdim, Fdim7, Faug
     (roots may carry b/#). Replaces any existing symbol at the same spot.
     """
-    import re as _re
-
     from music21 import harmony as m21harmony
     part = find_parts(score, [name])[0]
     measures = {m.number: m for m in part.getElementsByClass(stream.Measure)}
@@ -4165,11 +4469,9 @@ def set_chord_symbols(score, name: str, chords: list[dict]) -> dict:
         m = measures.get(mnum)
         if m is None:
             raise ValueError(f"No measure {mnum} in part '{part_label(part)}'")
-        match = _re.fullmatch(r"([A-G])(b|#)?(.*)", sym)
-        if not match or match.group(3) not in QUALITY_KINDS:
+        cs = chord_symbol_from_text(sym)
+        if cs is None:
             raise ValueError(f"Bad chord symbol '{sym}'. Qualities: {sorted(QUALITY_KINDS)}")
-        root = match.group(1) + {"b": "-", "#": "#", None: ""}[match.group(2)]
-        cs = m21harmony.ChordSymbol(root=root, kind=QUALITY_KINDS[match.group(3)])
         off = float(spec.get("offset", 0.0))
         for old in list(m.getElementsByClass(m21harmony.ChordSymbol)):
             if abs(old.offset - off) < 1e-3:

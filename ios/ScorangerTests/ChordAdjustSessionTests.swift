@@ -292,4 +292,25 @@ final class AdjustableSelectionTests: XCTestCase {
     func testAnEmptySelectionIsNot() {
         XCTAssertFalse(ScoreSelection(addresses: []).isAdjustable)
     }
+
+    /// Once its op is written the session has nothing pending, and says what
+    /// the notation now carries -- or the next selection change writes it
+    /// again (0.21.0).
+    func testACommittedSessionHasNothingLeftToWrite() {
+        var s = ChordAdjustSession(size: 100, committedDX: 10, committedDY: 0,
+                                   metric: .relative)
+        s.resize(.bigger)
+        s.nudge(.up)
+        let commit = s.commit()
+        XCTAssertNotNil(commit)
+        var after = s.afterCommit()
+        XCTAssertFalse(after.hasPendingChange)
+        XCTAssertNil(after.commit(), "nothing is written twice")
+        XCTAssertEqual(after.pending.size, commit?.size)
+        XCTAssertEqual(after.total.dx, commit?.offsetX)
+        XCTAssertEqual(after.total.dy, commit?.offsetY)
+        s.reset()
+        XCTAssertEqual(s.afterCommit().pending.size, ChordAdjustSession.SizeMetric.relative.defaultValue)
+    }
 }
+

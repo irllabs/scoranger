@@ -1,5 +1,63 @@
 # Backlog
 
+## 0.21.0: words and chords from import to the page -- what it does not do
+
+Each of these is said in the ios/project.yml scope block too.
+
+- **Text printed below the music is reported, not engraved.** A PDF's
+  stanza block and an ABC tune's `W:` lines arrive in the import report
+  (`text_below_music`, `words_after_tune`) and nowhere in the arrangement.
+  Engraving them needs a home: MusicXML `<credit>` text at the page foot, and
+  both renderers drawing it (Verovio puts credits at the top).
+- **A scan's misread words stay misread.** With no text layer, only the two
+  positional rules apply (lines far below a staff's verses are not verses;
+  page text below the first system is not a credit). OCR merges ("bridgetown",
+  "Andshe") and splits are the scanner's. A pass with Vision on the page image
+  (BookOCR.swift already runs it) could correct them the way the text layer
+  does.
+- **The scanner's invented marks are not checked against the page.** On the
+  Star of County Down it read the 1st/2nd-ending brackets as two `p`
+  dynamics. A vector PDF draws dynamics as SMuFL glyphs (U+E520-E54F) in its
+  text layer, so a scanner dynamic with none near it could be dropped the way
+  a credit below the first system is.
+- **A page lines up only from words or chords the scanner read right**: at
+  least four, agreeing to 4 pt across and 2 pt down. A page where it read
+  none is left as read and named in `pages_not_lined_up`.
+- **Syllable centres are estimated** at half an em per character: pypdf
+  hands back decoded text and the embedded fonts key their widths by glyph id.
+  Nearest-note assignment has held on every engraving tried; very dense
+  sixteenths with long words are where it would slip first.
+- **No extender lines.** music21 reads and writes no `<extend>`, so a held
+  syllable (`_` in ABC, a printed underscore in a PDF) leaves its extra notes
+  bare and draws no line.
+- **Words in an ABC tune of several voices are not placed** (named in
+  `lyrics_withheld`); aligning `w:` per `V:` needs the scan to track voices.
+- **Words are below the staff only**, in normal/italic/bold/bold-italic; no
+  font family, colour or above-staff placement. Italic and bold are reachable
+  from chat only -- the adjust row has size and no style buttons.
+- **A resized word still crowds its neighbour** (the 0.11.0 entry below).
+
+Library sync (0.21.0 item 7):
+
+- **The push loop itself has no executable test.** The window rule
+  (`LibrarySyncModel.windowIsFull`) and the engine's push order are tested
+  (LibrarySyncModelTests; check_library_sync.py scenarios 10-11); the loop in
+  `LibrarySync.push` and the background time around a cycle are compiled, not
+  run. A two-simulator run against the emulators is the proof still owed.
+- **A set list or a piece's order waits WHOLE** until every arrangement it
+  names is on the device, and one naming an arrangement that never reaches
+  the server waits indefinitely. The status line counts it ("N set lists have
+  not finished arriving"), so it is visible, not silent.
+- **A piece can show empty for one window** when a window boundary falls
+  between a piece and its first arrangement.
+- **A device restored from another's backup BEFORE 0.21.0** and already pulled
+  with the shared device id keeps missing the other device's records from
+  before its cursor until they are edited again. From 0.21.0 the id is minted
+  afresh when the vendor id changes (`LibrarySyncModel.deviceIdentity`).
+- **A book already on the device whose record arrives without its file**
+  (held on cellular) has its document updated and is marked applied, so a
+  changed PDF is never fetched. Found while fixing the above; not changed.
+
 ## 0.20.0: Search -- what it does not do, and what to check
 
 - **thesession.org's terms are unread.** The site refuses its help page to
@@ -89,7 +147,7 @@ Built to design/BOOK_EXTRACT_0.19.md, with these differences and gaps:
   thesession settings: La Promeneuse, The Old Queen) is skipped and named;
   the rest of its file imports.
 
-## After the first App Store approval: a $4.99/month subscription (0.21.0)
+## After the first App Store approval: a $4.99/month subscription (0.22.0)
 
 Ali, 2026-10-05: the first App Store release ships FREE so it is not held up,
 and "we add subscription after review" at $4.99 a month. The app has no
@@ -466,14 +524,18 @@ means per-verse layout, which is upstream work, or accepting a whole-part
 size that re-engraves the line and compensating the chord symbols back, which
 is the kind of cleverness that breaks quietly.
 
-**A word resized on the iPad does not redraw there.** The engine writes the
+**A word resized on the iPad does not redraw there.** FIXED in 0.21.0:
+`LyricLooks.swift` reads the size (and style) from the verse name on the
+page. What follows is the history. The engine writes the
 size into the verse NAME (`ly@1.5`) and `render.apply_lyric_sizes` applies it
 in the PDF export; the app draws its own pages, and
 `ios/Scoranger/ScoreModel/ChordAdjustments.swift` knows five kinds, none of
 them a verse. The pattern to copy is `FingeringDiagrams.swift`, which already
 reads a verse's labelAttr title out of the SVG and rescales its tspan.
 
-**The app cannot point at a word.** `ScoreElementKind` (in
+**The app cannot point at a word.** FIXED in 0.21.0: `ScoreElementKind.verse`,
+numbered the engine's way by MEISemanticsParser and proved against the
+engine in check_lyrics.py. What follows is the history. `ScoreElementKind` (in
 `ios/Scoranger/ScoreModel/ScoreAddress.swift`) lists harm, dynam, text,
 fermata and articulation, so tap-to-select and the adjust row do not reach a
 lyric; the chat tools do, on both surfaces. Adding it means a selection story

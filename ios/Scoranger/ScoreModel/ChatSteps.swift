@@ -36,11 +36,23 @@ enum ChatSteps {
             case "articulation": return "articulation"
             case "diagram": return "chord diagram"
             case "tab": return "tab column"
+            case "lyric": return "word"
+            case "ornament": return "ornament"
             default: return "chord name"
             }
         }
         switch name {
         case "get_score_info": return "Reading the score"
+        // WORDS (0.21.0)
+        case "list_lyrics": return "Reading the words"
+        case "set_lyrics":
+            let verse = n("verse") ?? "1"
+            return n("measure").map { "Writing verse \(verse) from bar \($0)" } ?? "Writing verse \(verse)"
+        case "edit_lyric":
+            return n("measure").map { "Changing a word in bar \($0)" } ?? "Changing a word"
+        case "clear_lyrics":
+            return n("verse").map { "Taking verse \($0) off" } ?? "Taking the words off"
+        case "transpose_elements": return "Transposing the selection \(s("interval") ?? "")"
         case "list_versions": return "Checking version history"
         case "analyze_harmony": return "Analyzing the harmony"
         case "transpose": return "Transposing \(s("interval") ?? "")"

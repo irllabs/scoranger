@@ -141,6 +141,13 @@ do("duplicate-element", score=jig, part="#0", kind="fermata", measure=1,
    to_measure=4, to_offset=0)
 do("remove-element", score=jig, part="#0", kind="articulation", measure=1,
    ordinal=0)
+# words (0.21.0): the four ops the selection row and the device agent call
+do("set-lyrics", score=jig, part="#0", measure=1, text="Ban-bridge town")
+do("lyrics", score=jig)
+do("edit-lyric", score=jig, part="#0", measure=1, ordinal=0, text="Bann-")
+do("adjust-element", score=jig, part="#0", kind="lyric", measure=1, ordinal=0,
+   scale=1.5, style="italic")
+do("clear-lyrics", score=jig, part="#0", verse=1)
 
 do("transpose", score=jig, interval="M2")
 do("transpose-diatonic", score=jig, degrees=1)
@@ -379,6 +386,18 @@ def main() -> int:
     check(any(d.get("scale") == 1.5 and d.get("size") == 18.0 for d in scaled),
           "the bridge passes `scale` through, so the app can drive size "
           "relatively: 1.5 arrived as 18.0pt of the 12.0 default")
+
+    written = ((by_op.get("set-lyrics") or [{}])[0] or {}).get("details", {})
+    listed = ((by_op.get("lyrics") or [{}])[0] or {}).get("parts", [{}])[0]
+    edited = ((by_op.get("edit-lyric") or [{}])[0] or {}).get("details", {})
+    styled = [d for d in scaled if d.get("kind") == "lyric"]
+    cleared = ((by_op.get("clear-lyrics") or [{}])[0] or {}).get("details", {})
+    check(written.get("syllables") == 3 and listed.get("verses") == [1]
+          and edited.get("now") == "Bann" and styled and styled[0].get("style") == "italic"
+          and cleared.get("removed") == 3,
+          "the word ops answer on device: written, listed, edited, styled, cleared "
+          f"({written.get('syllables')}, {listed.get('verses')}, {edited.get('now')}, "
+          f"{cleared.get('removed')})")
 
     stripped = ((by_op.get("strip-notes") or [{}])[0] or {}).get("details", {})
     check((stripped.get("notes_removed") or 0) > 0

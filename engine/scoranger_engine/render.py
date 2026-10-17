@@ -588,27 +588,87 @@ def mei_with_fingerings_above(mei: str, rows: int = DEFAULT_FINGERING_ROWS) -> s
         nonlocal changed
         block = match.group(0)
         verses = _MEI_VERSE_RE.findall(block)
-        if len(verses) < WHISTLE_COLUMN:
-            return block
-        tagged = all('label="wf"' in v for v in verses)
-        if not (tagged or _is_fingering_verse_set(verses)):
+        # The column is the `wf` verses -- and only them. A note that is also
+        # SUNG carries its words as further verses (0.21.0), and lifting the
+        # words above the staff with the holes, or refusing to lift a column
+        # because words sit under it, put one or the other in the wrong place.
+        # A column is tagged verses that READ as holes -- a tag on a word does
+        # not make it one -- and an untagged column, from before the tag
+        # existed, is a whole note's verses or nothing. FingeringDiagrams.swift
+        # holds the same rule.
+        column = [v for v in verses if 'label="wf' in v]
+        if not _is_fingering_verse_set(column):
+            column = verses if _is_fingering_verse_set(verses) else []
+        if not column:
             return block
         changed = True
         above = [v if 'place=' in v.split(">")[0]
                  else v.replace("<verse", '<verse place="above"', 1)
-                 for v in verses]
+                 for v in column]
         packed = _pack_column(above, rows)
         if packed is None:
             packed = above
-        # every verse of the note out, the column back in where the first was
-        first = block.find(verses[0])
+        # the column's verses out, the column back in where its first was
+        first = block.find(column[0])
         stripped = block
-        for v in verses:
+        for v in column:
             stripped = stripped.replace(v, "", 1)
         return stripped[:first] + "".join(packed) + stripped[first:]
 
     out = _MEI_NOTE_RE.sub(one_note, mei)
-    return out if changed else None
+    if not changed:
+        return None
+    return _words_under_lifted_columns(out)
+
+
+#: Where a whistle part's WORDS are numbered from: above the column's seven
+#: verses, which is `ops.WHISTLE_VERSES` (check_staff_spacing holds the two
+#: equal). The engine numbers them there so that a word and a hole are never
+#: the same verse; once the column is lifted above the staff, those numbers
+#: would leave seven empty lines between the staff and the words.
+WORD_VERSES_AFTER_COLUMN = 7
+_MEI_STAFF_RE = re.compile(r"<staff\b[^>]*>.*?</staff>", re.S)
+_MEI_STAFF_N_RE = re.compile(r'<staff\b[^>]*?\bn="(\d+)"')
+_MEI_VERSE_N_RE = re.compile(r'(<verse\b[^>]*?\bn=")(\d+)"')
+
+
+def _words_under_lifted_columns(mei: str) -> str:
+    """On every staff that has a lifted column, number its words from 1 again.
+
+    By STAFF, across every measure, and not by note: a note out of the
+    whistle's range has no column and its word must still sit on the same
+    line as its neighbours'. A staff with no column anywhere -- a voice part
+    beside the whistle, a guitar part whose words sit under its tab -- keeps
+    its numbering.
+    """
+    lifted = {m.group(1) for block in _MEI_STAFF_RE.findall(mei)
+              if 'label="wf' in block and 'place="above"' in block
+              for m in [_MEI_STAFF_N_RE.match(block)] if m}
+    if not lifted:
+        return mei
+
+    def staff(match: "re.Match[str]") -> str:
+        block = match.group(0)
+        number = _MEI_STAFF_N_RE.match(block)
+        if number is None or number.group(1) not in lifted:
+            return block
+
+        def verse(found: "re.Match[str]") -> str:
+            whole = found.group(0)
+            n = int(found.group(2))
+            return (f"{found.group(1)}{n - WORD_VERSES_AFTER_COLUMN}\""
+                    if n > WORD_VERSES_AFTER_COLUMN else whole)
+
+        out, last = [], 0
+        for v in _MEI_VERSE_RE.finditer(block):
+            out.append(block[last:v.start()])
+            text = v.group(0)
+            out.append(text if 'label="wf' in text else _MEI_VERSE_N_RE.sub(verse, text, count=1))
+            last = v.end()
+        out.append(block[last:])
+        return "".join(out)
+
+    return _MEI_STAFF_RE.sub(staff, mei)
 
 
 # ADDED-ELEMENT ADJUSTMENTS. Verovio's MusicXML importer drops `font-size`,
@@ -894,6 +954,28 @@ def _resize_text(block: str, ratio: float) -> str:
         block, count=1)
 
 
+_TEXT_OPEN_RE = re.compile(r"<text\b[^>]*?(/?)>")
+
+
+def _set_style(block: str, style: str) -> str:
+    """Italic and bold onto a word's <text>: how a word's verse name says it
+    is set (`ly~i`, `ly~bi`; ops.LYRIC_STYLES). LyricLooks.swift is the twin."""
+    if not style:
+        return block
+
+    def stamp(m: "re.Match[str]") -> str:
+        tag = m.group(0)
+        close = "/>" if tag.endswith("/>") else ">"
+        tag = tag[: -len(close)]
+        if "i" in style and "font-style=" not in tag:
+            tag += ' font-style="italic"'
+        if "b" in style and "font-weight=" not in tag:
+            tag += ' font-weight="bold"'
+        return tag + close
+
+    return _TEXT_OPEN_RE.sub(stamp, block, count=1)
+
+
 def _resize_glyph(block: str, ratio: float) -> str:
     """Grow or shrink a drawn glyph, about its own origin.
 
@@ -984,11 +1066,15 @@ def apply_lyric_sizes(svg: str) -> str:
     for match in _VERSE_RE.finditer(svg):
         block = match.group(0)
         label = _LABEL_RE.search(block)
-        ratio = ops.parse_lyric_label(label.group(1)) if label else None
-        if ratio is None or ratio <= 0:
+        name = label.group(1) if label else ""
+        ratio = ops.parse_lyric_label(name)
+        style = ops.parse_lyric_style(name)
+        if (ratio is None or ratio <= 0) and not style:
             continue
         pieces.append(svg[cursor:match.start()])
-        pieces.append(_resize_text(block, ratio))
+        if ratio is not None and ratio > 0:
+            block = _resize_text(block, ratio)
+        pieces.append(_set_style(block, style))
         cursor = match.end()
     if not pieces:
         return svg

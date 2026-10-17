@@ -18,7 +18,11 @@ enum ScoreModelBuilder {
         // A text mark. A chord DIAGRAM is drawn in a group of this class too,
         // and is filtered out one step later: the MEI parser gives it no
         // address, and an element with no address is not selectable.
-        "dir"
+        "dir",
+        // A sung word (0.21.0). Fingering and tab verses are drawn in this
+        // class too, and get no address for the same reason a diagram gets
+        // none.
+        "verse"
     ]
 
     /// - Parameters:

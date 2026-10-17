@@ -152,21 +152,30 @@ enum FingeringDiagrams {
             let verses = verseRE.matches(
                 in: block, range: NSRange(location: 0, length: blockNS.length))
                 .map { blockNS.substring(with: $0.range) }
-            if verses.count >= columnThreshold, isFingeringColumn(verses) {
+            // The column is the `wf` verses and only them: a SUNG note carries
+            // its words as further verses (0.21.0), which stay below. A column
+            // is tagged verses that READ as holes; an untagged column, from
+            // before the tag, is the whole note or nothing. Mirrors
+            // render.mei_with_fingerings_above.
+            var column = verses.filter { $0.contains("label=\"\(tag)") }
+            if !isFingeringColumn(column) {
+                column = isFingeringColumn(verses) ? verses : []
+            }
+            if !column.isEmpty {
                 changed = true
                 // Only a verse without a placement gains one -- the same guard
                 // render.py applies -- so a placed verse is not given two.
-                let above = verses.map { verse -> String in
+                let above = column.map { verse -> String in
                     let open = verse.components(separatedBy: ">").first ?? verse
                     return open.contains("place=") ? verse
                         : verse.replacingOccurrences(of: "<verse", with: "<verse place=\"above\"",
                                                      options: [], range: verse.range(of: "<verse"))
                 }
                 let packed = packColumn(above, rows: rows) ?? above
-                // every verse of the note out, the column back in where the first was
+                // the column's verses out, the column back in where its first was
                 var stripped = block
-                let first = (block as NSString).range(of: verses[0]).location
-                for verse in verses {
+                let first = (block as NSString).range(of: column[0]).location
+                for verse in column {
                     if let r = stripped.range(of: verse) { stripped.removeSubrange(r) }
                 }
                 let head = (stripped as NSString).substring(to: first)
@@ -178,7 +187,75 @@ enum FingeringDiagrams {
             cursor = match.range.location + match.range.length
         }
         out += ns.substring(from: cursor)
-        return changed ? out : nil
+        return changed ? wordsUnderLiftedColumns(out) : nil
+    }
+
+    /// Where a whistle part's WORDS are numbered from: above the column's
+    /// seven verses (`ops.WHISTLE_VERSES`). Mirrors
+    /// render.WORD_VERSES_AFTER_COLUMN.
+    static let wordVersesAfterColumn = 7
+
+    /// On every staff that has a lifted column, number its words from 1 again.
+    ///
+    /// The engine numbers a whistle part's words above the column so a word
+    /// and a hole are never one verse; once the column is above the staff,
+    /// those numbers would leave seven empty lines between the staff and the
+    /// words. By STAFF across every measure, not by note, so a note out of the
+    /// whistle's range lines up with its neighbours. Mirrors
+    /// render._words_under_lifted_columns.
+    static func wordsUnderLiftedColumns(_ mei: String) -> String {
+        guard let staffRE = try? NSRegularExpression(
+                pattern: "<staff\\b[^>]*>.*?</staff>", options: [.dotMatchesLineSeparators]),
+              let numberRE = try? NSRegularExpression(pattern: "^<staff\\b[^>]*?\\bn=\"(\\d+)\""),
+              let verseRE = try? NSRegularExpression(
+                pattern: "<verse\\b[^>]*>.*?</verse>", options: [.dotMatchesLineSeparators]),
+              let verseNRE = try? NSRegularExpression(pattern: "(<verse\\b[^>]*?\\bn=\")(\\d+)\"")
+        else { return mei }
+        let ns = mei as NSString
+        let staves = staffRE.matches(in: mei, range: NSRange(location: 0, length: ns.length))
+        func number(_ block: String) -> String? {
+            let b = block as NSString
+            guard let m = numberRE.firstMatch(in: block, range: NSRange(location: 0, length: b.length))
+            else { return nil }
+            return b.substring(with: m.range(at: 1))
+        }
+        var lifted = Set<String>()
+        for staff in staves {
+            let block = ns.substring(with: staff.range)
+            if block.contains("label=\"\(tag)"), block.contains("place=\"above\""),
+               let n = number(block) {
+                lifted.insert(n)
+            }
+        }
+        guard !lifted.isEmpty else { return mei }
+        var out = ""
+        var cursor = 0
+        for staff in staves {
+            out += ns.substring(with: NSRange(location: cursor, length: staff.range.location - cursor))
+            let block = ns.substring(with: staff.range)
+            cursor = staff.range.location + staff.range.length
+            guard let n = number(block), lifted.contains(n) else { out += block; continue }
+            let b = block as NSString
+            var rebuilt = ""
+            var at = 0
+            for verse in verseRE.matches(in: block, range: NSRange(location: 0, length: b.length)) {
+                rebuilt += b.substring(with: NSRange(location: at, length: verse.range.location - at))
+                let text = b.substring(with: verse.range)
+                at = verse.range.location + verse.range.length
+                let t = text as NSString
+                guard !text.contains("label=\"\(tag)"),
+                      let m = verseNRE.firstMatch(in: text, range: NSRange(location: 0, length: t.length)),
+                      let value = Int(t.substring(with: m.range(at: 2))),
+                      value > wordVersesAfterColumn else { rebuilt += text; continue }
+                rebuilt += t.replacingCharacters(
+                    in: m.range,
+                    with: t.substring(with: m.range(at: 1)) + "\(value - wordVersesAfterColumn)\"")
+            }
+            rebuilt += b.substring(from: at)
+            out += rebuilt
+        }
+        out += ns.substring(from: cursor)
+        return out
     }
 
     /// The label a PACKED column carries on its first verse: the tag, a bar,

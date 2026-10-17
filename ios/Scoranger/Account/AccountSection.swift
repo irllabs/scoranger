@@ -223,7 +223,7 @@ struct AccountSection: View {
         // One line, never a spinner (design/FIREBASE.md §5.3): whether what
         // this device shows is the account's library as it stands.
         HStack(alignment: .firstTextBaseline, spacing: Theme.Metric.s12) {
-            Text(LibrarySyncModel.sentence(librarySync.status))
+            Text(LibrarySyncModel.sentence(librarySync.status, arriving: librarySync.arriving))
                 .typeRole(.data).foregroundStyle(Theme.Ink.ink2)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)

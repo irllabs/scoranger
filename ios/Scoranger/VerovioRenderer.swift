@@ -212,8 +212,9 @@ actor VerovioRenderer {
             // size is applied to the drawn glyph, because Verovio has no
             // per-element text size to ask for
             let svg = PerfMetrics.shared.measure(PerfMetrics.Name.engraveSVG) {
-                ChordAdjustments.applySizes(t.renderToSVG(page, true),
-                                            byKind: byKind)
+                // a word's size and style ride in its verse name (0.21.0)
+                LyricLooks.apply(to: ChordAdjustments.applySizes(t.renderToSVG(page, true),
+                                                                 byKind: byKind))
             }
             rawPages.append(svg)
         }
@@ -260,10 +261,21 @@ actor VerovioRenderer {
         let geometry = PerfMetrics.shared.measure(PerfMetrics.Name.engraveModel) {
             try? ScoreModelBuilder.build(svgPages: rawPages, mei: mei)
         }
+        var marks = Self.byAddress(byKind, in: geometry)
+        // a WORD's size is in its verse name, which the MEI holds by id
+        let wordScales = LyricLooks.scales(inMEI: mei)
+        if !wordScales.isEmpty, let geometry {
+            for element in geometry.pages.flatMap(\.elements) where element.kind == .verse {
+                if let address = element.address, let scale = wordScales[element.sessionID] {
+                    marks[address] = ChordAdjustments.Adjustment(
+                        size: scale * ChordAdjustments.defaultChordPoints)
+                }
+            }
+        }
         return Engraving(pdf: data,
                          failedPages: failures.compactMap(\.pageNumber),
                          geometry: geometry,
-                         markAdjustments: Self.byAddress(byKind, in: geometry))
+                         markAdjustments: marks)
     }
 
     /// Pair each added mark's stored adjustment with its address.

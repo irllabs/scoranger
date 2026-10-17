@@ -120,6 +120,9 @@ def _dispatch(op, a):
         out = {"score": s_slug, "version": entry["id"]}
         if entry.get("rhythm_warnings"):
             out["rhythm_warnings"] = entry["rhythm_warnings"]
+        # what the PDF's own text corrected (0.21.0, pdftext.correct)
+        if entry.get("text_pass"):
+            out["text_pass"] = entry["text_pass"]
         return out
     if op == "bundle-export":
         # One arrangement or setlist as a file the reader hands to somebody --
@@ -244,6 +247,10 @@ def _dispatch(op, a):
             raise ValueError("that file holds no music")
         stem = os.path.splitext(os.path.basename(a["path"]))[0]
         rows = []
+        # a scanner's transcription of a PDF the reader did not keep as a
+        # scan: the PDF's own text corrects it all the same (0.21.0)
+        text_pass = (workspace.text_pass(tunes[0], a["path"], a["pdf"])
+                     if a.get("pdf") and len(tunes) == 1 else None)
         for score in tunes:
             # music21 seeds the movement title with the file name, extension
             # and all, and that is what engraves; normalize before the first
@@ -255,6 +262,8 @@ def _dispatch(op, a):
             if a.get("origin"):
                 # the page a fetched tune came from (0.20.0; cli.cmd_import)
                 args["origin"] = a["origin"]
+            if text_pass is not None:
+                args["text_pass"] = workspace.summarize_text_pass(text_pass)
             slug, entry = workspace.create_score(name, score, op="import",
                                                  args=args)
             if a.get("piece"):
@@ -278,6 +287,8 @@ def _dispatch(op, a):
             a["path"])[1].lower() in workspace.ABC_SUFFIXES else {}
         if said:
             out["abc"] = said
+        if text_pass is not None:
+            out["text_pass"] = text_pass
         return out
     if op == "info":
         return ops.info(_load(a["score"], a.get("version")))
@@ -444,11 +455,43 @@ def _dispatch(op, a):
             measure=a.get("measure"), ordinal=int(a.get("ordinal") or 0),
             size=a.get("size"), scale=a.get("scale"),
             offset_x=a.get("offset_x"), offset_y=a.get("offset_y"),
-            reset=bool(a.get("reset")), all_elements=bool(a.get("all")))
+            reset=bool(a.get("reset")), all_elements=bool(a.get("all")),
+            style=a.get("style"))
         entry = workspace.add_version(a["score"], score, "adjust-element",
                                       {"part": a["part"], "kind": a.get("kind") or "harm",
                                        "measure": a.get("measure")})
         return {"version": entry["id"], "details": details}
+    # WORDS (0.21.0): a verse from a line of text, one word's text, a verse
+    # off, and the words read back -- cli.cmd_set_lyrics and its neighbours
+    if op == "set-lyrics":
+        score = _load(a["score"], None)
+        details = ops.set_lyrics(score, a["part"], a["text"], int(a["measure"]),
+                                 offset=float(a.get("offset") or 0.0),
+                                 verse=int(a.get("verse") or 1),
+                                 to_measure=a.get("to_measure"))
+        entry = workspace.add_version(a["score"], score, "set-lyrics",
+                                      {"part": a["part"], "verse": a.get("verse") or 1,
+                                       "measure": a["measure"], "text": a["text"]})
+        return {"version": entry["id"], "details": details}
+    if op == "clear-lyrics":
+        score = _load(a["score"], None)
+        details = ops.clear_lyrics(score, a["part"], verse=a.get("verse"),
+                                   from_measure=a.get("from_measure"),
+                                   to_measure=a.get("to_measure"))
+        entry = workspace.add_version(a["score"], score, "clear-lyrics",
+                                      {"part": a["part"], "verse": a.get("verse")})
+        return {"version": entry["id"], "details": details}
+    if op == "edit-lyric":
+        score = _load(a["score"], None)
+        details = ops.edit_lyric(score, a["part"], int(a["measure"]),
+                                 int(a.get("ordinal") or 0), a["text"],
+                                 syllabic=a.get("syllabic"))
+        entry = workspace.add_version(a["score"], score, "edit-lyric",
+                                      {"part": a["part"], "measure": a["measure"],
+                                       "ordinal": a.get("ordinal") or 0, "text": a["text"]})
+        return {"version": entry["id"], "details": details}
+    if op == "lyrics":
+        return ops.list_lyrics(_load(a["score"], a.get("version")), a.get("parts"))
     if op == "add-element":
         score = _load(a["score"], None)
         details = ops.add_element(score, a["part"], a["kind"], int(a["measure"]),

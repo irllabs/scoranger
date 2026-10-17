@@ -43,7 +43,7 @@ from __future__ import annotations
 
 import re
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -218,7 +218,22 @@ def scan(text: str) -> tuple[str, list[Decoration], list[str]]:
     return "".join(out_lines), found, unknown
 
 
-def _scan_line(line: str, tune: int, events: int
+@dataclass
+class _Walk:
+    """What the lyric stage needs from the same walk the decorations take.
+
+    Kept across a tune's lines, because a bar and a brace can both outlast
+    the line they open on. `notes` is every note a syllable can land on --
+    a note or a chord, never a rest or a grace note (ABC 2.1 §5.1) -- as
+    (ABC note letter or None for a chord, bar index), in the order written.
+    """
+
+    bar: int = 0
+    grace: bool = False
+    notes: list[tuple[str | None, int]] = field(default_factory=list)
+
+
+def _scan_line(line: str, tune: int, events: int, walk: _Walk | None = None
                ) -> tuple[str, int, list[Decoration], list[str]]:
     """One body line: the same line with decorations cut out, and what they were.
 
@@ -227,6 +242,10 @@ def _scan_line(line: str, tune: int, events: int
     chord symbol, before a `:` it opens a field somebody wrote without
     brackets, and `[K:G]` is not a chord. Each of those is one branch here and
     none of them is expressible as a pattern over the whole line.
+
+    `walk`, when given, is told where the bars and the lyric-bearing notes
+    are, so `scan_lyrics` counts notes by the same grammar the decorations are
+    counted by. It changes nothing this function returns.
     """
     kept: list[str] = []
     pending: list[tuple[str, str]] = []   # (canonical mark, as written)
@@ -241,12 +260,35 @@ def _scan_line(line: str, tune: int, events: int
         pending.clear()
         events += 1
 
+    def sung(step: str | None) -> None:
+        if walk is not None and not walk.grace:
+            walk.notes.append((step, walk.bar))
+
     while i < n:
         c = line[i]
 
         if c == "%":                      # comment to end of line
             kept.append(line[i:])
             break
+
+        if c in "{}":                     # grace notes take no syllable
+            if walk is not None:
+                walk.grace = c == "{"
+            kept.append(c)
+            i += 1
+            continue
+
+        if c == "|" or (c == ":" and line[i + 1:i + 2] in ("|", ":")):
+            # ONE barline however it is spelled: `|`, `||`, `|]`, `:|`, `|:`,
+            # `::`. A `[|` reaches here as its `|`, the `[` kept below.
+            j = i
+            while j < n and line[j] in "|:]":
+                j += 1
+            kept.append(line[i:j])
+            i = j
+            if walk is not None:
+                walk.bar += 1
+            continue
 
         if c == '"':                      # chord symbol or annotation
             close = line.find('"', i + 1)
@@ -295,6 +337,7 @@ def _scan_line(line: str, tune: int, events: int
             kept.append(line[i:close + 1])           # a chord: ONE event
             i = close + 1
             attach(None)
+            sung(None)
             continue
 
         if c in _SHORTHAND and not line[i + 1:i + 2] == ":":
@@ -317,6 +360,7 @@ def _scan_line(line: str, tune: int, events: int
             kept.append(c)
             i += 1
             attach(c.upper())
+            sung(c.upper())
             continue
 
         kept.append(c)                    # bars, slurs, ties, lengths, spaces
@@ -325,6 +369,277 @@ def _scan_line(line: str, tune: int, events: int
     # a decoration at the end of a line applies to the next line's first note;
     # carrying it would need state across lines, and no real file does it
     return "".join(kept), events, found, unknown
+
+
+# -- lyrics -----------------------------------------------------------------
+#
+# music21's ABC reader parses `w:` lines and keeps none of them (10.5: the
+# tokenizer collects the field and nothing turns it into a Lyric), so a song
+# from thesession.org or anywhere else imported as a tune with no words. The
+# same scan-then-restore shape as the decorations, with the ABC 2.1 §5 rules:
+#
+#   - a syllable lands on a NOTE or a CHORD; rests and grace notes take none,
+#     and every note of a tie takes its own (§5.1);
+#   - a `w:` covers the notes written since the notes the previous `w:`
+#     covered, up to the line it is on -- not only the line above it;
+#   - ADJACENT `w:` lines are VERSES over the same notes (§5.2), and `+:`
+#     continues the line before it;
+#   - `-` breaks a word into syllables, `_` holds the last syllable over one
+#     more note, `*` skips a note, `~` is a space that keeps words on one
+#     note, `\-` is a printed hyphen, `|` moves on to the next bar if the
+#     syllables have not reached it already;
+#   - a first word that is a number ("1.") is the stanza number and is
+#     printed in front of the first syllable rather than taking a note (§5.3).
+#
+# What music21 cannot hold: the extender line `_` draws. A held syllable
+# leaves its extra notes with no syllable, which is the reading; the line is
+# not drawn.
+
+_LYRIC_LINE = re.compile(r"^\s*w\s*:(.*)$")
+_LYRIC_CONTINUATION = re.compile(r"^\s*\+\s*:(.*)$")
+_WORDS_LINE = re.compile(r"^\s*W\s*:(.*)$")
+_VOICE = re.compile(r"(^\s*V\s*:)|(\[V:)")
+_STANZA = re.compile(r"^\d+[.)]?$")
+
+
+@dataclass(frozen=True)
+class LyricBlock:
+    """One run of adjacent `w:` lines and the notes it is laid over."""
+
+    tune: int
+    #: first and one-past-last index into the tune's sung notes (`_Walk.notes`)
+    start: int
+    end: int
+    #: each verse's text, `+:` continuations joined on
+    verses: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class LyricScan:
+    """What one tune's words are and the notes they belong to."""
+
+    tune: int
+    notes: tuple[tuple[str | None, int], ...]
+    blocks: tuple[LyricBlock, ...]
+    #: `W:` lines, the words printed after the tune; reported, not engraved
+    words_after: tuple[str, ...]
+    #: the tune has more than one voice, which this stage does not align
+    voices: bool
+
+
+def _strip_comment(text: str) -> str:
+    out, i = [], 0
+    while i < len(text):
+        if text[i] == "\\" and text[i + 1:i + 2] == "%":
+            out.append("%")
+            i += 2
+            continue
+        if text[i] == "%":
+            break
+        out.append(text[i])
+        i += 1
+    return "".join(out)
+
+
+def scan_lyrics(text: str) -> list[LyricScan]:
+    """Every tune's `w:` blocks and the notes each one covers. Writes nothing."""
+    lines = text.splitlines()
+    out: list[LyricScan] = []
+    for tune_index, (start, end) in enumerate(_tunes(text)):
+        walk = _Walk()
+        events = 0
+        blocks: list[LyricBlock] = []
+        words_after: list[str] = []
+        voices = False
+        aligned = 0
+        current: list | None = None   # [start, end, [verse text, ...]]
+        in_body = False
+
+        def close() -> None:
+            nonlocal current, aligned
+            if current is not None:
+                blocks.append(LyricBlock(tune_index, current[0], current[1],
+                                         tuple(current[2])))
+                aligned = current[1]
+                current = None
+
+        for row in range(start, min(end, len(lines))):
+            line = lines[row]
+            lyric = _LYRIC_LINE.match(line)
+            if lyric:
+                words = _strip_comment(lyric.group(1))
+                if current is None:
+                    current = [aligned, len(walk.notes), [words]]
+                else:
+                    current[2].append(words)
+                continue
+            more = _LYRIC_CONTINUATION.match(line)
+            if more and current is not None:
+                current[2][-1] += " " + _strip_comment(more.group(1))
+                continue
+            if line.lstrip().startswith("%"):
+                continue                  # a comment does not end a block
+            close()
+            words = _WORDS_LINE.match(line)
+            if words:
+                words_after.append(_strip_comment(words.group(1)).strip())
+                continue
+            if _VOICE.search(line):
+                voices = True
+            if _FIELD_LINE.match(line):
+                if re.match(r"^\s*K\s*:", line):
+                    in_body = True
+                continue
+            if in_body:
+                _, events, _, _ = _scan_line(line, tune_index, events, walk)
+        close()
+        out.append(LyricScan(tune_index, tuple(walk.notes), tuple(blocks),
+                             tuple(w for w in words_after if w), voices))
+    return out
+
+
+def _lyric_tokens(text: str) -> list[tuple]:
+    """A `w:` line as ('syl', text, hyphen_after) / ('skip',) / ('bar',).
+
+    `hold` (`_`) and `*` both consume a note and print nothing there, so they
+    are one token; a hyphen with no syllable before it (`a -- b`) is one too.
+    """
+    tokens: list[tuple] = []
+    buf: list[str] = []
+    last = " "
+
+    def flush(hyphen: bool) -> None:
+        if buf:
+            tokens.append(("syl", "".join(buf), hyphen))
+            buf.clear()
+
+    i = 0
+    while i < len(text):
+        c = text[i]
+        if c == "\\" and text[i + 1:i + 2] == "-":
+            buf.append("-")
+            i += 2
+            last = "-x"               # a printed hyphen is a letter here
+            continue
+        if c == "~":
+            buf.append(" ")
+        elif c in " \t":
+            flush(False)
+        elif c == "-":
+            if buf:
+                flush(True)
+            elif last in (" ", "\t", "-"):
+                tokens.append(("skip",))
+        elif c in "_*":
+            flush(False)
+            tokens.append(("skip",))
+        elif c == "|":
+            flush(False)
+            tokens.append(("bar",))
+        else:
+            buf.append(c)
+        last = c if c in " \t-" else "x"
+        i += 1
+    flush(False)
+    return tokens
+
+
+def _lay_verse(tokens: list[tuple], notes, start: int, end: int,
+               in_word: bool) -> tuple[list[tuple[int, str, str]], int, bool]:
+    """Where one verse's syllables land: [(note index, text, syllabic)].
+
+    Returns the placements, the syllables left over when the notes ran out
+    (ignored, per §5.1, and counted), and whether a word is still open at the
+    end -- a word may run on into the next block.
+    """
+    placed: list[tuple[int, str, str]] = []
+    idx, last_bar, prefix, excess = start, None, "", 0
+    if tokens and tokens[0][0] == "syl" and not tokens[0][2] and _STANZA.match(tokens[0][1]):
+        prefix = tokens[0][1] + " "
+        tokens = tokens[1:]
+    for token in tokens:
+        if token[0] == "bar":
+            if last_bar is not None:
+                while idx < end and notes[idx][1] == last_bar:
+                    idx += 1
+            continue
+        if idx >= end:
+            excess += token[0] == "syl"
+            continue
+        last_bar = notes[idx][1]
+        if token[0] == "skip":
+            idx += 1
+            continue
+        _, text, hyphen = token
+        if in_word:
+            syllabic = "middle" if hyphen else "end"
+        else:
+            syllabic = "begin" if hyphen else "single"
+        in_word = hyphen
+        placed.append((idx, prefix + text, syllabic))
+        prefix = ""
+        idx += 1
+    return placed, excess, in_word
+
+
+def _sung_notes(score) -> list:
+    """The notes a syllable can land on, in written order: `_Walk.notes`'s twin."""
+    from music21 import harmony as m21harmony
+
+    return [n for n in score.recurse().notes
+            if not isinstance(n, m21harmony.Harmony) and not n.duration.isGrace]
+
+
+def restore_lyrics(score, scanned: LyricScan) -> dict:
+    """Put one tune's `w:` words on its notes. Returns what it managed.
+
+    The same proof the decorations owe: the ABC's count of sung notes against
+    the stream's, and every syllable's note letter against the note it is
+    about to land on. Unlike a decoration, ONE disagreement withdraws the
+    tune's words entirely -- syllables are placed by counting, so a single
+    note miscounted moves every syllable after it, and a verse sung one note
+    late is worse than a verse reported as not carried.
+    """
+    from music21 import note as m21note
+
+    report: dict = {"syllables": 0, "verses": 0, "reason": None, "excess": 0}
+    if not scanned.blocks:
+        return report
+    if scanned.voices or len(getattr(score, "parts", [])) > 1:
+        report["reason"] = ("its words are written against more than one voice, "
+                            "which this import does not align")
+        return report
+    sung = _sung_notes(score)
+    if len(sung) != len(scanned.notes):
+        report["reason"] = (f"the tune reads as {len(sung)} sung notes and its "
+                            f"words are written against {len(scanned.notes)}")
+        return report
+
+    placements: list[tuple[int, int, str, str]] = []   # (note, verse, text, syllabic)
+    open_word: dict[int, bool] = {}
+    verses = 0
+    for block in scanned.blocks:
+        for number, text in enumerate(block.verses, start=1):
+            placed, excess, open_word[number] = _lay_verse(
+                _lyric_tokens(text), scanned.notes, block.start, block.end,
+                open_word.get(number, False))
+            report["excess"] += excess
+            placements.extend((i, number, t, s) for i, t, s in placed)
+            verses = max(verses, number)
+
+    for index, _, _, _ in placements:
+        step = scanned.notes[index][0]
+        if step is not None and getattr(sung[index], "step", None) != step:
+            report["reason"] = (f"syllable {index + 1}'s note is written as {step} "
+                                f"and reads as {sung[index].step}")
+            return report
+
+    for index, number, text, syllabic in placements:
+        sung[index].lyrics.append(
+            m21note.Lyric(text=text, number=number, syllabic=syllabic, applyRaw=True))
+    report["syllables"] = len(placements)
+    report["verses"] = verses
+    return report
 
 
 def _events(score) -> list[tuple]:
@@ -507,6 +822,26 @@ def repair_chords(text: str) -> tuple[str, int]:
     return "".join(out_lines), repaired
 
 
+def fold_continuations(text: str) -> str:
+    """`+:` lines joined onto the field they continue (ABC 2.1 §3.3).
+
+    music21 does not know `+:` and reads its text as MUSIC: `+: eight nine
+    ten` parsed as four extra notes (e, g, e, e), which shifted every
+    decoration and every syllable after it. A continuation adds a space
+    between the two halves, so that is what joins them.
+    """
+    out: list[str] = []
+    for line in text.splitlines(keepends=True):
+        more = _LYRIC_CONTINUATION.match(line.rstrip("\r\n"))
+        if more and out and _FIELD_LINE.match(out[-1]):
+            previous = out[-1].rstrip("\r\n")
+            ending = out[-1][len(previous):] or "\n"
+            out[-1] = f"{previous} {more.group(1).strip()}{ending}"
+            continue
+        out.append(line)
+    return "".join(out)
+
+
 def _title(block: str) -> str:
     found = re.search(r"^\s*T\s*:\s*(.+)$", block, re.M)
     return found.group(1).strip() if found else "an untitled tune"
@@ -522,7 +857,7 @@ def read_abc(path) -> tuple[list, dict]:
     from music21 import converter, stream
 
     source = Path(path)
-    text = source.read_text(encoding="utf-8", errors="replace")
+    text = fold_continuations(source.read_text(encoding="utf-8", errors="replace"))
     stripped, marks, unknown = scan(text)
 
     # Parsed from a temp copy under the SAME stem: music21 seeds the movement
@@ -537,9 +872,33 @@ def read_abc(path) -> tuple[list, dict]:
 
     skipped: list[dict] = []
     chords_repaired = 0
+    lyrics = {"syllables": 0, "verses": 0, "excess": 0, "withheld": [], "words_after": 0}
+
+    def sing(score, scanned: LyricScan | None, title: str) -> None:
+        if scanned is None:
+            return
+        lyrics["words_after"] += len(scanned.words_after)
+        one = restore_lyrics(score, scanned)
+        lyrics["syllables"] += one["syllables"]
+        lyrics["verses"] = max(lyrics["verses"], one["verses"])
+        lyrics["excess"] += one["excess"]
+        if one["reason"]:
+            lyrics["withheld"].append({"title": title, "reason": one["reason"]})
+
     try:
         scores = parse(stripped)
         report = restore(scores, marks)
+        scans = scan_lyrics(text)
+        blocks = [text.splitlines()[a:b] for a, b in _tunes(text)]
+        if len(scans) == len(scores):
+            for score, scanned, block in zip(scores, scans, blocks):
+                sing(score, scanned, _title("\n".join(block)))
+        elif any(s.blocks for s in scans):
+            # the tunes and the parsed scores do not pair up, so no tune's
+            # words can be proved to be its own
+            lyrics["withheld"].append({"title": _title(text), "reason": (
+                f"the file reads as {len(scores)} tunes and is written as "
+                f"{len(scans)}")})
     except Exception:  # noqa: BLE001 -- music21 raises many kinds; each is a tune it cannot read
         # ONE TUNE AT A TIME. music21 reads a file whole, so one setting it
         # could not read took the other thirty-seven down with it ("Bad chord
@@ -548,6 +907,9 @@ def read_abc(path) -> tuple[list, dict]:
         # (`repair_chords`), and only then skipped -- NAMED in the report. A
         # tune that reads is never repaired: the repair is for typos, and a
         # rule applied to music that was fine is how a typo-fixer breaks it.
+        # the whole-file attempt may have counted words onto scores that are
+        # now thrown away and read again one tune at a time
+        lyrics.update(syllables=0, verses=0, excess=0, withheld=[], words_after=0)
         lines = text.splitlines(keepends=True)
         bounds = _tunes(text)
         preamble = "".join(lines[:bounds[0][0]]) if bounds and bounds[0][0] > 0 else ""
@@ -569,12 +931,15 @@ def read_abc(path) -> tuple[list, dict]:
                 except Exception as exc:  # noqa: BLE001
                     skipped.append({"title": _title(block), "reason": str(exc)})
                     continue
+            block_scans = scan_lyrics(block)
             for score in parsed:
                 one = _restore_one(score, block_marks)
                 carried += one["carried"]
                 misplaced += one["misplaced"]
                 if one["reason"]:
                     reasons.append(f"{_title(block)}: {one['reason']}")
+            if len(parsed) == 1 and len(block_scans) == 1:
+                sing(parsed[0], block_scans[0], _title(block))
             scores.extend(parsed)
         if not scores:
             names = ", ".join(t["title"] for t in skipped[:3])
@@ -589,4 +954,5 @@ def read_abc(path) -> tuple[list, dict]:
         report["chords_repaired"] = chords_repaired
     if skipped:
         report["tunes_skipped"] = skipped
+    report["lyrics"] = lyrics
     return scores, report

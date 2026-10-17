@@ -76,10 +76,16 @@ deleted, a second device's own library merges in),
   deleted), `check_signed_out.py` (no login gates the app: the default
   repository journals nothing, the library's own id costs nothing, and the
   engine the app ships imports no network client -- design/FIREBASE.md §0.2),
-  and `check_book_split.py` (a book's tunes are found from bookmarks, page
+  `check_book_split.py` (a book's tunes are found from bookmarks, page
   titles or Vision's lines by one rule, its contents and index belong to no
   tune, and a page taken out of it carries only the images it draws -- one
-  tune out of a jsPDF tunebook was 28 MB).
+  tune out of a jsPDF tunebook was 28 MB), `check_abc_lyrics.py` (ABC `w:`
+  words land on the notes ABC 2.1 puts them on), `check_pdf_text.py` (a
+  PDF's own text corrects what the scanner read, against a committed
+  MuseScore-engraved fixture and its Audiveris reading in
+  `engine/scripts/text-layer/`), and `check_lyrics.py` (the word ops, words
+  kept beside a whistle column and a tab, and the app's address for a word
+  resolving to that word).
 
 ## Releases and version numbers
 
@@ -251,6 +257,28 @@ scor set-accidental <score> --elements "s1/m15/l1/note#0" [--add sharp|flat|natu
 scor change-clef <score> --part Viola --clef alto [--from-measure N]
 scor change-instrument <score> --part Violoncello --to Viola
 scor rename-part <score> --part '#0' --name "Violin I" [--abbreviation "Vln. I"]
+scor set-lyrics <score> --part X --measure N [--offset Q] [--verse V] [--to-measure M]
+                --text "Ban-bridge town in~the | Coun-ty_ Down"
+  # WORDS (0.21.0). One verse over a run of notes from one line, written the
+  # way ABC writes words under a tune -- the SAME tokenizer as the ABC import
+  # (`enrich._lyric_tokens`): - splits syllables, ~ keeps words on one note,
+  # _ holds, * skips a note, | goes to the next bar. Starts on the note that
+  # begins at (measure, offset) and REPLACES that verse on the notes it covers.
+scor edit-lyric <score> --part X --measure N --ordinal K --text "word" [--syllabic S]
+scor clear-lyrics <score> --part X [--verse V] [--from-measure N] [--to-measure M]
+scor lyrics <score> [--parts ...]        # read-only: every word, its bar, ORDINAL,
+  # verse, offset, syllabic, size and style -- what the element verbs take
+  # A word's look: `adjust-element --kind lyric --scale 1.5 --style italic`
+  # (normal|italic|bold|bold-italic). Both ride in the verse NAME, `ly@1.5~i`,
+  # because music21 keeps no font on a <lyric>; render.apply_lyric_sizes and
+  # ios/Scoranger/ScoreModel/LyricLooks.swift draw them.
+  # VERSES ARE COUNTED FROM 1 BY A READER and stored above any column the part
+  # carries (`ops.word_base`): a whistle's fingerings are verses 1-7 and a
+  # tab's frets 1-6, so a whistle part's verse 1 of words is stored as verse 8.
+  # whistle-fingerings and guitar-tab MOVE the words there instead of deleting
+  # them (they did, until 0.21.0), clearing moves them back, and both renderers
+  # draw a lifted column's words from the first line under the staff again
+  # (render._words_under_lifted_columns, FingeringDiagrams.wordsUnderLiftedColumns).
 scor piece-combine --pieces "A,B,C" [--into B] [--name "New name"]
   # fold several pieces into one. The curation step that makes "every import
   # mints a piece" safe: two pieces for one tune become one. The FIRST named
@@ -373,7 +401,8 @@ scor whistle-fingerings <score> --part X [--whistle D] [--clear]
   # with the music), and not silently over a guitar tab -- a whistle owns
   # verses 1-7 and a tab owns 1-6, so one note cannot carry both. Whichever op
   # runs last takes those verses and says how many notes it took them from;
-  # CLEARING one leaves the other alone.
+  # CLEARING one leaves the other alone. SUNG WORDS are never taken: both ops
+  # move them above their column first (`words_renumbered`; see set-lyrics).
 scor guitar-tab <score> --part X [--tuning EADGBE] [--capo N] [--position N] [--clear]
   # guitar tablature under a part: a fret number per note on a six-line tab
   # staff, chosen for the LINE rather than one note at a time. The hand covers
@@ -695,9 +724,20 @@ takes `.abc` like any other notation. What matters about it:
   (`<turn/>`, the ∾ above the notehead) -- the standard sign whose shape the
   roll's five notes describe. `~` and `!turn!` therefore look identical on
   the page. One line in `enrich.DECORATIONS` changes it.
+- **Words survive (0.21.0).** music21 parses `w:` and keeps none of it;
+  `enrich.scan_lyrics`/`restore_lyrics` place them by ABC 2.1 §5 -- syllables
+  on notes and chords, never rests or grace notes, every note of a tie its
+  own; adjacent `w:` lines are verses over the same notes; a later `w:`
+  carries on after the notes the last covered; a stanza number goes in front
+  of the first syllable. Proved by the decorations' two counts, and a tune
+  whose count disagrees (or that has several voices) keeps NO words and is
+  named in `lyrics_withheld`. `+:` continuation lines are folded into the
+  field before anything reads the file -- music21 parsed "+: eight nine" as
+  notes, which shifted every decoration after it too.
 - **What does not survive**: `R:` (reel/jig/hornpipe) has nowhere to live in
-  MusicXML, and `!...!` spellings with no music21 object. Both are in the
-  import report's `abc` key beside `decorations_carried`. **Relay them.**
+  MusicXML, `!...!` spellings with no music21 object, `W:` words after the
+  tune (`words_after_tune`), and the extender line a held `_` draws. All are
+  in the import report's `abc` key beside `decorations_carried`. **Relay them.**
 - **Ornaments are editable like any other mark**: `--kind ornament` on
   `add-element`, `move-element`, `duplicate-element` and `adjust-element`.
 - **There is no ABC export.** music21 reads ABC and cannot write it
@@ -744,6 +784,19 @@ Audiveris 5.11 is installed at `~/Applications/Audiveris.app`. Pipeline for a PD
    come in as "Voice" — fix with `change-instrument --part '#N'` + `rename-part`.
 4. OMR output is a draft: expect missing/wrong dynamics, articulations, ties.
    Keep source page images in `intake/<piece>/` for comparison.
+5. **A PDF's own text corrects the words and chords** (`pdftext.correct`,
+   0.21.0): `scor import <name>.mxl --pdf <the.pdf>` on the desktop, and on
+   every OMR transcription in the app (the scan arrangement's PDF, or the
+   original PDF handed to `import` as `pdf`). An engraved PDF carries every
+   word it prints with its position; the scanner's correctly read words line
+   its layout up with the page (a straight-line fit per page), and then each
+   printed syllable goes on the note it is printed under, each chord name on
+   the note it is printed over, and hyphens come from the strokes the page
+   draws. Lines printed below the music (stanzas, credits) are NOT verses and
+   are reported as `text_below_music`; page text the scanner read below the
+   first system is not a credit. The last two rules need positions only, so
+   a scan gets them too. A page that does not line up keeps the scanner's
+   reading and is named. The report is `text_pass` -- relay it.
 
 `change-instrument` is the flagship compound op: it swaps the instrument,
 converts written/sounding pitch for transposing instruments, octave-shifts the

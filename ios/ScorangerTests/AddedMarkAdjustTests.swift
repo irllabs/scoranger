@@ -159,10 +159,16 @@ final class AddedMarkTableTests: XCTestCase {
         XCTAssertEqual(AddedMark.engineKind(.text), "text")
         XCTAssertEqual(AddedMark.engineKind(.fermata), "fermata")
         XCTAssertEqual(AddedMark.engineKind(.articulation), "articulation")
+        XCTAssertEqual(AddedMark.engineKind(.verse), "lyric")
         for kind in AddedMark.kinds {
             XCTAssertNotNil(AddedMark.engineKind(kind), "\(kind)")
+        }
+        // A WORD's size is in its verse name, read off the page by LyricLooks;
+        // every other kind's is in the MusicXML ChordAdjustments reads (0.21.0)
+        for kind in AddedMark.kinds where kind != .verse {
             XCTAssertNotNil(AddedMark.adjustmentKind(kind), "\(kind)")
         }
+        XCTAssertNil(AddedMark.adjustmentKind(.verse))
     }
 
     /// A note, a slur, a clef: not things `adjust-element` can address.

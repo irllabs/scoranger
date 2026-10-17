@@ -71,8 +71,6 @@ INTERNAL = {
                        "by retargetAdjustment to start a session from the "
                        "notation rather than from the default, not rendered",
     "combineMode": "replace/add/subtract, applied inside the selection merge",
-    "adjustTarget": "the address the open adjust session points at; the session "
-                    "itself is what views read",
 }
 
 # Where a render failure is allowed to be recorded. `lastError`'s one reader is

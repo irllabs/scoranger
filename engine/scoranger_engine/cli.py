@@ -74,6 +74,14 @@ def cmd_import(a):
     scores = workspace.read_notation(src)
     if not scores:
         raise ValueError(f"{src.name} holds no music")
+    # `--pdf`: this file is a scanner's reading of that PDF (Audiveris on the
+    # desktop), so the PDF's own text corrects its words and chord names
+    text_pass = None
+    if getattr(a, "pdf", None):
+        if len(scores) != 1:
+            raise ValueError("--pdf is for one scanner transcription; this file holds "
+                             f"{len(scores)} tunes")
+        text_pass = workspace.text_pass(scores[0], src, Path(a.pdf).expanduser())
 
     arrangements, pieces = [], []
     for i, score in enumerate(scores):
@@ -88,6 +96,8 @@ def cmd_import(a):
         args = {"source": str(src)}
         if a.origin:
             args["origin"] = a.origin
+        if text_pass is not None:
+            args["text_pass"] = workspace.summarize_text_pass(text_pass)
         if len(scores) > 1:
             args["tune"] = i + 1
         slug, entry = workspace.create_score(name, score, op="import", args=args)
@@ -119,6 +129,8 @@ def cmd_import(a):
         said = workspace.abc_report(src, scores)
         if said:
             out["abc"] = said
+    if text_pass is not None:
+        out["text_pass"] = text_pass
     _emit(out)
 
 
@@ -580,10 +592,42 @@ def cmd_adjust_element(a):
     details = ops.adjust_element(score, a.part, kind=a.kind, measure=a.measure,
                                  ordinal=a.ordinal, size=a.size, scale=a.scale,
                                  offset_x=a.offset_x, offset_y=a.offset_y,
-                                 reset=a.reset, all_elements=a.all)
+                                 reset=a.reset, all_elements=a.all, style=a.style)
     _mutate(a.score, score, "adjust-element",
             {"part": a.part, "kind": a.kind, "measure": a.measure,
-             "size": a.size, "reset": a.reset}, details)
+             "size": a.size, "reset": a.reset, "style": a.style}, details)
+
+
+def cmd_set_lyrics(a):
+    score = _load(a.score, None)
+    details = ops.set_lyrics(score, a.part, a.text, a.measure, offset=a.offset,
+                             verse=a.verse, to_measure=a.to_measure)
+    _mutate(a.score, score, "set-lyrics",
+            {"part": a.part, "verse": a.verse, "measure": a.measure,
+             "offset": a.offset, "text": a.text}, details)
+
+
+def cmd_clear_lyrics(a):
+    score = _load(a.score, None)
+    details = ops.clear_lyrics(score, a.part, verse=a.verse,
+                               from_measure=a.from_measure, to_measure=a.to_measure)
+    _mutate(a.score, score, "clear-lyrics",
+            {"part": a.part, "verse": a.verse, "from_measure": a.from_measure,
+             "to_measure": a.to_measure}, details)
+
+
+def cmd_edit_lyric(a):
+    score = _load(a.score, None)
+    details = ops.edit_lyric(score, a.part, a.measure, a.ordinal, a.text,
+                             syllabic=a.syllabic)
+    _mutate(a.score, score, "edit-lyric",
+            {"part": a.part, "measure": a.measure, "ordinal": a.ordinal,
+             "text": a.text}, details)
+
+
+def cmd_lyrics(a):
+    _emit(ops.list_lyrics(_load(a.score, a.version),
+                          _split_parts(a.parts) if a.parts else None))
 
 
 def cmd_whistle_fingerings(a):
@@ -718,6 +762,9 @@ def main() -> None:
     # page, so a reader can go back to it (0.20.0). Free text, never read
     # by any op.
     s.add_argument("--origin")
+    # The PDF this file is a scanner's reading of: its printed words and
+    # chord names replace what the scanner read (pdftext, 0.21.0)
+    s.add_argument("--pdf")
     s.set_defaults(fn=cmd_import)
 
     s = sub.add_parser("list", help="List all scores")
@@ -1176,7 +1223,51 @@ def main() -> None:
     s.add_argument("--offset-y", dest="offset_y", type=float)
     s.add_argument("--all", action="store_true", help="every element of that kind")
     s.add_argument("--reset", action="store_true")
+    s.add_argument("--style", choices=sorted(ops.LYRIC_STYLES),
+                   help="a lyric's look: normal, italic, bold, bold-italic")
     s.set_defaults(fn=cmd_adjust_element)
+
+    # WORDS (0.21.0). A verse is written from one line of text the way ABC
+    # writes words under a tune: "Ban-bridge town in~the | Coun-ty_ Down".
+    s = sub.add_parser("set-lyrics",
+                       help="write a verse over a run of notes from one line of "
+                            "words (- splits syllables, ~ joins words, _ holds, "
+                            "* skips a note, | goes to the next bar)")
+    s.add_argument("score")
+    s.add_argument("--part", required=True)
+    s.add_argument("--text", required=True)
+    s.add_argument("--measure", type=int, required=True,
+                   help="the bar the first word goes in")
+    s.add_argument("--offset", type=float, default=0.0,
+                   help="quarter notes from that barline to the first word's note")
+    s.add_argument("--verse", type=int, default=1, help="counted from 1")
+    s.add_argument("--to-measure", dest="to_measure", type=int,
+                   help="stop at the end of this bar")
+    s.set_defaults(fn=cmd_set_lyrics)
+
+    s = sub.add_parser("clear-lyrics", help="take words off: a verse or all, in a range or all")
+    s.add_argument("score")
+    s.add_argument("--part", required=True)
+    s.add_argument("--verse", type=int)
+    s.add_argument("--from-measure", dest="from_measure", type=int)
+    s.add_argument("--to-measure", dest="to_measure", type=int)
+    s.set_defaults(fn=cmd_clear_lyrics)
+
+    s = sub.add_parser("edit-lyric", help="change one word's text (bar + ordinal)")
+    s.add_argument("score")
+    s.add_argument("--part", required=True)
+    s.add_argument("--measure", type=int, required=True)
+    s.add_argument("--ordinal", type=int, default=0)
+    s.add_argument("--text", required=True,
+                   help="the new word; end it with - when the word goes on")
+    s.add_argument("--syllabic", choices=["single", "begin", "middle", "end"])
+    s.set_defaults(fn=cmd_edit_lyric)
+
+    s = sub.add_parser("lyrics", help="every word, bar by bar, as the ops address it (read-only)")
+    s.add_argument("score")
+    s.add_argument("--version")
+    s.add_argument("--parts")
+    s.set_defaults(fn=cmd_lyrics)
 
     s = sub.add_parser("add-element",
                        help="Add a dynamic, a text mark, a fermata, an "

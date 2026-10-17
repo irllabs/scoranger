@@ -37,6 +37,8 @@ id no other device can mint.
 that an arrangement holding no version must not exist, and a server can hand
 over a score before the versions it names have arrived. Such a score is
 DEFERRED: reported back, written nowhere, and offered again on the next pull.
+A set list, and a piece's order, wait the same way for every arrangement they
+name, so an entry is never dropped for arriving before its arrangement.
 """
 
 from __future__ import annotations
@@ -157,10 +159,6 @@ def _uids(slugs, table: dict[str, str]) -> list[str]:
     return [table[s] for s in slugs or [] if s in table]
 
 
-def _slugs(uids, table: dict[str, str]) -> list[str]:
-    return [table[u] for u in uids or [] if u in table]
-
-
 # -- out --------------------------------------------------------------------
 
 def _collection_of(key: str) -> str | None:
@@ -248,10 +246,75 @@ def _record(repo, index: _Index, collection: str, uid: str) -> dict:
             "fields": fields, "file": file}
 
 
-#: Push order. A version goes up before the score that names it as `latest`,
-#: so a device pulling mid-push finds the music before the pointer to it.
-_PUSH_ORDER = {"versions": 0, "sources": 1, "books": 2, "pieces": 3, "scores": 4,
-               "setlists": 5}
+#: Push order, by what a reader on the other device needs first. A first push
+#: of a large library takes minutes and can be cut off at any point (the app
+#: leaves the screen, a connection drops), and whatever reached the server by
+#: then is what the other device shows. Ordered by collection instead --
+#: every version, source and book before any piece or arrangement -- a library
+#: with book PDFs in it can reach the other device as nothing at all.
+#:
+#:   tier 1  each arrangement as the reader opens it: its piece, then its
+#:           LATEST version, then the arrangement itself. Two orderings inside
+#:           this are what `apply` depends on. A piece goes before its
+#:           arrangements, because an arrangement is filed by looking its piece
+#:           up as it is applied, and one that arrives first is left unfiled.
+#:           The latest version goes immediately before its arrangement,
+#:           because `apply` will not make a new arrangement until the version
+#:           its `latest` names is there with its file: sent after, the
+#:           arrangement waits; sent long before, the version waits.
+#:   tier 2  set lists, once every arrangement they name has gone up: `apply`
+#:           holds a set list back until each of its arrangements is there.
+#:   tier 3  the rest of each arrangement's history, and its sources. An
+#:           arrangement is complete to read without them.
+#:   tier 4  books, last. They are the big files, and on cellular a book is
+#:           held for the reader's answer and ENDS the push
+#:           (LibrarySync.push), so nothing may be queued behind one.
+_TIER = {"pieces": 1, "scores": 1, "setlists": 2, "versions": 3, "sources": 3,
+         "books": 4}
+
+
+def _push_order(repo, owed: dict[tuple[str, str], list[Change]]) -> list[tuple[str, str]]:
+    """The keys of `owed` in the order they go up (`_TIER`).
+
+    Inside tier 1 records are grouped by arrangement, a group taking the
+    earliest journal entry among the arrangement and its latest version, and a
+    piece takes the earliest group among its owed arrangements -- so the piece
+    sorts ahead of every one of them, and each latest version ahead of its
+    arrangement. Everything else goes in journal order inside its tier.
+    """
+    first = {key: min(c.seq for c in changes) for key, changes in owed.items()}
+    scores = repo.list_scores(include_deleted=True)
+    latest_of = {d["latest"]: d["uid"] for d in scores if d.get("latest") and d.get("uid")}
+    piece_slug_of = {d["uid"]: d.get("piece") for d in scores if d.get("uid")}
+    piece_uid = {p["slug"]: p["uid"] for p in repo.list_pieces() if p.get("uid")}
+
+    group: dict[str, int] = {}            # arrangement uid -> its group's seq
+    for (collection, uid), seq in first.items():
+        score = uid if collection == "scores" else (
+            latest_of.get(uid) if collection == "versions" else None)
+        if score is not None:
+            group[score] = min(group.get(score, seq), seq)
+    piece_group: dict[str, int] = {}      # piece uid -> the seq it sorts at
+    for (collection, uid), seq in first.items():
+        if collection == "pieces":
+            piece_group[uid] = min(piece_group.get(uid, seq), seq)
+    for score, seq in group.items():
+        piece = piece_uid.get(piece_slug_of.get(score) or "")
+        if piece in piece_group:
+            piece_group[piece] = min(piece_group[piece], seq)
+
+    def rank(key: tuple[str, str]) -> tuple[int, int, int, int]:
+        collection, uid = key
+        seq = first[key]
+        if collection == "pieces":
+            return (1, piece_group[uid], 0, seq)
+        if collection == "versions" and uid in latest_of:
+            return (1, group[latest_of[uid]], 1, seq)
+        if collection == "scores":
+            return (1, group[uid], 2, seq)
+        return (_TIER[collection], seq, 0, seq)
+
+    return sorted(owed, key=rank)
 
 
 def outbox(limit: int = 200) -> dict:
@@ -259,7 +322,9 @@ def outbox(limit: int = 200) -> dict:
 
     Each record carries the journal entries it answers (`acks`), which go back
     to `acknowledge` once the server has it. `more` says whether anything was
-    left for the next call.
+    left for the next call. Records come in `_push_order`, and the caller is
+    expected to acknowledge them as it goes rather than at the end, so a push
+    that is cut off keeps what it already sent.
     """
     repo = _journal()
     index = _index(repo)
@@ -274,8 +339,7 @@ def outbox(limit: int = 200) -> dict:
         by_uid.setdefault((collection, uid), []).append(change)
     if silent:
         repo.mark_synced(silent)
-    ordered = sorted(by_uid.items(), key=lambda kv: (_PUSH_ORDER[kv[0][0]],
-                                                     min(c.seq for c in kv[1])))
+    ordered = [(key, by_uid[key]) for key in _push_order(repo, by_uid)]
     records = []
     for (collection, uid), changes in ordered[:limit]:
         record = _record(repo, index, collection, uid)
@@ -325,7 +389,9 @@ def apply(records: list[dict]) -> dict:
     copy of its bytes where it has any. Returns what was applied, what was
     skipped because this device still owes its own version, and what was
     DEFERRED -- a score whose music has not arrived, a version or book whose
-    file has not been downloaded -- for the caller to offer again.
+    file has not been downloaded, a set list or a piece's order naming an
+    arrangement that is not here yet -- for the caller to offer again, and
+    `waiting`, the deferred records counted for the reader (`_waiting`).
     """
     repo = _journal()
     before = max((c.seq for c in repo.pending()), default=0)
@@ -400,6 +466,8 @@ def apply(records: list[dict]) -> dict:
         repo.add_version(slug, vid, int(doc.get("seq") or 0), doc)
         return True
 
+    #: arrangements that will not be made here, whatever names them
+    never_here = set(gone)
     for record in by_collection["scores"]:
         if dirty(record):
             skipped += 1
@@ -413,6 +481,7 @@ def apply(records: list[dict]) -> dict:
         if slug is None and fields.get("deleted_at"):
             # Deleted on the other device inside its undo window. Never here,
             # so there is nothing to undo: it is not made only to be swept.
+            never_here.add(uid)
             continue
         if slug is None:
             latest = fields.get("latest")
@@ -504,21 +573,47 @@ def apply(records: list[dict]) -> dict:
         applied += 1
 
     # 6. what points at arrangements, now that they are here.
+    #
+    #    A piece's order and a set list's running order are written only once
+    #    every arrangement they name is here (or is never coming: deleted, or
+    #    deleted on the other device before it was ever made here). Until then
+    #    the record is DEFERRED and offered again, and the device keeps the
+    #    order it had. Writing only the part that resolves would lose the rest
+    #    for good: the stored lists hold slugs, so an arrangement not yet here
+    #    has no name to keep it by, and the app marks a record it was not told
+    #    to hold as applied and never offers it again. Holding the record back
+    #    keeps the local data model as it is -- lists of slugs, which every
+    #    local edit already reads and writes -- where keeping uids in the list
+    #    would have every one of those edits to teach.
     index = _index(repo)
+
+    def unresolved(uids) -> bool:
+        return any(u not in index.score_slug and u not in never_here for u in uids or [])
+
+    def resolved(uids) -> list[str]:
+        return [index.score_slug[u] for u in uids or [] if u in index.score_slug]
+
     for record in by_collection["pieces"]:
         if dirty(record):
             continue
         slug = index.piece_slug.get(record["uid"])
         doc = repo.get_piece(slug) if slug else None
-        if doc is not None:
-            repo.set_piece(slug, {**doc, "order": _slugs(record["fields"].get("order"),
-                                                         index.score_slug)})
+        if doc is None:
+            continue
+        order = record["fields"].get("order")
+        if unresolved(order):
+            deferred.append(record)
+            continue
+        repo.set_piece(slug, {**doc, "order": resolved(order)})
     for record in by_collection["setlists"]:
         if dirty(record):
             skipped += 1
             continue
         fields = _local_fields(record["fields"])
-        fields["scores"] = _slugs(fields.get("scores"), index.score_slug)
+        if unresolved(fields.get("scores")):
+            deferred.append(record)
+            continue
+        fields["scores"] = resolved(fields.get("scores"))
         fields.pop("pieces", None)     # expanded on the device that had it
         slug = index.setlist_slug.get(record["uid"])
         current = repo.get_setlist(slug) if slug else None
@@ -560,7 +655,38 @@ def apply(records: list[dict]) -> dict:
     workspace.rebuild_manifest()
     return {"applied": applied, "removed": removed, "skipped": skipped,
             "deferred": [{"collection": d["collection"], "uid": d["uid"]}
-                         for d in deferred]}
+                         for d in deferred],
+            "waiting": _waiting(deferred)}
+
+
+def _waiting(deferred: list[dict]) -> dict[str, int]:
+    """What this device has been told of and does not hold yet, counted the
+    way a reader would: arrangements, set lists, books.
+
+    Without it a device that holds back half the library still says it is up
+    to date, because the only number it had was what it owes the server. An
+    arrangement counts once however many of its records wait -- itself, its
+    newest version, an older one whose file did not download. A piece held
+    back for its order is not counted: the piece is on the device, and the
+    arrangement keeping it back is counted when it has been offered.
+    """
+    arrangements: set[str] = set()
+    setlists: set[str] = set()
+    books: set[str] = set()
+    for record in deferred:
+        collection = record["collection"]
+        if collection == "scores":
+            arrangements.add(record["uid"])
+        elif collection in ("versions", "sources"):
+            score = record["fields"].get("score")
+            if score:
+                arrangements.add(score)
+        elif collection == "setlists":
+            setlists.add(record["uid"])
+        elif collection == "books":
+            books.add(record["uid"])
+    return {"arrangements": len(arrangements), "setlists": len(setlists),
+            "books": len(books)}
 
 
 __all__ = ["COLLECTIONS", "SyncNotOn", "acknowledge", "apply", "bind", "is_on",

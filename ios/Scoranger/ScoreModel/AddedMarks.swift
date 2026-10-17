@@ -14,7 +14,7 @@ enum AddedMark {
     /// In the order the adjust row offers them, and the order the engine's
     /// ELEMENT_KINDS lists them.
     static let kinds: [ScoreElementKind] = [.harm, .dynam, .text, .fermata,
-                                            .articulation]
+                                            .articulation, .verse]
 
     /// The engine's name for this kind, or nil when the engine cannot address
     /// it at all -- a note, a slur, a clef.
@@ -25,6 +25,7 @@ enum AddedMark {
         case .text:         return "text"
         case .fermata:      return "fermata"
         case .articulation: return "articulation"
+        case .verse:        return "lyric"
         default:            return nil
         }
     }
@@ -37,6 +38,7 @@ enum AddedMark {
         case .text:         return "text mark"
         case .fermata:      return "fermata"
         case .articulation: return "articulation"
+        case .verse:        return "word"
         default:            return "element"
         }
     }
@@ -46,7 +48,15 @@ enum AddedMark {
     /// can only land where a note starts, and `ops.move_element` refuses -- and
     /// lists the bar's onsets -- when nothing does.
     static func isNoteAttached(_ kind: ScoreElementKind) -> Bool {
-        kind == .fermata || kind == .articulation
+        kind == .fermata || kind == .articulation || kind == .verse
+    }
+
+    /// Whether the mark can be nudged off its anchor. A WORD cannot: it is
+    /// drawn under the note it belongs to, nothing this app renders honours an
+    /// offset on one, and the engine refuses one by name. Its place is a
+    /// note -- Move... -- and its look is a size.
+    static func takesOffset(_ kind: ScoreElementKind) -> Bool {
+        kind != .verse
     }
 
     /// Which reading of the notation carries this kind's stored size and
@@ -75,3 +85,33 @@ enum AddedMark {
         kind == .harm ? .points : .relative
     }
 }
+
+/// A selection's words and marks, said the way the element tools address them.
+///
+/// The chat context gave the model a selection as address strings
+/// (`s1/m12/l1/harm#0`) and told it to transpose them -- right for notes and
+/// no use for a chord symbol or a word, which `adjust_element`, `move_element`,
+/// `remove_element` and `edit_lyric` take as part + bar + kind + ordinal. A
+/// selected WORD's ordinal is already the engine's (MEISemanticsParser), so it
+/// can be passed straight through (0.21.0).
+enum SelectionMarks {
+
+    static func describe(_ addresses: [ScoreAddress], part: (Int) -> String?) -> [String] {
+        addresses.compactMap { address in
+            guard let kind = AddedMark.engineKind(address.kind),
+                  let name = part(address.staff) else { return nil }
+            return "part \"\(name)\", measure \(address.measure), kind \(kind), "
+                + "ordinal \(address.ordinal)"
+        }
+    }
+
+    /// How to name a staff's part so the engine finds THAT part: by name, or
+    /// by index when two parts share the name (OMR leaves several "Voice"s).
+    static func partReference(staff: Int, names: [String]) -> String? {
+        guard staff >= 1, staff <= names.count else { return nil }
+        let name = names[staff - 1]
+        return names.filter { $0.caseInsensitiveCompare(name) == .orderedSame }.count > 1
+            ? "#\(staff - 1)" : name
+    }
+}
+

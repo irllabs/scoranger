@@ -247,6 +247,92 @@ targets:
         #          asked for as one build: "build all of these necessary
         #          features for sharing playlists into the first 7.0 build."
         #          §11.9 records the difference, including what was left out.
+        #   0.21.0 LYRICS FROM IMPORT TO THE PAGE; WORDS AND CHORDS READ OFF A
+        #          PDF AS PRINTED; A LIBRARY THAT FINISHES REACHING THE NEXT
+        #          DEVICE (2026-10-17). Scope written before the work.
+        #          Features, so the minor bumps once; the $4.99/month
+        #          subscription moves to 0.22.0. Ali: "full support for Lyrics
+        #          all across scoranger", "import chords from PDF or ABC",
+        #          "search and import from MuseScore or Session.org", and "if i
+        #          log in with the same user on two different devices, I
+        #          expect to see the same pieces". His two files: The Irish
+        #          Washerwoman (27 thesession settings) and The Star of County
+        #          Down (a MuseScore PDF, two verses and four stanzas).
+        #
+        #          In this build:
+        #            1. ABC WORDS IMPORT. music21 10.5 reads `w:` and keeps
+        #               none of it. `enrich` places them by ABC 2.1 §5:
+        #               syllables on notes and chords, never on rests or grace
+        #               notes; adjacent `w:` lines as verses; `-`, `_`, `*`,
+        #               `~`, `\-`, `|` and a stanza number; `+:` continues a
+        #               line. Proved by the same two counts the decorations
+        #               owe, and a tune whose count disagrees keeps no words
+        #               and is NAMED. `W:` lines (words after the tune) are
+        #               reported, not engraved.
+        #            2. A PDF'S OWN TEXT CORRECTS WHAT THE SCANNER READ. A
+        #               vector PDF (MuseScore, Dorico, Finale...) carries every
+        #               word it prints with its position. The scanner's
+        #               correctly read words line its layout up with the page,
+        #               and then each printed syllable goes on the note it is
+        #               printed under and each chord name on the note it is
+        #               printed over, hyphens where the page draws them.
+        #               On the Star: 24 of 24 chord names (the scanner read
+        #               11), and no run-together words. A lead sheet with
+        #               chords and no words lines up by its chord names.
+        #            3. TEXT BELOW THE MUSIC IS NOT A VERSE. The scanner hung
+        #               the Star's four stanzas and its footer credits on bars
+        #               13-17 as verses 3-12. A line of words far below the
+        #               last verse of its system is dropped from the notes and
+        #               its text reported -- on a scan too, from positions
+        #               alone.
+        #            4. WORDS EDITED FROM CHAT: a word's text replaced; a
+        #               verse written over a run of notes from one line
+        #               ("Ban-bridge town in the"), hyphens making syllables;
+        #               a verse removed; italic and bold; and `info` lists the
+        #               words, so the agent can read what is there before it
+        #               changes it.
+        #            5. WORDS SELECTED IN THE APP: a tap on a word selects it,
+        #               "Use in chat" names it, the size row resizes it and
+        #               the iPad redraws it, and Move... puts it on another
+        #               note. Two faults found photographing it, both older
+        #               than words and both on every mark: an adjust or a
+        #               move on a score whose parts share a name ("Voice",
+        #               as every scan's do) went to the FIRST of them; and a
+        #               committed size was written again on the next
+        #               selection change -- after a move, to the bar the
+        #               mark had left.
+        #            6. WHISTLE FINGERINGS AND GUITAR TAB KEEP THE WORDS. Both
+        #               took verses 1-7 / 1-6 and silently deleted any sung
+        #               word there, harmless until words arrived on import.
+        #            7. LIBRARY SYNC FINISHES. A first upload went one file at
+        #               a time, kept nothing until 400 had gone, sent pieces
+        #               after every book, and stopped when the app left the
+        #               screen -- so a large iPad library could fail to reach
+        #               a second device at all. Progress is now kept as it
+        #               goes (every 20 records or 2 MB), with time to finish
+        #               after the app leaves the screen; each arrangement goes
+        #               up as piece, newest version, arrangement, with books
+        #               last; the pull runs when the push fails; Settings says
+        #               when arrivals are waiting for their music; a set list
+        #               keeps an entry whose arrangement arrives after it; and
+        #               a device restored from another's backup stops sharing
+        #               its sync id.
+        #          NOT in this build, and said before it starts:
+        #            - Search: it is 0.20.0's, unchanged;
+        #            - the extender line a held syllable draws (music21 reads
+        #              and writes no <extend>);
+        #            - a resized word still crowds its neighbour (BACKLOG
+        #              0.11.0: Verovio lays the line out at one size);
+        #            - words above the staff; drag of any kind; italic and
+        #              bold from chat only (no buttons in the adjust row);
+        #            - the stanzas printed below the music are reported, not
+        #              engraved;
+        #            - ABC words in a tune of several voices (named, not
+        #              placed); a scan's misread words (no text to correct
+        #              them from);
+        #            - Google and Apple sign-in are still two accounts, and
+        #              so two libraries, unless Firebase links them by email;
+        #            - Pencil markup still does not sync.
         #   0.20.1 A SET LIST'S TITLES LINE UP; THE CHAT BOX DRAGS WITHOUT
         #          REBUILDING THE CONVERSATION (2026-10-13). Scope written
         #          before the work. Fixes only, so the patch bumps. Ali's
@@ -1363,7 +1449,7 @@ targets:
         # has no Firebase configuration". deploy_testflight.sh now refuses such
         # an archive outright.
         CURRENT_PROJECT_VERSION: 213
-        MARKETING_VERSION: 0.20.1
+        MARKETING_VERSION: 0.21.0
         SWIFT_VERSION: 5.10
         SWIFT_OBJC_BRIDGING_HEADER: Scoranger/PythonBridge/PythonBridge.h
         # BeeWare's install_python copies lib-$ARCHS, which requires single-arch builds

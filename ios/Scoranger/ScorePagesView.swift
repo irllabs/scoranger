@@ -418,14 +418,19 @@ struct ScorePagesView: View {
                 // it -- "POSI/TION" and "Rese/t" -- which is the panel
                 // reporting that it does not fit by mangling its own labels.
                 // Each line here is short enough that nothing can wrap.
-                HStack(spacing: Theme.Metric.s6) {
-                    Text("POSITION").typeRole(.label).foregroundStyle(Theme.Ink.ink3)
-                        .fixedSize()
-                    nudge(.left, "chevron.left", "left")
-                    nudge(.up, "chevron.up", "up")
-                    nudge(.down, "chevron.down", "down")
-                    nudge(.right, "chevron.right", "right")
-                    Spacer(minLength: 0)
+                // A WORD has no position row: it sits under its note, and its
+                // place is another note (Move..., below). The engine refuses
+                // an offset on one by name.
+                if AddedMark.takesOffset(state.adjustTarget?.kind ?? .harm) {
+                    HStack(spacing: Theme.Metric.s6) {
+                        Text("POSITION").typeRole(.label).foregroundStyle(Theme.Ink.ink3)
+                            .fixedSize()
+                        nudge(.left, "chevron.left", "left")
+                        nudge(.up, "chevron.up", "up")
+                        nudge(.down, "chevron.down", "down")
+                        nudge(.right, "chevron.right", "right")
+                        Spacer(minLength: 0)
+                    }
                 }
                 HStack(spacing: Theme.Metric.s6) {
                     Text("SIZE").typeRole(.label).foregroundStyle(Theme.Ink.ink3)

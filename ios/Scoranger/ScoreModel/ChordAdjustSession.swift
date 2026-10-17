@@ -236,6 +236,23 @@ struct ChordAdjustSession: Equatable {
                       isRelative: metric.isRelative)
     }
 
+    /// The session as it stands once `commit()`'s op has been written: what
+    /// was pending is now what the notation carries, and nothing is pending.
+    ///
+    /// `commit()` returns the op and changes nothing, and the session it came
+    /// from went on reporting the change as pending -- so the next selection
+    /// change, or Move..., wrote it AGAIN, and after a move the second write
+    /// was addressed to the bar the mark had just left (0.21.0, found
+    /// photographing a word: "No lyric #0 in measure 1").
+    func afterCommit() -> ChordAdjustSession {
+        if pending.isReset {
+            return ChordAdjustSession(size: metric.defaultValue, metric: metric)
+        }
+        let (dx, dy) = total
+        return ChordAdjustSession(size: pending.size, committedDX: dx, committedDY: dy,
+                                  metric: metric)
+    }
+
     // MARK: - What the chip says
 
     static func staffSpaces(fromTenths tenths: Int) -> Double {
