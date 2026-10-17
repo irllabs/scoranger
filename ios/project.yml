@@ -1448,7 +1448,7 @@ targets:
         # not on link_worktree_inputs.sh's list -- so Settings read "This build
         # has no Firebase configuration". deploy_testflight.sh now refuses such
         # an archive outright.
-        CURRENT_PROJECT_VERSION: 213
+        CURRENT_PROJECT_VERSION: 214
         MARKETING_VERSION: 0.21.0
         SWIFT_VERSION: 5.10
         SWIFT_OBJC_BRIDGING_HEADER: Scoranger/PythonBridge/PythonBridge.h
