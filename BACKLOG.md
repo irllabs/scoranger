@@ -189,26 +189,34 @@ Built to design/BOOK_EXTRACT_0.19.md, with these differences and gaps:
   thesession settings: La Promeneuse, The Old Queen) is skipped and named;
   the rest of its file imports.
 
-## After the first App Store approval: a $4.99/month subscription (0.24.0)
+## DROPPED 2026-10-18: the $4.99/month subscription
 
-Ali, 2026-10-05: the first App Store release ships FREE so it is not held up,
-and "we add subscription after review" at $4.99 a month. The app has no
-StoreKit today, so this is a feature build, not a setting. To decide and do:
+Ali, 2026-10-18: "scratch paid app entirely; let's make this a free,
+bring-your-own key app at the moment." Scoranger stays free, with no StoreKit
+and no paywall. Chat bills the reader's own OpenRouter key (0.15.0). OMR
+(Cloud Run) and library sync (Firestore, Storage) stay free to the reader
+and are paid by the project. The plan that was here -- what a subscription
+would unlock, Ask to Buy on a child account, grandfathering -- is in git
+history if it comes back.
 
-- **What it unlocks.** Apple rejects a subscription without ongoing value
-  (guideline 3.1.2). The candidates are what costs a server: scanning a page
-  into notation (OMR, Cloud Run), and library sync plus shared set lists
-  (Firestore and Storage). Chat already bills the reader's own OpenRouter
-  account. Whether a free trial comes with it is Ali's.
-- **Ali's, in App Store Connect:** the Paid Applications agreement, banking
-  and tax; the subscription group and the $4.99 product.
-- **The build:** StoreKit 2 purchase and entitlement, a paywall at the gated
-  features, Restore Purchases, and links to the Terms of Use and privacy
-  policy in the app and the listing (required for subscriptions); the
-  privacy policy and App Privacy answers re-checked.
-- **Who already has it free.** Readers who installed the free release are
-  grandfathered or not -- Ali's call, and it shapes the entitlement check.
-- **Echo** is on a child account: every purchase goes through Ask to Buy.
+## Parked 2026-10-18, by Ali's choice
+
+Ali reviewed the open list on 2026-10-18 and set these aside for later. Each
+has its detail in the section named.
+
+- **Library sync on his two devices is unconfirmed** (0.21.0's fix for the
+  iPhone missing the iPad's pieces). When he reports, start from the Settings
+  > Account status line on each device.
+- **Search, unverified on the live sites** (0.20.0 section): a real
+  MuseScore download through the site's own button, Google sign-in inside
+  the web view, and whether thesession.org's terms forbid sending its tunes
+  to a language model.
+- **Known gaps from 0.19.1 to 0.23.0**: the gate runs iOS 26.5 only; no undo
+  for a deleted piece, set list or book; lyrics extender lines and text below
+  the music; the chat box's drag unmeasured on a device; two mixer tests that
+  pass alone and fail in the pool; check_rules blocked at 0.20.0 by an
+  orphaned Firestore emulator on port 8181.
+- **Ultimate Guitar**: investigated 2026-10-12, not built (0.20.0 section).
 
 ## Next release (0.18.0) -- collecting, on fix/tempo-knob
 
