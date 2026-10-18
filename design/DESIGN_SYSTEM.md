@@ -58,6 +58,7 @@ screenshots. Each finding became a rule; they are marked `[Cn]` in
 | C14 | Arrangement Details has a Tags field. Piece tags and arrangement tags are both filterable. |
 | C15 | The chat compose field grows with the prompt and has a grab bar to drag it taller, up to half the panel. |
 | C16 | In the score bar the title and its subtitle are one line each and end in an ellipsis when the panel narrows the bar. |
+| C17 | **Full width.** A page's content runs the full width of the page, less the page padding (§3). Nothing centres a column of content inside a page and nothing caps its width -- not a list, a form, a search, a list of settings, a book's contents. On an iPad that puts a row's label and its control far apart, and that is accepted: the space is the reader's. (Ali, 2026-10-17, on build 214: "There's no reason to have these margins ... make that a high-level design system requirement.") `Theme.Metric.readingColumn`, the 720pt cap every pushed screen used, was deleted with this rule so no page can be capped again without a new constant saying why. A chat bubble, an alert and a text field keep their own widths: they are not page content. |
 
 ---
 
@@ -195,7 +196,7 @@ Nothing opens below the row that was tapped.
 | `rule` | 1pt dashed `line2` | Under rows, under key/value rows, between panel blocks. The only line in the app [C13: never doubled]. |
 | `ring` | 2.5pt `clay` | The stamp. 3pt at 56, 2pt at 30. |
 | `focus` | 1.5pt `clay` inset | A focused field, a lit capsule. |
-| shadow | `0 2 10 rgba(26,25,23,.12)` | Only on the two things that float over the score: the ink tools and the selection chip. |
+| shadow | `0 2 10 rgba(26,25,23,.12)` | Only on things that float: the ink tools and the selection chip over the score, and a row lifted by its ☰ (§7.3). |
 
 No borders on controls. No shadows on pages. No gradients except the knob's
 conic arc and the fade at the end of an overflowing knob group.
@@ -229,7 +230,7 @@ beside, `plus`, `square.and.arrow.up` share/send, `magnifyingglass`,
 (always with its word), `ellipsis` more, `doc` / `doc.on.doc` /
 `arrow.left.and.right` the three layouts, `play.fill` / `pause.fill`,
 `backward.end.fill` to start, `metronome`, `repeat`, `slider.horizontal.3`
-all-on/all-off. The knob LED is a drawn 8pt circle with a 2pt halo, not a
+all-on/all-off, `trash` the button a row swiped left uncovers. The knob LED is a drawn 8pt circle with a 2pt halo, not a
 symbol. The stamp is drawn, not a symbol.
 
 ---
@@ -265,6 +266,18 @@ action whose panel is open lit; **Edit** — a 24pt check leads the row, checked
 rows are tint bands, no ☰. Entered by Edit or by a long press on a row [C11].
 Dates: two mono lines at the right, `vNNN · changed` in `ink2` over `added
 date` in `ink3` [C10].
+
+An **ordered row** (a piece's arrangements, a set list's running order) has
+two more gestures, and no Up, Down or Delete among its actions. Its ☰ is the
+handle: pressed and moved, it lifts the row (`panel` fill, the shadow of §4)
+and the rows it passes step aside; a tap without movement still opens the
+actions. Swiped left, the row slides off its leading edge to uncover an 88pt
+`danger` strip at its right edge, the row's full height, with a white `trash`
+glyph; tapping it deletes, or takes the row out of the set list, with no
+inline confirm (§7.9): the swipe and the tap are the confirmation, and a
+deleted arrangement still leaves the undo bar. One row open at a time; a swipe
+back or a tap anywhere else closes it. VoiceOver reaches all three as actions
+on the row (Move up, Move down, Delete). `ReorderableRows` is the component.
 
 ### 7.4 Stamp
 The `#N` numeral in a clay ring: 40pt/2.5pt/15 in rows, 56/3/22 on a head,

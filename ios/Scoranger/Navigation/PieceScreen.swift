@@ -45,10 +45,15 @@ struct PieceScreen: View {
                 .padding(.top, Theme.Metric.s12)
                 .padding(.bottom, Theme.Metric.s12)
 
-                ForEach(Array(piece.arrangements.enumerated()), id: \.offset) { index, slug in
+                // #N is a position, so dragging a row by its ☰ renumbers --
+                // which is the whole point of the gesture.
+                ReorderableRows(items: arrangements,
+                                reorder: { move in
+                                    await state.reorderPiece(piece: piece.slug, order: move.order)
+                                },
+                                deletion: deletion(for:)) { slug, handle in
                     if let score = state.manifest?.scores.first(where: { $0.slug == slug }) {
-                        arrangementRow(score, number: index + 1)
-                        Theme.Rule()
+                        arrangementRow(score, number: handle.index + 1, handle: handle)
                     }
                 }
                 if piece.arrangements.isEmpty {
@@ -111,7 +116,29 @@ struct PieceScreen: View {
             .joined(separator: ", ")
     }
 
-    private func arrangementRow(_ score: ScoreDoc, number: Int) -> some View {
+    /// The piece's arrangements that the library holds. The engine lists only
+    /// those already, so this guards a manifest caught between two reads; a
+    /// row with no score behind it would measure nothing and could not be
+    /// dragged past.
+    private var arrangements: [String] {
+        let known = Set((state.manifest?.scores ?? []).map(\.slug))
+        return piece.arrangements.filter(known.contains)
+    }
+
+    /// The swipe's trash button. Not on the row whose ☰ is open: its actions
+    /// are a sideways-scrolling strip on a narrow page, and a swipe there
+    /// would be read twice. The ✕ closes them and the row swipes again.
+    private func deletion(for slug: String) -> RowDeletion? {
+        guard openArrangement != slug,
+              let score = state.manifest?.scores.first(where: { $0.slug == slug }) else { return nil }
+        return RowDeletion(identifier: "edit-delete-\(slug)",
+                           label: "Delete \(label(score))",
+                           actionName: "Delete",
+                           perform: { state.deleteScore(slug: slug) })
+    }
+
+    private func arrangementRow(_ score: ScoreDoc, number: Int,
+                                handle: ReorderableRowHandle) -> some View {
         let open = openArrangement == score.slug
         return HStack(spacing: Theme.Metric.s12) {
             HStack(spacing: Theme.Metric.s12) {
@@ -120,7 +147,7 @@ struct PieceScreen: View {
                         Text(label(score)).typeRole(.titleS)
                             .foregroundStyle(Theme.Ink.ink).lineLimit(1)
                         if open {
-                            RowActionsBar(actions: arrangementActions(score, number: number))
+                            RowActionsBar(actions: arrangementActions(score))
                         } else {
                             HStack(spacing: Theme.Metric.s4) {
                                 Text(arrangementMeta(score))
@@ -139,6 +166,7 @@ struct PieceScreen: View {
                          identifier: "arrangement-choice-\(score.slug)",
                          isSelected: state.selectedSlug == score.slug,
                          container: open) { onOpen(score.slug) }
+            .reorderableRowActions(handle)
 
             if !open {
                 // Beside a panel on a narrow page the date and Open give way
@@ -164,6 +192,7 @@ struct PieceScreen: View {
                           isOpen: open) {
                 if open { openArrangement = nil; panel.done() } else { openArrangement = score.slug }
             }
+            .reorderGrip(handle)
         }
         .padding(.horizontal, Theme.Metric.pageSide)
         .padding(.vertical, Theme.Metric.s8)
@@ -183,13 +212,10 @@ struct PieceScreen: View {
         return bits.joined(separator: " · ")
     }
 
-    /// P2: Up, Down, Duplicate, Move to piece, Details, Delete.
-    private func arrangementActions(_ score: ScoreDoc, number: Int) -> [RowActionItem] {
+    /// P2: Duplicate, Move to piece, Details. Reordering is the ☰ dragged and
+    /// deleting is the row swiped left (`ReorderableRows`).
+    private func arrangementActions(_ score: ScoreDoc) -> [RowActionItem] {
         [
-            RowActionItem(id: "arr-up-\(score.slug)", title: "Up", glyph: "chevron.up",
-                          enabled: number > 1) { move(score.slug, by: -1) },
-            RowActionItem(id: "arr-down-\(score.slug)", title: "Down", glyph: "chevron.down",
-                          enabled: number < piece.arrangements.count) { move(score.slug, by: 1) },
             RowActionItem(id: "arrangement-duplicate-\(score.slug)", title: "Duplicate") {
                 Task { _ = await state.duplicateScore(slug: score.slug) }
             },
@@ -201,39 +227,7 @@ struct PieceScreen: View {
                           lit: panel.isShowing(.arrangement(score.slug))) {
                 panel.toggle(.arrangement(score.slug))
             },
-            RowActionItem(id: "edit-delete-\(score.slug)", title: "Delete", destructive: true,
-                          confirm: "Delete?") {
-                openArrangement = nil
-                state.deleteScore(slug: score.slug)
-            },
         ]
-    }
-
-    private func orderButton(_ glyph: String, label: String, id: String,
-                             enabled: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: glyph)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Theme.Ink.ink2)
-                .frame(width: 32, height: 32)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .disabled(!enabled)
-        .opacity(enabled ? 1 : 0.3)
-        .accessibilityIdentifier(id)
-        .accessibilityLabel(label)
-    }
-
-    /// Move an arrangement within its piece. #N is a position, so this
-    /// renumbers -- which is the whole point of the control.
-    private func move(_ slug: String, by delta: Int) {
-        var order = piece.arrangements
-        guard let from = order.firstIndex(of: slug) else { return }
-        let to = from + delta
-        guard order.indices.contains(to) else { return }
-        order.swapAt(from, to)
-        state.reorderPiece(piece: piece.slug, order: order)
     }
 
     private var summary: String {

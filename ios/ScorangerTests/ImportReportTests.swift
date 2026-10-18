@@ -74,3 +74,34 @@ final class TextPassReportTests: XCTestCase {
                        "Words and chord names are as the PDF prints them: 1 syllable and 1 chord.")
     }
 }
+
+/// After a search import the reader is told which piece the settings joined
+/// (0.22.0): one setting added to a piece of 27 is "now has 28", not a
+/// mystery 28 arrangements.
+final class SearchImportSentenceTests: XCTestCase {
+
+    private func manifest(arrangements: [String]) -> Manifest {
+        Manifest(generated: nil, scores: [],
+                 pieces: [PieceDoc(slug: "the-irish-washerwoman", name: "The Irish Washerwoman",
+                                   arrangements: arrangements)],
+                 setlists: nil, books: nil)
+    }
+
+    func testANewPieceIsNamed() {
+        XCTAssertEqual(SearchImport.sentence(count: 2, slug: "a",
+                                             manifest: manifest(arrangements: ["a", "b"])),
+                       "Imported 2 settings as the piece The Irish Washerwoman.")
+    }
+
+    func testJoiningAPieceSaysHowManyItNowHas() {
+        let held = (1...27).map { "w\($0)" } + ["new"]
+        XCTAssertEqual(SearchImport.sentence(count: 1, slug: "new",
+                                             manifest: manifest(arrangements: held)),
+                       "Added 1 setting to The Irish Washerwoman, which now has 28 arrangements.")
+    }
+
+    func testNoManifestStillSaysWhatHappened() {
+        XCTAssertEqual(SearchImport.sentence(count: 3, slug: "x", manifest: nil),
+                       "Imported 3 settings.")
+    }
+}

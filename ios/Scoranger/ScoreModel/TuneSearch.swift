@@ -257,3 +257,24 @@ enum ABCSettings {
         return settingCount == 1 ? "\(safe).abc" : "\(safe) (\(settingCount) settings).abc"
     }
 }
+
+/// What a reader is told after importing settings from a search (0.22.0).
+///
+/// An import files a tune under the piece of its title, and joins one that
+/// already has it. Ali imported one setting of a tune he had imported whole
+/// before and read the piece's 28 arrangements as "it imported all of them".
+/// So the sentence says which piece the settings went to, and when that piece
+/// already had arrangements, how many it has now.
+enum SearchImport {
+    static func sentence(count: Int, slug: String, manifest: Manifest?) -> String {
+        let settings = count == 1 ? "1 setting" : "\(count) settings"
+        guard let piece = manifest?.pieces?.first(where: { $0.arrangements.contains(slug) }) else {
+            return "Imported \(settings)."
+        }
+        let total = piece.arrangements.count
+        if total <= count {
+            return "Imported \(settings) as the piece \(piece.name)."
+        }
+        return "Added \(settings) to \(piece.name), which now has \(total) arrangements."
+    }
+}

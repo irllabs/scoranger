@@ -3,7 +3,7 @@ import XCTest
 /// Sending a mark to another bar: the tapped bar, the offset stepper inside
 /// it, and the engine's refusal turned back into the choices it names.
 ///
-/// This app has no drag, so there is no drag here. The destination is the pair
+/// The score has no drag, so there is no drag here. The destination is the pair
 /// `ops.move_element` takes -- a bar and an offset in quarter notes from its
 /// barline -- and nothing in between converts anything.
 final class MoveDestinationTests: XCTestCase {

@@ -1,5 +1,22 @@
 # Backlog
 
+## 0.22.0: previews, ticked settings, rows that drag and swipe, full width -- what it does not do
+
+- **No auto-scroll while dragging a row** near the top or bottom edge: a long
+  set list on a phone needs drop, scroll, drag again.
+- **The shared set list's ☰ drag has no UI test**: no fixture holds shared
+  set-list entries. Its order math (`SharedOrder.neighbours`) is unit-tested.
+- **The swipe on iOS 17 is unverified**: from iOS 18 the swipe is a UIKit pan
+  that starts only for sideways movement (a SwiftUI drag on a row stopped the
+  page scrolling on iOS 27, measured); iOS 17 keeps a SwiftUI path, and this
+  Mac has no iOS 17 runtime. A swipe that starts ON the ☰ is untested too.
+- **Library rows (pieces, set lists, books) keep Delete in their ☰**, with its
+  inline confirm; only a piece's arrangements and a set list's running order
+  swipe.
+- **A MuseScore result has no preview**: MuseScore's own site shows one.
+- **The 16pt edge between the screen and the page stays** (the notebook's
+  table margin): C17 removed the centred column, not the table.
+
 ## 0.21.0: words and chords from import to the page -- what it does not do
 
 Each of these is said in the ios/project.yml scope block too.
@@ -147,7 +164,7 @@ Built to design/BOOK_EXTRACT_0.19.md, with these differences and gaps:
   thesession settings: La Promeneuse, The Old Queen) is skipped and named;
   the rest of its file imports.
 
-## After the first App Store approval: a $4.99/month subscription (0.22.0)
+## After the first App Store approval: a $4.99/month subscription (0.23.0)
 
 Ali, 2026-10-05: the first App Store release ships FREE so it is not held up,
 and "we add subscription after review" at $4.99 a month. The app has no

@@ -180,6 +180,47 @@ final class SharedOrderTests: XCTestCase {
         XCTAssertEqual(order(of: keys), [0, 2, 1])
     }
 
+    // MARK: - moving a row by dragging it
+
+    /// A drag moves a row any number of places with the same one-key write.
+    /// `RowReorder` says where it landed; the offset is landing minus start.
+    func testDraggingTheFirstRowToTheEndLandsItLast() {
+        var keys = SharedOrder.spread(count: 4)          // A B C D
+        let landing = SharedOrder.neighbours(moving: keys[0], by: 3, in: keys)!
+        keys[0] = SharedOrder.between(landing.before, landing.after)
+        XCTAssertEqual(order(of: keys), [1, 2, 3, 0])     // B C D A
+    }
+
+    func testDraggingTheLastRowToTheTopLandsItFirst() {
+        var keys = SharedOrder.spread(count: 4)
+        let landing = SharedOrder.neighbours(moving: keys[3], by: -3, in: keys)!
+        keys[3] = SharedOrder.between(landing.before, landing.after)
+        XCTAssertEqual(order(of: keys), [3, 0, 1, 2])     // D A B C
+    }
+
+    func testDraggingAMiddleRowTwoPlacesDown() {
+        var keys = SharedOrder.spread(count: 5)          // A B C D E
+        let landing = SharedOrder.neighbours(moving: keys[1], by: 2, in: keys)!
+        keys[1] = SharedOrder.between(landing.before, landing.after)
+        XCTAssertEqual(order(of: keys), [0, 2, 3, 1, 4])  // A C D B E
+    }
+
+    /// Every drag of every row to every other slot puts it in that slot, and
+    /// the list it leaves behind is the list `RowReorder` drew.
+    func testEveryDragLandsWhereTheListDrewIt() {
+        let keys = SharedOrder.spread(count: 6)
+        for from in keys.indices {
+            for to in keys.indices where to != from {
+                var moved = keys
+                let landing = SharedOrder.neighbours(moving: keys[from], by: to - from, in: keys)!
+                moved[from] = SharedOrder.between(landing.before, landing.after)
+                XCTAssertEqual(order(of: moved),
+                               RowReorder.moving(Array(keys.indices), from: from, to: to),
+                               "dragging \(from) to \(to)")
+            }
+        }
+    }
+
     /// Off the end is nil, not a clamp: the caller writes nothing at all,
     /// rather than sending a write that reorders nothing.
     func testAMoveOffEitherEndIsRefusedRatherThanClamped() {

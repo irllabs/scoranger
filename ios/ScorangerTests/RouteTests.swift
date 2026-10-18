@@ -16,13 +16,14 @@ final class RouteTests: XCTestCase {
     }
 
     /// A library row can move to a piece and open its details, so it pushes.
-    /// A set-list member can only move up, move down and be removed, so it
-    /// expands. Those are the two real cases in the app.
+    /// A set-list member's ☰ holds only one-tap actions -- it is reordered by
+    /// dragging that ☰ and removed by a swipe -- so it expands. Those are the
+    /// two real cases in the app.
     func testTheTwoRealCases() {
         XCTAssertEqual(RowMenuBehaviour.forRow(needsATarget: true), .push,
                        "an arrangement row leads to Move to piece and Details")
         XCTAssertEqual(RowMenuBehaviour.forRow(needsATarget: false), .expand,
-                       "a set-list member's actions are all positional")
+                       "a set-list member's actions are all one tap")
     }
 
     // MARK: - Back labels name the place

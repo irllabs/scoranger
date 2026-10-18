@@ -279,14 +279,13 @@ enum Theme {
         /// as a column appearing (L23).
         static let checkboxGutter: CGFloat = hitTarget
 
-        /// The widest a pushed screen's content column gets.
-        ///
-        /// A row is a label and its answer, and on a 1376pt iPad the two ended
-        /// up a metre apart with nothing between them -- the label at the left
-        /// edge and its chevron at the right, which reads as two unrelated
-        /// things rather than as a row (L34). Books stop their measure for the
-        /// same reason.
-        static let readingColumn: CGFloat = 720
+        // There is no reading column. A page's content runs its full width
+        // (design/DESIGN_SYSTEM.md C17, 0.22.0): the 720pt cap this constant
+        // was -- L34's answer to a label and its chevron a metre apart -- left
+        // a band of empty page either side of every pushed screen on an iPad,
+        // and the owner ruled the space is the reader's. It was deleted rather
+        // than left unused so that capping a page again takes a new constant
+        // and a reason.
 
         // The Notebook's table (§3): pages 16 from the table's edges, the
         // panel 380 wide and 10 from the page, 22 of padding inside it.

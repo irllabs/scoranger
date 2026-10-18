@@ -1,3 +1,4 @@
+import PDFKit
 import SwiftUI
 
 /// Looking a tune up by name (0.20.0, design/SEARCH_0.20.md).
@@ -21,13 +22,15 @@ struct SearchScreen: View {
     @State private var failure: String?
     @State private var searched = ""
 
-    // A tune, opened
+    // A tune, opened: its settings ticked, one in focus and previewed
     @State private var openTune: TheSessionTune?
     @State private var opening: Int?
-    @State private var importing: Set<Int> = []
-    @State private var importingAll = false
-    @State private var imported: [Int: String] = [:]
-    @State private var importedAll: (count: Int, slug: String)?
+    @State private var ticked: Set<Int> = []
+    @State private var focused: Int?
+    @State private var previews: [Int: SettingPreview.Phase] = [:]
+    @State private var importing = false
+    @State private var importedSettings: Set<Int> = []
+    @State private var lastImport: (slug: String, said: String)?
 
     private var sources: Set<SearchSource> { SearchSource.decode(storedSources) }
     private var trimmed: String { query.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -69,7 +72,6 @@ struct SearchScreen: View {
             Theme.Rule()
             resultsPane
         }
-        .frame(maxWidth: Theme.Metric.readingColumn)
         .frame(maxWidth: .infinity)
     }
 
@@ -226,9 +228,12 @@ struct SearchScreen: View {
         Task {
             do {
                 let tune = try await state.tuneFinder.tune(hit.id)
-                imported = [:]
-                importedAll = nil
+                ticked = []
+                importedSettings = []
+                lastImport = nil
+                previews = [:]
                 openTune = tune
+                if let first = tune.settings.first { focus(first, of: tune) }
             } catch {
                 state.notice = "Couldn't open that tune: \(error.localizedDescription)"
             }
@@ -237,126 +242,276 @@ struct SearchScreen: View {
     }
 
     // MARK: - A tune's settings
+    //
+    // The settings on the left, each with a tick box; the one in focus drawn
+    // on the right, from its own ABC (0.22.0). Ali: "add a preview to the
+    // versions; move the list to the left and have a preview window on the
+    // right", and "check boxes for each arrangement and an import button to
+    // apply to all that is checked". On a phone the preview sits above the
+    // list: there is no room beside it.
 
     private func settings(of tune: TheSessionTune) -> some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                VStack(alignment: .leading, spacing: Theme.Metric.s6) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(tune.name).typeRole(.title).foregroundStyle(Theme.Ink.ink)
-                        if let type = tune.type {
-                            Text(type).typeRole(.meta).foregroundStyle(Theme.Ink.ink3)
-                        }
+        VStack(alignment: .leading, spacing: 0) {
+            header(of: tune)
+            Theme.Rule()
+            GeometryReader { space in
+                if space.size.width >= 700 {
+                    HStack(spacing: 0) {
+                        settingList(of: tune)
+                            .frame(width: max(320, space.size.width * 0.38))
+                        Rectangle().fill(Theme.Ink.ink3.opacity(0.25)).frame(width: 1)
+                        previewPane(of: tune)
                     }
-                    if !tune.aliases.isEmpty {
-                        Text("Also “" + tune.aliases.joined(separator: "”, “") + "”")
-                            .typeRole(.meta).foregroundStyle(Theme.Ink.ink3)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    Text("\(tune.settings.count) setting\(tune.settings.count == 1 ? "" : "s") on "
-                         + "thesession.org. Each is one player's way of the tune; every one "
-                         + "you import becomes an arrangement of one piece.")
-                        .typeRole(.body).foregroundStyle(Theme.Ink.ink2)
-                        .fixedSize(horizontal: false, vertical: true)
-                    HStack(spacing: Theme.Metric.s8) {
-                        if let all = importedAll {
-                            PanelButton(title: "Open", kind: .primary,
-                                        identifier: "search-open-all") { onOpen(all.slug) }
-                            Text("Imported \(all.count) settings.")
-                                .typeRole(.meta).foregroundStyle(Theme.Ink.ink2)
-                                .accessibilityIdentifier("search-imported-all")
-                        } else {
-                            PanelButton(title: importingAll ? "Importing…"
-                                            : "Import all \(tune.settings.count)",
-                                        identifier: "search-import-all") { importAll(tune) }
-                                .disabled(importingAll || tune.settings.count < 2)
-                        }
-                        Spacer()
-                        Link("On thesession.org", destination: TheSessionURL.page(tune.id)!)
-                            .typeRole(.meta).foregroundStyle(Theme.Accent.clayStrong)
-                            .accessibilityIdentifier("search-tune-link")
+                } else {
+                    VStack(spacing: 0) {
+                        previewPane(of: tune)
+                            .frame(height: space.size.height * 0.45)
+                        Theme.Rule()
+                        settingList(of: tune)
                     }
                 }
-                .padding(Theme.Metric.s16)
-                Theme.Rule()
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("search-tune")
+    }
+
+    private func header(of tune: TheSessionTune) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Metric.s6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(tune.name).typeRole(.title).foregroundStyle(Theme.Ink.ink)
+                if let type = tune.type {
+                    Text(type).typeRole(.meta).foregroundStyle(Theme.Ink.ink3)
+                }
+                Spacer()
+                Link("On thesession.org", destination: TheSessionURL.page(tune.id)!)
+                    .typeRole(.meta).foregroundStyle(Theme.Accent.clayStrong)
+                    .accessibilityIdentifier("search-tune-link")
+            }
+            if !tune.aliases.isEmpty {
+                Text("Also “" + tune.aliases.joined(separator: "”, “") + "”")
+                    .typeRole(.meta).foregroundStyle(Theme.Ink.ink3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text("\(tune.settings.count) setting\(tune.settings.count == 1 ? "" : "s") on "
+                 + "thesession.org, each one player's way of the tune. Tick the ones to "
+                 + "import: each becomes an arrangement of one piece.")
+                .typeRole(.body).foregroundStyle(Theme.Ink.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: Theme.Metric.s8) {
+                PanelButton(title: importing ? "Importing…" : importTitle,
+                            kind: .primary, identifier: "search-import-ticked") {
+                    importTicked(of: tune)
+                }
+                .disabled(importing || ticked.isEmpty)
+                let all = Set(tune.settings.map(\.id))
+                PanelButton(title: ticked == all ? "Untick all" : "Tick all",
+                            identifier: "search-tick-all") {
+                    ticked = ticked == all ? [] : all
+                }
+                .disabled(importing)
+                if let done = lastImport {
+                    PanelButton(title: "Open", identifier: "search-open") { onOpen(done.slug) }
+                    Text(done.said).typeRole(.meta).foregroundStyle(Theme.Ink.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("search-imported")
+                }
+            }
+        }
+        .padding(Theme.Metric.s16)
+    }
+
+    private var importTitle: String {
+        switch ticked.count {
+        case 0: return "Import"
+        case 1: return "Import 1 setting"
+        default: return "Import \(ticked.count) settings"
+        }
+    }
+
+    private func settingList(of tune: TheSessionTune) -> some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(tune.settings.enumerated()), id: \.element.id) { index, setting in
                     settingRow(setting, of: tune, at: index)
                     Theme.Rule()
                 }
             }
         }
-        .frame(maxWidth: Theme.Metric.readingColumn)
-        .frame(maxWidth: .infinity)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("search-tune")
+        .accessibilityIdentifier("search-setting-list")
     }
 
     private func settingRow(_ setting: TheSessionSetting, of tune: TheSessionTune,
                             at index: Int) -> some View {
-        HStack(spacing: Theme.Metric.s12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Setting \(index + 1) · \(setting.keyLine)")
-                    .typeRole(.row).foregroundStyle(Theme.Ink.ink)
-                if let member = setting.member {
-                    Text("by \(member)").typeRole(.meta).foregroundStyle(Theme.Ink.ink3)
-                }
+        let isTicked = ticked.contains(setting.id)
+        let isFocused = focused == setting.id
+        return HStack(spacing: 0) {
+            Button {
+                if isTicked { ticked.remove(setting.id) } else { ticked.insert(setting.id) }
+            } label: {
+                Image(systemName: isTicked ? "checkmark.square.fill" : "square")
+                    .font(.system(size: 17))
+                    .foregroundStyle(isTicked ? Theme.Accent.clayStrong : Theme.Ink.ink3)
+                    .frame(width: Theme.Metric.checkboxGutter, height: Theme.Metric.hitTarget)
+                    .contentShape(Rectangle())
             }
-            Spacer()
-            if let slug = imported[setting.id] {
-                PanelButton(title: "Open", kind: .primary,
-                            identifier: "search-open-\(index + 1)") { onOpen(slug) }
-            } else {
-                PanelButton(title: importing.contains(setting.id) ? "Importing…" : "Import",
-                            identifier: "search-import-\(index + 1)") {
-                    importOne(setting, of: tune)
+            .buttonStyle(.plain)
+            .accessibilityLabel("Import setting \(index + 1)")
+            .accessibilityAddTraits(isTicked ? [.isButton, .isSelected] : [.isButton])
+            .accessibilityIdentifier("search-tick-\(index + 1)")
+            Button {
+                focus(setting, of: tune)
+            } label: {
+                HStack(spacing: Theme.Metric.s8) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Setting \(index + 1) · \(setting.keyLine)")
+                            .typeRole(.row).foregroundStyle(Theme.Ink.ink)
+                        if let member = setting.member {
+                            Text("by \(member)").typeRole(.meta).foregroundStyle(Theme.Ink.ink3)
+                        }
+                    }
+                    Spacer()
+                    if importedSettings.contains(setting.id) {
+                        Text("imported").typeRole(.meta).foregroundStyle(Theme.Ink.ink3)
+                    }
                 }
-                .disabled(importing.contains(setting.id) || importingAll)
+                .frame(maxWidth: .infinity, minHeight: Theme.Metric.hitTarget, alignment: .leading)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Setting \(index + 1), \(setting.keyLine)"
+                                + (isFocused ? ", shown" : ""))
+            .accessibilityIdentifier("search-setting-\(index + 1)")
         }
-        .padding(.horizontal, Theme.Metric.s16)
-        .padding(.vertical, Theme.Metric.s8)
-        .frame(minHeight: Theme.Metric.hitTarget)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("search-setting-\(index + 1)")
+        .padding(.trailing, Theme.Metric.s16)
+        .padding(.vertical, Theme.Metric.s4)
+        // C4: the setting being shown is a flat tint band the width of the list
+        .background(isFocused ? Theme.Accent.clayTint : Color.clear)
     }
 
-    private func importOne(_ setting: TheSessionSetting, of tune: TheSessionTune) {
-        importing.insert(setting.id)
+    @ViewBuilder
+    private func previewPane(of tune: TheSessionTune) -> some View {
+        Group {
+            switch focused.flatMap({ previews[$0] }) {
+            case .ready(let document)?:
+                SettingPreview(document: document)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("The setting's score")
+                    .accessibilityIdentifier("search-preview")
+            case .failed(let why)?:
+                Text("This setting could not be drawn: \(why)")
+                    .typeRole(.body).foregroundStyle(Theme.Ink.ink3)
+                    .padding(Theme.Metric.s16)
+                    .accessibilityIdentifier("search-preview-failed")
+            default:
+                ProgressView().accessibilityIdentifier("search-preview-loading")
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Theme.Surface.band)
+    }
+
+    /// Show a setting: draw it from its own ABC the first time it is asked
+    /// for. Verovio reads ABC, so nothing is imported to look at one.
+    private func focus(_ setting: TheSessionSetting, of tune: TheSessionTune) {
+        focused = setting.id
+        guard previews[setting.id] == nil else { return }
+        previews[setting.id] = .loading
         Task {
-            defer { importing.remove(setting.id) }
             do {
                 let whole = try await state.tuneFinder.abc(ofTune: tune.id)
                 guard let abc = ABCSettings.select([setting.id], from: whole) else {
-                    state.notice = "thesession.org's ABC for this tune does not hold that setting."
+                    previews[setting.id] = .failed("thesession.org's ABC does not hold it")
                     return
                 }
+                let file = FileManager.default.temporaryDirectory
+                    .appending(path: "setting-preview-\(setting.id).abc")
+                try abc.write(to: file, atomically: true, encoding: .utf8)
+                defer { try? FileManager.default.removeItem(at: file) }
+                let engraving = try await VerovioRenderer.shared.engrave(musicXMLPath: file.path)
+                guard let document = PDFDocument(data: engraving.pdf) else {
+                    previews[setting.id] = .failed("the drawing came back empty")
+                    return
+                }
+                previews[setting.id] = .ready(document)
+            } catch {
+                previews[setting.id] = .failed(OperationReport.reason(error))
+            }
+        }
+    }
+
+    /// Every ticked setting, in the site's order, as ONE file: one import,
+    /// one arrangement each, all under one piece (the import files tunes that
+    /// share a title under one piece, and every setting shares the tune's).
+    private func importTicked(of tune: TheSessionTune) {
+        let chosen = tune.settings.filter { ticked.contains($0.id) }
+        guard !chosen.isEmpty else { return }
+        importing = true
+        Task {
+            defer { importing = false }
+            do {
+                let whole = try await state.tuneFinder.abc(ofTune: tune.id)
+                guard let abc = ABCSettings.select(Set(chosen.map(\.id)), from: whole) else {
+                    state.notice = "thesession.org's ABC for this tune does not hold those settings."
+                    return
+                }
+                let origin = chosen.count == 1
+                    ? "\(TheSessionURL.page(tune.id)!.absoluteString)#setting\(chosen[0].id)"
+                    : TheSessionURL.page(tune.id)!.absoluteString
                 if let slug = await state.importTune(
-                    abc: abc, fileName: ABCSettings.fileName(tune: tune.name, settingCount: 1),
-                    origin: "\(TheSessionURL.page(tune.id)!.absoluteString)#setting\(setting.id)") {
-                    imported[setting.id] = slug
+                    abc: abc, fileName: ABCSettings.fileName(tune: tune.name,
+                                                             settingCount: chosen.count),
+                    origin: origin) {
+                    importedSettings.formUnion(chosen.map(\.id))
+                    ticked = []
+                    lastImport = (slug, SearchImport.sentence(
+                        count: chosen.count, slug: slug, manifest: state.manifest))
                 }
             } catch {
                 state.notice = "Couldn't fetch that tune: \(error.localizedDescription)"
             }
         }
     }
+}
 
-    private func importAll(_ tune: TheSessionTune) {
-        importingAll = true
-        Task {
-            defer { importingAll = false }
-            do {
-                let whole = try await state.tuneFinder.abc(ofTune: tune.id)
-                let abc = ABCSettings.whole(whole)
-                if let slug = await state.importTune(
-                    abc: abc, fileName: ABCSettings.fileName(tune: tune.name,
-                                                             settingCount: tune.settings.count),
-                    origin: TheSessionURL.page(tune.id)!.absoluteString) {
-                    importedAll = (tune.settings.count, slug)
+/// A setting's score, its pages one under another from the top of the pane.
+///
+/// Drawn as pictures rather than in a PDFView: PDFView centres a page shorter
+/// than its view, and a setting is usually one short page, so the music sat
+/// in the middle of the pane under a band of nothing.
+struct SettingPreview: View {
+    enum Phase {
+        case loading
+        case ready(PDFDocument)
+        case failed(String)
+    }
+
+    let document: PDFDocument
+
+    var body: some View {
+        GeometryReader { space in
+            ScrollView {
+                VStack(spacing: Theme.Metric.s8) {
+                    ForEach(0..<document.pageCount, id: \.self) { index in
+                        if let page = document.page(at: index) {
+                            Image(uiImage: Self.picture(of: page, width: space.size.width))
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: space.size.width)
+                        }
+                    }
                 }
-            } catch {
-                state.notice = "Couldn't fetch that tune: \(error.localizedDescription)"
             }
         }
+    }
+
+    /// The page at twice the pane's width, so it stays sharp on a Retina
+    /// screen and when the pane is the whole phone.
+    private static func picture(of page: PDFPage, width: CGFloat) -> UIImage {
+        let box = page.bounds(for: .mediaBox)
+        let scale = max(width, 1) * 2 / max(box.width, 1)
+        return page.thumbnail(of: CGSize(width: box.width * scale, height: box.height * scale),
+                              for: .mediaBox)
     }
 }

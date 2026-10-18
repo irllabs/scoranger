@@ -247,6 +247,52 @@ targets:
         #          asked for as one build: "build all of these necessary
         #          features for sharing playlists into the first 7.0 build."
         #          §11.9 records the difference, including what was left out.
+        #   0.22.0 A TUNE'S SETTINGS PREVIEWED AND PICKED; ROWS THAT DRAG AND
+        #          SWIPE; EVERY PAGE THE FULL WIDTH (2026-10-17). Scope written
+        #          before the work. Features and one fix, so the minor bumps
+        #          once; the $4.99/month subscription moves to 0.23.0. Ali on
+        #          build 214: "add a preview to the versions; move the list to
+        #          the left and have a preview window on the right", "check
+        #          boxes for each arrangement and an import button", "pages
+        #          not filling the full width ... make that a high-level design
+        #          system requirement", the arrangement ☰: "touch and drag
+        #          up/down on the hamburger ... the same for piece order in
+        #          set lists. This gets rid of Up and Down", and "swipe left on
+        #          the row ... a red trashcan".
+        #
+        #          In this build:
+        #            1. SEARCH: A TUNE'S SETTINGS, LIST AND PREVIEW. The
+        #               settings list on the left with a tick box per setting,
+        #               the score of the setting in focus on the right, drawn
+        #               from its own ABC (Verovio reads ABC; nothing is
+        #               imported to look). One Import button takes every
+        #               ticked setting as arrangements of one piece, and says
+        #               which piece and how many it now has. On a phone the
+        #               preview sits above the list.
+        #            2. "I IMPORTED ONE AND GOT ALL OF THEM": reproduced as far
+        #               as the code goes -- one setting of thesession's real
+        #               ABC (CRLF and all) imports as ONE arrangement -- so the
+        #               likely reading is a piece of that name already holding
+        #               the 27 settings imported earlier, which the new one
+        #               JOINS. The import now says so: "added to The Irish
+        #               Washerwoman, which now has 28".
+        #            3. ROWS: drag an arrangement by its ☰ to reorder a piece,
+        #               and a set list's running order the same way; Up and
+        #               Down leave the row's actions. Swipe a row left for a
+        #               red trash can that deletes it (removes it, in a set
+        #               list); Delete leaves the actions.
+        #            4. FULL WIDTH IS THE RULE (design/DESIGN_SYSTEM.md): a
+        #               page's content runs edge to edge less the page gutter.
+        #               The 720pt centred column every pushed screen used is
+        #               gone, and with it the constant, so nothing can cap a
+        #               page again without saying so in Theme.
+        #          NOT in this build, and said before it starts:
+        #            - a preview for a MuseScore result: MuseScore's own site
+        #              shows its own;
+        #            - drag in the library's piece list (no order to keep);
+        #            - swipe on the library rows: they keep their ☰ Delete;
+        #            - the subscription (0.23.0);
+        #            - NO OTHER CHANGE.
         #   0.21.0 LYRICS FROM IMPORT TO THE PAGE; WORDS AND CHORDS READ OFF A
         #          PDF AS PRINTED; A LIBRARY THAT FINISHES REACHING THE NEXT
         #          DEVICE (2026-10-17). Scope written before the work.
@@ -1449,7 +1495,7 @@ targets:
         # has no Firebase configuration". deploy_testflight.sh now refuses such
         # an archive outright.
         CURRENT_PROJECT_VERSION: 214
-        MARKETING_VERSION: 0.21.0
+        MARKETING_VERSION: 0.22.0
         SWIFT_VERSION: 5.10
         SWIFT_OBJC_BRIDGING_HEADER: Scoranger/PythonBridge/PythonBridge.h
         # BeeWare's install_python copies lib-$ARCHS, which requires single-arch builds

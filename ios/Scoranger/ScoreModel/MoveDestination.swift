@@ -3,7 +3,7 @@ import Foundation
 /// Where a mark is being sent, how the reader says so, and what to do with the
 /// engine's refusal.
 ///
-/// THE DESTINATION IS A TAPPED BAR PLUS AN OFFSET INSIDE IT. This app has no
+/// THE DESTINATION IS A TAPPED BAR PLUS AN OFFSET INSIDE IT. The score has no
 /// drag (0.4.2 removed it and pinch means zoom), so the reader taps the bar
 /// they want and steps the offset within it. `ops.move_element` takes exactly
 /// that pair, in quarter notes from the barline, which is why nothing here

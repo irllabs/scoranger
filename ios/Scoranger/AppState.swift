@@ -360,7 +360,7 @@ final class AppState: ObservableObject {
     // MARK: - Sending a mark to another bar
     //
     // The destination is a TAPPED BAR plus an offset stepper inside it. There
-    // is no drag in this app, so there is no drag here.
+    // is no drag on the score, so there is no drag here.
 
     /// The move or duplicate in progress, or nil. While it is set, a tap on the
     /// canvas picks a BAR instead of selecting anything.
@@ -4024,7 +4024,6 @@ final class AppState: ObservableObject {
         }
     }
 
-    /// Persist a piece's arrangement order (the sidebar numbering).
     /// Set a set list's running order. The engine keeps the order on the
     /// setlist document, so this is one reorder op rather than a remove and
     /// re-add, which would lose the position of everything after it.
@@ -4041,16 +4040,20 @@ final class AppState: ObservableObject {
         return false
     }
 
-    func reorderPiece(piece: String, order: [String]) {
-        Task {
-            do {
-                _ = try await local.call(op: "reorder-piece",
-                                         args: ["piece": piece, "order": order])
-                await refresh()
-            } catch {
-                report("reorder that piece", error)
-            }
+    /// Persist a piece's arrangement order (the #N numbering). Awaited, like
+    /// `reorderSetlist`: a dragged row holds its new place on screen until
+    /// this returns, and goes back on false.
+    @discardableResult
+    func reorderPiece(piece: String, order: [String]) async -> Bool {
+        do {
+            _ = try await local.call(op: "reorder-piece",
+                                     args: ["piece": piece, "order": order])
+            await refresh()
+            return true
+        } catch {
+            report("reorder that piece", error)
         }
+        return false
     }
 
     /// Piece context handed to the chat agent: which piece this arrangement

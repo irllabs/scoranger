@@ -54,19 +54,23 @@ enum SharedOrder {
         return midpoint(lower, upper)
     }
 
-    /// The two keys a row moved one place must land between.
+    /// The two keys a moved row must land between.
     ///
-    /// One-place moves are what the running-order screen offers (Move up /
-    /// Move down; dragging is gone from this app), and getting the neighbours
-    /// from the list AS IT STANDS is the mistake this exists to prevent: for a
-    /// downward move the row is still occupying the slot it is leaving, so
-    /// "the entry below" is the one being displaced, and `between` then returns
-    /// a key that puts the row back exactly where it was. The neighbours have
-    /// to come from the list with the row already taken out of it.
+    /// The running-order screen moves a row by dragging its ☰ any number of
+    /// places, and VoiceOver's Move up / Move down move it one. Either way,
+    /// getting the neighbours from the list AS IT STANDS is the mistake this
+    /// exists to prevent: for a downward move the row is still occupying the
+    /// slot it is leaving, so "the entry below" is the one being displaced, and
+    /// `between` then returns a key that puts the row back exactly where it
+    /// was. The neighbours have to come from the list with the row already
+    /// taken out of it.
     ///
-    /// `offset` is -1 or +1. Returns nil when the move would leave the list, or
-    /// when `key` is not in it -- so the caller writes nothing rather than
-    /// clamping to a write that reorders nothing.
+    /// `offset` is how many places the row moves, negative for up: the landing
+    /// index minus the starting one. Returns nil when the move would leave the
+    /// list, or when `key` is not in it -- so the caller writes nothing rather
+    /// than clamping to a write that reorders nothing. However far the row
+    /// travels it is still one key on one document, which is what lets two
+    /// people drag different rows at once.
     ///
     /// **It takes the moving row's KEY and sorts the list itself, and that is
     /// the whole point of the signature.** It used to take an INDEX into a list

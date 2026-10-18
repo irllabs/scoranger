@@ -130,13 +130,20 @@ struct SharedSetlistScreen: View {
                 .padding(Theme.Metric.panelPadding)
                 .accessibilityIdentifier("shared-empty")
         }
-        ForEach(Array(shared.entries.enumerated()), id: \.element.id) { index, entry in
-            entryRow(entry, position: index + 1)
+        // Dragged by the grip, like the library's own set lists, where an
+        // editor may reorder. A reader's list has no grip and no Move up.
+        ReorderableRows(items: shared.entries.map(\.id), ruled: false,
+                        canReorder: mayEdit,
+                        reorder: { move in await self.move(move) }) { id, handle in
+            if let entry = shared.entries.first(where: { $0.id == id }) {
+                entryRow(entry, handle: handle)
+            }
         }
     }
 
-    private func entryRow(_ entry: SharedSetlists.Entry, position: Int) -> some View {
-        HStack(spacing: Theme.Metric.s12) {
+    private func entryRow(_ entry: SharedSetlists.Entry, handle: ReorderableRowHandle) -> some View {
+        let position = handle.index + 1
+        return HStack(spacing: Theme.Metric.s12) {
             Text("\(position)").typeRole(.meta).foregroundStyle(Theme.Ink.ink3)
                 .frame(width: 20, alignment: .trailing)
             Button { open(entry) } label: {
@@ -152,24 +159,19 @@ struct SharedSetlistScreen: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .reorderableRowActions(handle)
             Spacer(minLength: Theme.Metric.s8)
             if mayEdit {
-                Button { move(entry, by: -1) } label: {
-                    Image(systemName: "arrow.up")
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(position == 1 ? Theme.Ink.ink3 : Theme.Accent.clayStrong)
-                .disabled(position == 1)
-                .accessibilityIdentifier("shared-up-\(position)")
-
-                Button { move(entry, by: 1) } label: {
-                    Image(systemName: "arrow.down")
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(position == shared.entries.count
-                                 ? Theme.Ink.ink3 : Theme.Accent.clayStrong)
-                .disabled(position == shared.entries.count)
-                .accessibilityIdentifier("shared-down-\(position)")
+                // A grip, not a button: this row has no actions for a tap to
+                // open. VoiceOver moves the row by the Move up / Move down
+                // actions on the row itself, so the glyph is hidden from it.
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(Theme.Ink.ink2)
+                    .frame(width: Theme.Metric.hitTarget, height: Theme.Metric.hitTarget)
+                    .contentShape(Rectangle())
+                    .reorderGrip(handle)
+                    .accessibilityHidden(true)
             }
         }
         .padding(.horizontal, Theme.Metric.s16)
@@ -178,21 +180,22 @@ struct SharedSetlistScreen: View {
         .accessibilityIdentifier("shared-entry-\(position)")
     }
 
-    /// Reorder by one place. The write is a single fractional index on a single
-    /// document (§6.5), which is what lets two people move different entries at
-    /// the same time without either move being lost.
-    private func move(_ entry: SharedSetlists.Entry, by offset: Int) {
-        guard let landing = SharedOrder.neighbours(
-                moving: entry.order, by: offset,
+    /// One entry moved, however far. The write is still a single fractional
+    /// index on a single document (§6.5), which is what lets two people move
+    /// different entries at the same time without either move being lost.
+    private func move(_ move: RowMove<String>) async -> Bool {
+        guard let entry = shared.entries.first(where: { $0.id == move.item }),
+              let landing = SharedOrder.neighbours(
+                moving: entry.order, by: move.to - move.from,
                 in: shared.entries.map(\.order))
-        else { return }
-        Task {
-            do {
-                try await shared.move(entry, afterKey: landing.before,
-                                      beforeKey: landing.after, in: setlistId)
-            } catch {
-                state.report("move that entry", error)
-            }
+        else { return false }
+        do {
+            try await shared.move(entry, afterKey: landing.before,
+                                  beforeKey: landing.after, in: setlistId)
+            return true
+        } catch {
+            state.report("move that entry", error)
+            return false
         }
     }
 

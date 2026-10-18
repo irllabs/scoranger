@@ -56,14 +56,42 @@ final class SearchTunes: XCTestCase {
         XCTAssertTrue(tune.waitForExistence(timeout: 30), "the tune did not open")
         XCTAssertTrue(app.staticTexts["Drowsy Maggie"].firstMatch.exists)
         XCTAssertTrue(element("search-setting-1").exists)
-        XCTAssertTrue(app.staticTexts["Setting 1 · E dorian"].exists)
-        XCTAssertEqual(element("search-import-all").label, "Import all 38")
+        XCTAssertTrue(element("search-setting-1").label.hasPrefix("Setting 1, E dorian"),
+                      element("search-setting-1").label)
+        // 0.22.0: the first setting is drawn beside the list as the tune opens
+        XCTAssertTrue(element("search-preview").waitForExistence(timeout: 60),
+                      "the setting in focus was not drawn")
+        XCTAssertFalse(element("search-import-ticked").isEnabled, "nothing is ticked yet")
         snap("search-tune")
 
-        element("search-import-1").tap()
-        let open = element("search-open-1")
-        XCTAssertTrue(open.waitForExistence(timeout: 120), "the setting did not import")
+        // another setting in focus is drawn in its turn
+        element("search-setting-2").tap()
+        XCTAssertTrue(element("search-setting-2").label.hasSuffix("shown"))
+        XCTAssertTrue(element("search-preview").waitForExistence(timeout: 60))
+        snap("search-tune-setting-2")
+
+        // tick two and import them: two arrangements of ONE piece
+        element("search-tick-1").tap()
+        element("search-tick-3").tap()
+        XCTAssertEqual(element("search-import-ticked").label, "Import 2 settings")
+        element("search-import-ticked").tap()
+        let said = element("search-imported")
+        XCTAssertTrue(said.waitForExistence(timeout: 120), "the settings did not import")
+        XCTAssertEqual(said.label, "Imported 2 settings as the piece Drowsy Maggie.")
         snap("search-imported")
+
+        // one more joins that piece, and the sentence says so -- "I imported
+        // one and it imported all of them" was a piece that already held them
+        element("search-tick-5").tap()
+        element("search-import-ticked").tap()
+        let joined = NSPredicate(format: "label == %@",
+                                 "Added 1 setting to Drowsy Maggie, which now has 3 arrangements.")
+        expectation(for: joined, evaluatedWith: element("search-imported"))
+        waitForExpectations(timeout: 120)
+        snap("search-imported-joined")
+
+        let open = element("search-open")
+        XCTAssertTrue(open.exists)
         open.tap()
         XCTAssertTrue(app.buttons["score-title"].waitForExistence(timeout: 120),
                       "the imported tune did not open")

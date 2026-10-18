@@ -15,6 +15,8 @@ struct Screen<Content: View, Trailing: View>: View {
     var scrolls = true
     @Environment(\.inPanel) private var inPanel
     @Environment(\.panelTitle) private var panelTitle
+    /// A row's ☰ drag or sideways swipe has the finger (`ReorderableRows`).
+    @State private var rowGestureHoldsScroll = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,13 +31,13 @@ struct Screen<Content: View, Trailing: View>: View {
             }
             if scrolls {
                 ScrollView {
-                    // The content column: capped and centred on a pushed page
-                    // (a row's label and its chevron 1300pt apart is not a row),
-                    // the panel's own width inside the panel.
+                    // The page's full width, pushed or in the panel (C17): a
+                    // centred column left a band of empty page either side.
                     content()
-                        .frame(maxWidth: inPanel ? .infinity : Theme.Metric.readingColumn)
                         .frame(maxWidth: .infinity)
                 }
+                .scrollDisabled(rowGestureHoldsScroll)
+                .onPreferenceChange(RowGestureHoldsScroll.self) { rowGestureHoldsScroll = $0 }
             } else {
                 content().frame(maxWidth: .infinity, maxHeight: .infinity)
             }

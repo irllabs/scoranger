@@ -163,8 +163,9 @@ struct SetlistsForScreen: View {
 /// A set list's running order (§3.5).
 ///
 /// Here the row's ☰ EXPANDS rather than pushes, by the rule in
-/// RowMenuBehaviour: every action is one tap and positional. One row open at a
-/// time, and the open row's ☰ is lit so the two behaviours are told apart.
+/// RowMenuBehaviour: every action is one tap. One row open at a time, and the
+/// open row's ☰ is lit so the two behaviours are told apart. Dragging the ☰
+/// reorders the list and swiping a row left takes it out (`ReorderableRows`).
 struct SetlistScreen: View {
     @EnvironmentObject var state: AppState
     @EnvironmentObject var shared: SharedSetlists
@@ -213,10 +214,15 @@ struct SetlistScreen: View {
                 .padding(.top, Theme.Metric.s12)
                 .padding(.bottom, Theme.Metric.s12)
 
-                // The list is the list: no "Running order" header (§10).
-                ForEach(Array((setlist?.arrangements ?? []).enumerated()), id: \.offset) { index, member in
-                    memberRow(member, at: index)
-                    Theme.Rule()
+                // The list is the list: no "Running order" header (§10). A
+                // shared row's order goes up through the same reorder: the
+                // set list sync sees the manifest change, whatever made it.
+                ReorderableRows(items: setlist?.arrangements ?? [],
+                                reorder: { move in
+                                    await state.reorderSetlist(slug, order: move.order)
+                                },
+                                deletion: removal(of:)) { member, handle in
+                    memberRow(member, handle: handle)
                 }
                 if (setlist?.arrangements ?? []).isEmpty {
                     // S7: one button opens Add beside it.
@@ -262,7 +268,21 @@ struct SetlistScreen: View {
         return items
     }
 
-    private func memberRow(_ member: String, at index: Int) -> some View {
+    /// The swipe's trash button: out of the set list, and nothing else -- the
+    /// arrangement stays in the library and can be added back from Add. Not
+    /// on the row whose ☰ is open, for the reason `PieceScreen` gives.
+    private func removal(of member: String) -> RowDeletion? {
+        guard expanded != member else { return nil }
+        return RowDeletion(identifier: "setlist-remove-\(member)",
+                           label: "Remove \(label(for: member)) from the set list",
+                           actionName: "Remove from set list",
+                           perform: {
+                               Task { _ = await state.removeFromSetlist(setlist: slug, score: member) }
+                           })
+    }
+
+    private func memberRow(_ member: String, handle: ReorderableRowHandle) -> some View {
+        let index = handle.index
         let open = expanded == member
         return HStack(spacing: Theme.Metric.s12) {
             HStack(spacing: Theme.Metric.s12) {
@@ -279,7 +299,7 @@ struct SetlistScreen: View {
                         Text(label(for: member)).typeRole(.titleS)
                             .foregroundStyle(Theme.Ink.ink).lineLimit(1)
                         if open {
-                            RowActionsBar(actions: memberActions(member, at: index))
+                            RowActionsBar(actions: memberActions(member))
                         } else {
                             Text(memberMeta(member)).typeRole(.meta)
                                 .foregroundStyle(Theme.Ink.ink3).lineLimit(1)
@@ -293,12 +313,14 @@ struct SetlistScreen: View {
             }
             .rowTappable(label: label(for: member), identifier: "setlist-member-\(member)",
                          container: open) { onOpen(member) }
+            .reorderableRowActions(handle)
 
             RowMenuButton(identifier: "row-menu-\(member)",
                           label: open ? "Close the actions" : "Manage \(label(for: member))",
                           isOpen: open) {
                 if open { expanded = nil; panel.done() } else { expanded = member }
             }
+            .reorderGrip(handle)
         }
         .padding(.horizontal, Theme.Metric.pageSide)
         .padding(.vertical, Theme.Metric.s8)
@@ -306,33 +328,16 @@ struct SetlistScreen: View {
         .background(open ? Theme.Accent.clayTint : Color.clear)
     }
 
-    /// S2: Up, Down, Open, Arrangement, Remove -- on the row.
-    private func memberActions(_ member: String, at index: Int) -> [RowActionItem] {
+    /// S2: Open, Arrangement -- on the row. Reordering is the ☰ dragged and
+    /// removing is the row swiped left (`ReorderableRows`).
+    private func memberActions(_ member: String) -> [RowActionItem] {
         [
-            RowActionItem(id: "arr-up-\(member)", title: "Up", glyph: "chevron.up",
-                          enabled: index > 0) { move(member, by: -1) },
-            RowActionItem(id: "arr-down-\(member)", title: "Down", glyph: "chevron.down",
-                          enabled: index + 1 < (setlist?.arrangements.count ?? 0)) { move(member, by: 1) },
             RowActionItem(id: "setlist-open-\(member)", title: "Open") { onOpen(member) },
             RowActionItem(id: "setlist-manage-\(member)", title: "Arrangement",
                           lit: panel.isShowing(.arrangement(member))) {
                 panel.toggle(.arrangement(member))
             },
-            RowActionItem(id: "setlist-remove-\(member)", title: "Remove", destructive: true,
-                          confirm: "Remove?") {
-                expanded = nil
-                Task { _ = await state.removeFromSetlist(setlist: slug, score: member) }
-            },
         ]
-    }
-
-    private func move(_ member: String, by delta: Int) {
-        guard var order = setlist?.arrangements,
-              let from = order.firstIndex(of: member) else { return }
-        let to = from + delta
-        guard order.indices.contains(to) else { return }
-        order.swapAt(from, to)
-        Task { _ = await state.reorderSetlist(slug, order: order) }
     }
 
     private func label(for member: String) -> String {

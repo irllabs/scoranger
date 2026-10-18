@@ -404,6 +404,18 @@ final class ScorangerUITests: XCTestCase {
     /// `isHittable` is false for anything below the fold, and scrolling does
     /// not always bring a row inside a nested scroll view into reach. A
     /// coordinate tap goes to the element's own frame and does not care.
+    /// Drag a row by its ☰ onto another row's place. A press first, long
+    /// enough to be a press rather than a flick the page would take, then a
+    /// slow drag to the other row's ☰ and a moment held there before the lift.
+    private func dragRow(_ slug: String, ontoRowOf target: String) {
+        let grip = app.buttons["row-menu-\(slug)"]
+        let destination = app.buttons["row-menu-\(target)"]
+        XCTAssertTrue(grip.waitForExistence(timeout: 20), "no ☰ on \(slug)")
+        XCTAssertTrue(destination.exists, "no ☰ on \(target)")
+        grip.press(forDuration: 0.4, thenDragTo: destination,
+                   withVelocity: .slow, thenHoldForDuration: 0.3)
+    }
+
     private func tapAnyway(_ element: XCUIElement, in container: XCUIElement) {
         XCTAssertTrue(element.waitForExistence(timeout: 20),
                       "no element to tap: \(element)")
@@ -1875,9 +1887,9 @@ final class ScorangerUITests: XCTestCase {
     /// in chat ("take the violin part from #2"), so a badge that disagrees with
     /// the order is worse than no badge.
     /// #N is a POSITION within a piece, so changing the order changes the
-    /// numbers. Dragging one arrangement onto another used to do this; it is
-    /// Move up / Move down on the piece screen now, and there is no drag left
-    /// in the app at all.
+    /// numbers. It was Move up / Move down among the row's actions; the ☰
+    /// itself is the handle now, pressed and dragged (Ali, on build 214:
+    /// "touch and drag up/down on the hamburger").
     func testReorderingArrangementsRenumbersThem() {
         openPieceSheet()
         let first = app.buttons["arrangement-choice-\(firstArrangement)"]
@@ -1888,12 +1900,7 @@ final class ScorangerUITests: XCTestCase {
         XCTAssertTrue(second.exists, "the seed should file two arrangements")
         XCTAssertTrue(second.label.contains("Arrangement number 2"), second.label)
 
-        // 0.8 (P2): Up is one of the row's actions, behind its ☰.
-        app.buttons["row-menu-under-paris-skies-accordion-solo"].tap()
-        let moveUp = app.buttons["arr-up-under-paris-skies-accordion-solo"]
-        XCTAssertTrue(moveUp.waitForExistence(timeout: 10),
-                      "no Move up on the piece screen")
-        moveUp.tap()
+        dragRow("under-paris-skies-accordion-solo", ontoRowOf: firstArrangement)
 
         // the numbers swapped, and they followed the rows rather than the slugs
         XCTAssertTrue(waitForLabel(second, contains: "Arrangement number 1"),
@@ -1908,18 +1915,12 @@ final class ScorangerUITests: XCTestCase {
         openPieceSheet()
         let second = app.buttons["arrangement-choice-under-paris-skies-accordion-solo"]
         XCTAssertTrue(second.waitForExistence(timeout: 20))
-        // 0.8 (P2): Up is one of the row's actions, behind its ☰.
-        app.buttons["row-menu-under-paris-skies-accordion-solo"].tap()
-        let moveUp = app.buttons["arr-up-under-paris-skies-accordion-solo"]
-        XCTAssertTrue(moveUp.waitForExistence(timeout: 10),
-                      "no Move up on the piece screen")
-        moveUp.tap()
+        dragRow("under-paris-skies-accordion-solo", ontoRowOf: firstArrangement)
         XCTAssertTrue(waitForLabel(second, contains: "Arrangement number 1"))
 
         // open the moved arrangement: the pill numeral is the same number the
-        // chat context hands the model
-        // the row's actions close before the row is opened
-        app.buttons["row-menu-under-paris-skies-accordion-solo"].tap()
+        // chat context hands the model. A drag opens no actions, so the row
+        // opens on a plain tap.
         second.tap()
         XCTAssertTrue(app.scrollViews["score-canvas"].waitForExistence(timeout: 180))
         app.buttons["score-ask"].tap()

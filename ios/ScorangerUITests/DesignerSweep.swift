@@ -273,11 +273,18 @@ final class DesignerSweep: XCTestCase {
             if tapFirst(beginning: "arrangement-parts-") != nil {
                 settle(); snap("21-parts"); back(); settle()
             }
-            if tapFirst(beginning: "edit-delete-") != nil {
-                settle(); snap("22-delete-confirm-strip")
-                tapFirst(beginning: "confirm-delete-")
-                settle(1.0); snap("23-undo-bar")
-                tap("undo-delete"); settle()
+            // Delete is a swipe to the left now, which uncovers the red trash
+            // button; there is no confirm strip after it. The LAST row,
+            // because the first one's ☰ is open and an open row does not swipe.
+            let rows = app.buttons.matching(
+                NSPredicate(format: "identifier BEGINSWITH %@", "arrangement-choice-"))
+            if rows.count > 0, rows.element(boundBy: rows.count - 1).isHittable {
+                rows.element(boundBy: rows.count - 1).swipeLeft()
+                settle(); snap("22-delete-swipe-revealed")
+                if tapFirst(beginning: "edit-delete-") != nil {
+                    settle(1.0); snap("23-undo-bar")
+                    tap("undo-delete"); settle()
+                }
             }
             back(); settle()
         }

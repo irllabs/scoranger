@@ -757,7 +757,14 @@ it fetches nothing (`check_signed_out.py`), so the client is Swift.
   `/tunes/N/abc`, the ABC the site itself writes, cut down in Swift to the
   settings chosen (`ABCSettings.select` keeps the `X:` blocks whose `S:` line
   names the setting) and taken through the ordinary ABC import. Nothing is
-  rebuilt from JSON. One request per search pressed, a named User-Agent,
+  rebuilt from JSON. Since 0.22.0 the settings are TICKED and imported
+  together (one file, one arrangement each, one piece), the one in focus is
+  PREVIEWED from its own ABC by Verovio -- which reads ABC, so nothing is
+  imported to look -- and the import says which piece the settings joined
+  (`SearchImport.sentence`): a piece of that name that already exists is
+  joined, which is how "I imported one and got all 27" happens. The site
+  serves CRLF headers; `ABCSettings` handles them (checked against the live
+  file). One request per search pressed, a named User-Agent,
   tune pages cached for the session: robots.txt asks for a 10s crawl delay.
   The tests answer from captured JSON (`-stubTheSession`,
   ios/ScorangerTests/Fixtures/thesession-*, copied into the Debug app's
