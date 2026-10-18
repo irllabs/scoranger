@@ -17,6 +17,8 @@ struct Screen<Content: View, Trailing: View>: View {
     @Environment(\.panelTitle) private var panelTitle
     /// A row's ☰ drag or sideways swipe has the finger (`ReorderableRows`).
     @State private var rowGestureHoldsScroll = false
+    /// What a row held by its ☰ scrolls at the page's edges.
+    @State private var dragScroll = RowDragScroll()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -38,6 +40,16 @@ struct Screen<Content: View, Trailing: View>: View {
                 }
                 .scrollDisabled(rowGestureHoldsScroll)
                 .onPreferenceChange(RowGestureHoldsScroll.self) { rowGestureHoldsScroll = $0 }
+                .scrollPosition($dragScroll.position)
+                .onScrollGeometryChange(for: RowDragScroll.Metrics.self) { geometry in
+                    RowDragScroll.Metrics(geometry)
+                } action: { _, metrics in
+                    dragScroll.take(metrics)
+                }
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: {
+                    dragScroll.viewport = $0
+                }
+                .environment(dragScroll)
             } else {
                 content().frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -284,14 +296,8 @@ struct InlineRenameRow: View {
 
     @ViewBuilder
     private var field: some View {
-        Group {
-            if #available(iOS 18.0, *) {
-                SelectingTextField(placeholder: placeholder, text: $text,
-                                   selectAll: selectAll, focused: $focused)
-            } else {
-                TextField(placeholder, text: $text).focused($focused)
-            }
-        }
+        SelectingTextField(placeholder: placeholder, text: $text,
+                           selectAll: selectAll, focused: $focused)
         .typeRole(.body)
         .foregroundStyle(Theme.Ink.ink)
         .tint(Theme.Accent.clay)
@@ -309,8 +315,6 @@ struct InlineRenameRow: View {
 
 /// A text field that can arrive with its text SELECTED, so a proposed name is
 /// replaced whole by the first keystroke (REDESIGN_BRIEF_0.8 §7.4 rule 4).
-/// `TextSelection` is iOS 18; the row falls back to a plain field before it.
-@available(iOS 18.0, *)
 private struct SelectingTextField: View {
     var placeholder: String
     @Binding var text: String

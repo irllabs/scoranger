@@ -1,18 +1,43 @@
 # Backlog
 
+## 0.23.0: library rows swipe, a dragged row scrolls its page, iOS 26.5 -- what it does not do
+
+Each of these is said in the ios/project.yml scope block too.
+
+- **No undo for a deleted piece, set list or book.** Their trash asks first
+  instead. The engine marks a deleted ARRANGEMENT for 30 seconds and
+  `restore-score` puts it back; `delete-setlist` and `delete-book` remove the
+  document (and the book's PDF) at once, and `delete-piece` removes the piece
+  document at once while marking its arrangements, which nothing offers to
+  restore and which would come back unfiled. An undo for the three is an
+  engine change: mark the document too, restore it, sweep it.
+- **The gate tests iOS 26.5 only.** Every `scoranger-gate-*` simulator was
+  made on 26.5 and is reused by name, so the gate runs on the app's minimum
+  and never on iOS 27, which is what most readers have. `RUNTIME` in gate.sh
+  picks the newest runtime only when it CREATES a device. The 0.22.0 swipe
+  was measured by hand on iOS 27; nothing in the gate holds it there.
+- **A swipe that starts ON the ☰ is still untested**, and so is the shared
+  set list's ☰ drag (no fixture holds shared entries), as in 0.22.0.
+- **The library's lists do not drag**: they are sorted by name, date or
+  recency, and there is no order of the reader's to keep.
+- **Leaving a shared set list by its swipe** is the same path its ☰ Delete
+  was (`deleteSetlist`), not `leaveSharedSetlist`; unchanged, and unchecked.
+
 ## 0.22.0: previews, ticked settings, rows that drag and swipe, full width -- what it does not do
 
 - **No auto-scroll while dragging a row** near the top or bottom edge: a long
-  set list on a phone needs drop, scroll, drag again.
+  set list on a phone needs drop, scroll, drag again. FIXED in 0.23.0.
 - **The shared set list's ☰ drag has no UI test**: no fixture holds shared
   set-list entries. Its order math (`SharedOrder.neighbours`) is unit-tested.
 - **The swipe on iOS 17 is unverified**: from iOS 18 the swipe is a UIKit pan
   that starts only for sideways movement (a SwiftUI drag on a row stopped the
   page scrolling on iOS 27, measured); iOS 17 keeps a SwiftUI path, and this
   Mac has no iOS 17 runtime. A swipe that starts ON the ☰ is untested too.
+  RESOLVED in 0.23.0 by requiring iOS 26.5; the iOS 17 path is gone.
 - **Library rows (pieces, set lists, books) keep Delete in their ☰**, with its
   inline confirm; only a piece's arrangements and a set list's running order
-  swipe.
+  swipe. FIXED in 0.23.0, and a book's Delete, which never worked (it reached
+  the engine as `delete-score` and was refused), with it.
 - **A MuseScore result has no preview**: MuseScore's own site shows one.
 - **The 16pt edge between the screen and the page stays** (the notebook's
   table margin): C17 removed the centred column, not the table.
@@ -164,7 +189,7 @@ Built to design/BOOK_EXTRACT_0.19.md, with these differences and gaps:
   thesession settings: La Promeneuse, The Old Queen) is skipped and named;
   the rest of its file imports.
 
-## After the first App Store approval: a $4.99/month subscription (0.23.0)
+## After the first App Store approval: a $4.99/month subscription (0.24.0)
 
 Ali, 2026-10-05: the first App Store release ships FREE so it is not held up,
 and "we add subscription after review" at $4.99 a month. The app has no

@@ -279,6 +279,20 @@ deleted arrangement still leaves the undo bar. One row open at a time; a swipe
 back or a tap anywhere else closes it. VoiceOver reaches all three as actions
 on the row (Move up, Move down, Delete). `ReorderableRows` is the component.
 
+Held near the top or bottom of the page, a lifted row SCROLLS the page under
+it: within 72pt of the edge (a quarter of the page at most), slowly where the
+band begins and at 900pt/s at the edge, so a row crosses a long list in one
+drag (`EdgeScroll`, `RowDragScroll`, 0.23.0).
+
+A **library row** (a piece, a lone arrangement, a set list, a book) swipes
+the same way and keeps no order to drag, so it has the swipe alone
+(`RowSwipeToDelete`), and Delete is not among its ☰'s actions. Its trash
+deletes a lone arrangement at once, which the undo bar brings back. A piece
+holding arrangements, a set list and a book have no undo, so their trash
+replaces the row with the inline confirm (§7.9) -- "Delete X and its 27
+arrangements?", with what goes and what stays -- the way Reminders asks
+before deleting a list. Edit mode's bar deletes what is ticked, as before.
+
 ### 7.4 Stamp
 The `#N` numeral in a clay ring: 40pt/2.5pt/15 in rows, 56/3/22 on a head,
 30/2/12 in a panel row. Unfiled arrangements have no stamp and no reserved

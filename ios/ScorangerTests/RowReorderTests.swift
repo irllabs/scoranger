@@ -206,4 +206,55 @@ final class RowReorderTests: XCTestCase {
     func testTheRevealedButtonIsAtLeastAHitTargetWide() {
         XCTAssertGreaterThanOrEqual(RowSwipe.revealWidth, Theme.Metric.hitTarget)
     }
+
+    // MARK: - a held row scrolling its page (0.23.0)
+
+    /// A page 0 to 800: bands of 72 at each end.
+    private let top: CGFloat = 0, bottom: CGFloat = 800
+
+    func testNothingScrollsBetweenTheBands() {
+        for y: CGFloat in [EdgeScroll.band + 1, 400, bottom - EdgeScroll.band - 1] {
+            XCTAssertEqual(EdgeScroll.speed(y: y, top: top, bottom: bottom), 0, "at \(y)")
+        }
+    }
+
+    func testTheTopBandScrollsUpAndTheBottomBandDown() {
+        XCTAssertLessThan(EdgeScroll.speed(y: 10, top: top, bottom: bottom), 0)
+        XCTAssertGreaterThan(EdgeScroll.speed(y: bottom - 10, top: top, bottom: bottom), 0)
+    }
+
+    /// Slow where the band begins, the top speed at the edge and past it, and
+    /// faster the deeper the finger goes: a reader can creep or race.
+    func testTheSpeedRampsToTheTopSpeedAtTheEdge() {
+        let justInside = EdgeScroll.speed(y: bottom - EdgeScroll.band + 4, top: top, bottom: bottom)
+        let halfway = EdgeScroll.speed(y: bottom - EdgeScroll.band / 2, top: top, bottom: bottom)
+        let atEdge = EdgeScroll.speed(y: bottom, top: top, bottom: bottom)
+        XCTAssertLessThan(justInside, EdgeScroll.topSpeed / 20)
+        XCTAssertLessThan(justInside, halfway)
+        XCTAssertLessThan(halfway, atEdge)
+        XCTAssertEqual(atEdge, EdgeScroll.topSpeed, accuracy: 0.001)
+        XCTAssertEqual(EdgeScroll.speed(y: bottom + 60, top: top, bottom: bottom),
+                       EdgeScroll.topSpeed, accuracy: 0.001, "past the edge is the top speed")
+        XCTAssertEqual(EdgeScroll.speed(y: top, top: top, bottom: bottom),
+                       -EdgeScroll.topSpeed, accuracy: 0.001)
+    }
+
+    /// A short page keeps a middle: each band is at most a quarter of it.
+    func testAShortPageKeepsAMiddleWhereNothingScrolls() {
+        XCTAssertEqual(EdgeScroll.speed(y: 100, top: 0, bottom: 200), 0)
+        XCTAssertGreaterThan(EdgeScroll.speed(y: 190, top: 0, bottom: 200), 0)
+        XCTAssertEqual(EdgeScroll.speed(y: 5, top: 10, bottom: 10), 0, "a page of no height")
+    }
+
+    func testAStepIsSpeedTimesTimeAndStopsAtTheEnds() {
+        XCTAssertEqual(EdgeScroll.step(offset: 100, speed: 600, seconds: 0.5,
+                                       minOffset: 0, maxOffset: 1000), 400)
+        XCTAssertEqual(EdgeScroll.step(offset: 950, speed: 600, seconds: 0.5,
+                                       minOffset: 0, maxOffset: 1000), 1000)
+        XCTAssertEqual(EdgeScroll.step(offset: 50, speed: -600, seconds: 0.5,
+                                       minOffset: 0, maxOffset: 1000), 0)
+        // content shorter than the page: nowhere to go
+        XCTAssertEqual(EdgeScroll.step(offset: 0, speed: 600, seconds: 0.5,
+                                       minOffset: 0, maxOffset: -40), 0)
+    }
 }

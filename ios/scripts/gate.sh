@@ -213,6 +213,11 @@ ENGINE_SERIAL=(
   # which is the contention this list exists for.
   "ScorangerUITests/RowGestures/testSwipingARowLeftRevealsTheTrashAndDeletes()"
   "ScorangerUITests/RowGestures/testSwipingASetListMemberLeftRemovesItFromTheSetList()"
+  # 0.23.0's library swipe, for the same reason: a piece, an arrangement, a
+  # set list and a book each deleted through the engine.
+  "ScorangerUITests/LibraryRowSwipe/testAPieceAsksBeforeItsTrashDeletesIt()"
+  "ScorangerUITests/LibraryRowSwipe/testALoneArrangementGoesAtOnceAndUndoBringsItBack()"
+  "ScorangerUITests/LibraryRowSwipe/testASetListAndABookAskFirstAndThenDelete()"
   "ScorangerUITests/ScorangerUITests/testNothingOffersARenameButton()"
   # Same class, found on the 0.7.0 gate: it waits for the PIECE SCREEN to list
   # its arrangements, which is a manifest read through the embedded Python
@@ -359,6 +364,9 @@ PHONE_LANE=(
   # overflow a phone held sideways and never an iPad, so on an iPad its
   # precondition fails by name rather than passing vacuously.
   "ScorangerUITests/PhoneRowGestures/testAVerticalDragOnARowScrollsAndOneOnTheHamburgerMovesTheRow()"
+  # 0.23.0: a row held at the bottom edge scrolls the page under it. Only a
+  # phone held sideways has a piece long enough to cross.
+  "ScorangerUITests/PhoneRowGestures/testHoldingARowAtTheBottomEdgeScrollsThePageUnderIt()"
 )
 
 DEVTYPE="${GATE_DEVICE_TYPE:-com.apple.CoreSimulator.SimDeviceType.iPad-Pro-11-inch-M5-12GB}"

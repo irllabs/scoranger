@@ -90,6 +90,50 @@ final class PhoneRowGestures: XCTestCase {
         shot("phone-swipe-revealed")
     }
 
+    /// A row held by its ☰ at the bottom of the screen scrolls the page under
+    /// it, and is dropped past every row the screen showed when it was picked
+    /// up (0.23.0). Without that a long list was drop, scroll, drag again.
+    func testHoldingARowAtTheBottomEdgeScrollsThePageUnderIt() {
+        openPieceScreen()
+        let window = app.windows.firstMatch.frame
+        var count = 2
+        while count < 8, arrangement(numbered: count).frame.maxY <= window.maxY {
+            count += 1
+            app.buttons["piece-new-arrangement-\(pieceSlug)"].tap()
+            XCTAssertTrue(arrangement(numbered: count).waitForExistence(timeout: 180),
+                          "arrangement #\(count) never appeared")
+        }
+        // Two more past the first that overflows, so there is a page to cross.
+        for _ in 0..<2 {
+            count += 1
+            app.buttons["piece-new-arrangement-\(pieceSlug)"].tap()
+            XCTAssertTrue(arrangement(numbered: count).waitForExistence(timeout: 180),
+                          "arrangement #\(count) never appeared")
+        }
+        let lastShown = (1...count).last { arrangement(numbered: $0).frame.maxY <= window.maxY } ?? 1
+        XCTAssertLessThan(lastShown, count, "every row fits on the screen; nothing here can scroll")
+        let title = app.descendants(matching: .any)["piece-title"].firstMatch
+        let before = title.frame.minY
+        shot("phone-edge-before")
+
+        let grip = app.buttons["row-menu-\(quartet)"]
+        XCTAssertTrue(grip.exists, "no ☰ on the first row")
+        let from = grip.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let edge = app.windows.firstMatch.coordinate(
+            withNormalizedOffset: CGVector(dx: grip.frame.midX / window.width, dy: 0.995))
+        from.press(forDuration: 0.4, thenDragTo: edge, withVelocity: .slow,
+                   thenHoldForDuration: 3.0)
+
+        XCTAssertLessThan(title.frame.minY, before - 40,
+                          "holding the row at the bottom edge did not scroll the page")
+        XCTAssertTrue(waitFor(30) {
+            let label = self.choice(self.quartet).label
+            return (lastShown + 1...count).contains { label.contains("Arrangement number \($0),") }
+        }, "the row did not land past the \(lastShown) rows the screen showed: "
+           + "\(choice(quartet).label)")
+        shot("phone-edge-after")
+    }
+
     // MARK: - helpers
 
     private var pieceRow: XCUIElement {

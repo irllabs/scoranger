@@ -364,6 +364,8 @@ struct RootView: View {
     private func commitDelete(_ row: LibraryRow) {
         if segment == .setlists {
             Task { _ = await state.deleteSetlist(row.id) }
+        } else if segment == .books {
+            Task { await state.deleteBook(row.id) }
         } else if (state.manifest?.pieces ?? []).contains(where: { $0.slug == row.id }) {
             state.deletePiece(row.id)
         } else {
@@ -686,6 +688,12 @@ struct RootView: View {
             // the undo bar is the confirmation: the row goes at once and comes
             // back for as long as the engine still holds it
             for id in ids {
+                // A book is not a kind of selection (books are their own
+                // segment), so the segment says what the ids name.
+                if segment == .books {
+                    Task { await state.deleteBook(id) }
+                    continue
+                }
                 switch kind {
                 case .setlists: Task { _ = await state.deleteSetlist(id) }
                 case .pieces:   state.deletePiece(id)

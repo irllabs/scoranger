@@ -2,7 +2,7 @@ name: Scoranger
 options:
   bundleIdPrefix: com.irllabs
   deploymentTarget:
-    iOS: "17.0"
+    iOS: "26.5"
   createIntermediateGroups: true
 
 packages:
@@ -34,7 +34,7 @@ targets:
   Scoranger:
     type: application
     platform: iOS
-    deploymentTarget: "17.0"
+    deploymentTarget: "26.5"
     sources:
       - Scoranger
       # embedded engine: bridge.py + scoranger_engine + pure-Python deps,
@@ -247,6 +247,39 @@ targets:
         #          asked for as one build: "build all of these necessary
         #          features for sharing playlists into the first 7.0 build."
         #          §11.9 records the difference, including what was left out.
+        #   0.23.0 THE LIBRARY'S ROWS SWIPE; A DRAGGED ROW SCROLLS ITS PAGE;
+        #          iOS 26.5 OR LATER (2026-10-17). Scope written before the
+        #          work. A feature, so the minor bumps; the $4.99/month
+        #          subscription moves to 0.24.0. Ali, after build 215: "The
+        #          swipe to delete and hamburger menu updates; I want that
+        #          shipped to TestFlight asap", and "Bring up the iOS req it's
+        #          ok to require a more modern one. Use one the Mac has a
+        #          simulator for."
+        #
+        #          In this build:
+        #            1. LIBRARY ROWS SWIPE. A piece, a lone arrangement, a set
+        #               list and a book swipe left for the red trash button, as
+        #               a piece's arrangements did in 0.22.0, and Delete leaves
+        #               their ☰. A lone arrangement goes at once (the undo bar
+        #               brings it back); a piece holding arrangements, a set
+        #               list and a book have no undo, so the trash asks first
+        #               in the row's own slot -- "Delete X and its 27
+        #               arrangements? [Delete] [Keep]" -- which is what
+        #               Reminders does for a list. Edit mode's Delete stays.
+        #            2. A ☰ DRAG SCROLLS THE PAGE when the finger holds near
+        #               its top or bottom edge, faster the closer it is, so a
+        #               row moves past the screen in one drag.
+        #            3. iOS 26.5 IS THE MINIMUM (it was 17.0): the oldest iOS
+        #               this Mac has a simulator for, so every iOS the app
+        #               runs on can be tested here. The iOS 17 paths go: the
+        #               SwiftUI swipe nobody could measure and the plain
+        #               rename field.
+        #          NOT in this build, and said before it starts:
+        #            - undo for a deleted piece, set list or book;
+        #            - drag in the library's lists (they are sorted, there
+        #              is no order of the reader's to keep);
+        #            - the subscription (0.24.0);
+        #            - NO OTHER CHANGE.
         #   0.22.0 A TUNE'S SETTINGS PREVIEWED AND PICKED; ROWS THAT DRAG AND
         #          SWIPE; EVERY PAGE THE FULL WIDTH (2026-10-17). Scope written
         #          before the work. Features and one fix, so the minor bumps
@@ -1495,7 +1528,7 @@ targets:
         # has no Firebase configuration". deploy_testflight.sh now refuses such
         # an archive outright.
         CURRENT_PROJECT_VERSION: 215
-        MARKETING_VERSION: 0.22.0
+        MARKETING_VERSION: 0.23.0
         SWIFT_VERSION: 5.10
         SWIFT_OBJC_BRIDGING_HEADER: Scoranger/PythonBridge/PythonBridge.h
         # BeeWare's install_python copies lib-$ARCHS, which requires single-arch builds
@@ -1684,7 +1717,7 @@ targets:
   ScorangerTests:
     type: bundle.unit-test
     platform: iOS
-    deploymentTarget: "17.0"
+    deploymentTarget: "26.5"
     sources:
       - path: ScorangerTests
         excludes: ["Fixtures"]
@@ -1775,7 +1808,7 @@ targets:
   ScorangerUITests:
     type: bundle.ui-testing
     platform: iOS
-    deploymentTarget: "17.0"
+    deploymentTarget: "26.5"
     sources: [ScorangerUITests]
     dependencies:
       - target: Scoranger

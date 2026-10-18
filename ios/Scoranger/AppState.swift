@@ -4177,6 +4177,21 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Delete a book: its PDF and its contents. Tunes already taken out of it
+    /// are arrangements with their own copy of the pages, and stay.
+    ///
+    /// Through 0.22.0 a book's Delete went to `deleteScore` with the book's
+    /// slug, which the engine refuses ("No score ..."): a book could not be
+    /// deleted from the library at all.
+    func deleteBook(_ slug: String) async {
+        do {
+            try await local.deleteBook(slug)
+            await refresh()
+        } catch {
+            report("delete that book", error)
+        }
+    }
+
     /// Fold several pieces into one. ONE engine call, not N.
     ///
     /// Doing it client-side would be one `assign-piece` per arrangement, each

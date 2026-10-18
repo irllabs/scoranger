@@ -91,6 +91,13 @@ struct LibraryView: View {
     @EnvironmentObject var panel: PanelModel
     /// The row whose ☰ is open, its actions in the row (§7.3) [C4].
     @State private var openRow: String?
+    /// The row swiped open on its red trash button (0.23.0). One at a time.
+    @State private var swipeOpen: String?
+    /// The row whose trash asked "Delete ...?" in the row's own slot: a piece
+    /// holding arrangements, a set list or a book, none of which has an undo.
+    @State private var confirmingDelete: String?
+    /// A row's sideways swipe has the finger, so the list holds still.
+    @State private var rowGestureHoldsScroll = false
     /// A set list being renamed in place (L8).
     @State private var renaming: String?
     @State private var renameDraft = ""
@@ -637,6 +644,8 @@ struct LibraryView: View {
             // row now: a tester should not have to scroll past their whole
             // library to say which build they are on (#53).
         }
+        .scrollDisabled(rowGestureHoldsScroll)
+        .onPreferenceChange(RowGestureHoldsScroll.self) { rowGestureHoldsScroll = $0 }
         // The row is put on screen the instant it exists. Deferred by one
         // runloop turn because the row is not in the scroll view's content
         // until this state change has been laid out, and `scrollTo` on an id
@@ -704,6 +713,15 @@ struct LibraryView: View {
                                 selectAll: renameSelectAll,
                                 onSave: { commitRename(row); renameSelectAll = false },
                                 onCancel: { renaming = nil; renameSelectAll = false })
+            } else if confirmingDelete == row.id {
+                ConfirmDeleteStrip(what: deleteQuestion(row),
+                                   consequence: deleteConsequence(row),
+                                   identifier: "confirm-delete-\(row.id)",
+                                   onDelete: {
+                                       confirmingDelete = nil
+                                       onRowAction(row, .delete)
+                                   },
+                                   onKeep: { confirmingDelete = nil })
             } else {
                 HStack(spacing: 0) {
                     if editing { checkbox(row) }
@@ -721,7 +739,8 @@ struct LibraryView: View {
                          isSelected: editing && selected.contains(row.id),
                          menuIsOpen: openRow == row.id,
                          actions: openRow == row.id ? rowActions(row) : [],
-                         onLongPress: editing ? nil : { enterEditing(with: row) })
+                         onLongPress: editing ? nil : { enterEditing(with: row) },
+                         deletion: deletion(row))
                     if segment == .setlists, !editing {
                         // L7: Play sits beside ☰ on every set list row, since
                         // playing from the top is what a set list is for.
@@ -745,8 +764,58 @@ struct LibraryView: View {
                 }
                 // [C4]: the open row is a flat tint band the width of the page.
                 .background(openRow == row.id ? Theme.Accent.clayTint : Color.clear)
+                .rowSwipeToDelete(id: row.id, open: $swipeOpen, deletion: deletion(row))
             }
             Theme.Rule()
+        }
+    }
+
+    /// What swiping a row left offers: the red trash, in place of the Delete
+    /// its ☰ carried through 0.22.0. Not while Edit mode has the rows (the
+    /// bar deletes what is ticked), and not on the row whose ☰ is open, whose
+    /// actions are a strip of their own.
+    ///
+    /// The trash deletes a lone arrangement at once, because the undo bar
+    /// brings it back. A piece holding arrangements, a set list and a book
+    /// have no undo, so the trash asks in the row's own slot first, as
+    /// Reminders does when a list is deleted.
+    private func deletion(_ row: LibraryRow) -> RowDeletion? {
+        guard !editing, openRow != row.id, renaming != row.id else { return nil }
+        return RowDeletion(identifier: "row-delete-\(row.id)",
+                           label: "Delete \(row.title)",
+                           actionName: "Delete",
+                           perform: {
+                               if asksBeforeDeleting(row) {
+                                   confirmingDelete = row.id
+                               } else {
+                                   onRowAction(row, .delete)
+                               }
+                           })
+    }
+
+    private func asksBeforeDeleting(_ row: LibraryRow) -> Bool {
+        switch segment {
+        case .setlists, .books: return true
+        case .pieces: return isPiece(row) && row.arrangementCount > 0
+        }
+    }
+
+    private func deleteQuestion(_ row: LibraryRow) -> String {
+        switch segment {
+        case .setlists: return "Delete the set list \(row.title)?"
+        case .books: return "Delete the book \(row.title)?"
+        case .pieces:
+            let n = row.arrangementCount
+            return n == 0 ? "Delete \(row.title)?"
+                : "Delete \(row.title) and its \(n) arrangement\(n == 1 ? "" : "s")?"
+        }
+    }
+
+    private func deleteConsequence(_ row: LibraryRow) -> String {
+        switch segment {
+        case .setlists: return "Its arrangements stay in the library."
+        case .books: return "Tunes already taken out of it stay in the library."
+        case .pieces: return "Its arrangements and every version of them go with it."
         }
     }
 
@@ -819,11 +888,8 @@ struct LibraryView: View {
                 renameDraft = row.title; renaming = row.id; openRow = nil
             })
         }
-        items.append(RowActionItem(id: "row-delete-\(row.id)", title: "Delete", destructive: true,
-                                   confirm: "Delete?") {
-            openRow = nil
-            onRowAction(row, .delete)
-        })
+        // No Delete here since 0.23.0: a swipe to the left is where it went
+        // (`deletion`), and Edit mode's bar deletes what is ticked.
         return items
     }
 

@@ -95,8 +95,50 @@ struct RowReorder: Equatable {
     private func middle(_ index: Int) -> CGFloat { tops[index] + heights[index] / 2 }
 }
 
+/// How fast a page scrolls under a row held by its ☰ near the page's top or
+/// bottom edge (`RowDragScroll`, 0.23.0). Without it a row could only be
+/// dragged as far as the screen showed: a long set list on a phone was drop,
+/// scroll, pick up again.
+///
+/// Inside a band at each edge the page scrolls toward that edge, slowly where
+/// the band begins and at `topSpeed` at the edge itself. The ramp is a square,
+/// so a finger just inside the band creeps a row at a time and one pressed to
+/// the edge crosses a long list in a few seconds.
+enum EdgeScroll {
+    /// How deep the band at each edge is. A quarter of the page at most, so a
+    /// short page in a panel keeps a middle where nothing scrolls.
+    static let band: CGFloat = 72
+
+    /// Points a second at the edge, and past it: the finger may leave the page.
+    static let topSpeed: CGFloat = 900
+
+    /// The scroll speed for a finger at `y` on a page that runs from `top` to
+    /// `bottom`, in the same coordinates: negative toward the top, positive
+    /// toward the bottom, 0 between the bands.
+    static func speed(y: CGFloat, top: CGFloat, bottom: CGFloat) -> CGFloat {
+        let band = min(Self.band, (bottom - top) / 4)
+        guard band > 0 else { return 0 }
+        if y < top + band {
+            let depth = min(1, (top + band - y) / band)
+            return -topSpeed * depth * depth
+        }
+        if y > bottom - band {
+            let depth = min(1, (y - (bottom - band)) / band)
+            return topSpeed * depth * depth
+        }
+        return 0
+    }
+
+    /// The page's offset after `seconds` at `speed`, kept between the top of
+    /// the page (`minOffset`) and the end of its content (`maxOffset`).
+    static func step(offset: CGFloat, speed: CGFloat, seconds: CGFloat,
+                     minOffset: CGFloat, maxOffset: CGFloat) -> CGFloat {
+        min(max(offset + speed * seconds, minOffset), max(minOffset, maxOffset))
+    }
+}
+
 /// A row's swipe to the left, which reveals the red trash button at its
-/// right-hand edge (`ReorderableRows`).
+/// right-hand edge (`RowSwipeToDelete`).
 ///
 /// The rules that make a swipe coexist with the page's vertical scrolling and
 /// with the ☰ drag, kept pure so they are tested rather than tuned by eye.

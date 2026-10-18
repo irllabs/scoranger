@@ -67,6 +67,10 @@ struct LRow: View {
     var actions: [RowActionItem] = []
     /// A long press enters Edit with this row checked [C11].
     var onLongPress: (() -> Void)?
+    /// The row's swipe-left delete, offered to VoiceOver and Switch Control as
+    /// an action on the row: neither can swipe, and a swipe may not be the
+    /// only way to do something.
+    var deletion: RowDeletion?
 
     private var rowLabel: String {
         [row.title, row.subtitle, row.meta].filter { !$0.isEmpty }.joined(separator: ", ")
@@ -130,6 +134,9 @@ struct LRow: View {
             .background(isSelected ? Theme.Accent.clayTint : Color.clear)
             .rowTappable(label: rowLabel, identifier: identifier, isSelected: isSelected,
                          container: !actions.isEmpty, action: action, onLongPress: onLongPress)
+            .accessibilityActions {
+                if let deletion { Button(deletion.actionName, action: deletion.perform) }
+            }
         .overlay(alignment: .trailing) {
             HStack(spacing: 0) {
                 if let onSync {
