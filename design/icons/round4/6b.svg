@@ -1,0 +1,173 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024"><defs><radialGradient id="p" cx="0.5" cy="0.38" r="0.75"><stop offset="0" stop-color="#FBF8F2"/><stop offset="1" stop-color="#ECE3D3"/></radialGradient></defs><rect width="1024" height="1024" fill="url(#p)"/><g fill="#151413" color="#151413"><svg x="40.8" y="763.4" width="163.1" height="227.6" viewBox="0 0 129 180" overflow="visible">
+   <desc>Engraved by Verovio 6.2.1-8d42439</desc>
+   <defs>
+      <g id="E050-x8c17yb">
+         <path transform="scale(1,-1)" d="M376 415l25 -145c3 -18 3 -18 29 -18c147 0 241 -113 241 -241c0 -113 -67 -198 -168 -238c-14 -6 -15 -5 -13 -17c11 -62 29 -157 29 -214c0 -170 -130 -200 -197 -200c-151 0 -190 98 -190 163c0 62 40 115 107 115c61 0 96 -47 96 -102c0 -58 -36 -85 -67 -94 c-23 -7 -32 -10 -32 -17c0 -13 26 -29 80 -29c59 0 159 18 159 166c0 47 -15 134 -27 201c-2 12 -4 11 -15 9c-20 -4 -46 -6 -69 -6c-245 0 -364 165 -364 339c0 202 153 345 297 464c12 10 11 12 9 24c-7 41 -14 106 -14 164c0 104 24 229 98 311c20 22 51 48 65 48 c11 0 37 -28 52 -50c41 -60 65 -146 65 -233c0 -153 -82 -280 -190 -381c-6 -6 -8 -7 -6 -19zM470 943c-61 0 -133 -96 -133 -252c0 -32 2 -66 6 -92c2 -13 6 -14 13 -8c79 69 174 159 174 270c0 55 -27 82 -60 82zM361 262l-21 128c-2 11 -4 12 -14 4 c-47 -38 -93 -75 -153 -142c-83 -94 -93 -173 -93 -232c0 -139 113 -236 288 -236c20 0 40 2 56 5c15 3 16 3 14 14l-50 298c-2 11 -4 12 -20 8c-61 -17 -100 -60 -100 -117c0 -46 30 -89 72 -107c7 -3 15 -6 15 -13c0 -6 -4 -11 -12 -11c-7 0 -19 3 -27 6 c-68 23 -115 87 -115 177c0 85 57 164 145 194c18 6 18 5 15 24zM430 103l49 -285c2 -12 4 -12 16 -6c56 28 94 79 94 142c0 88 -67 156 -148 163c-12 1 -13 -2 -11 -14z" />
+      </g>
+      <g id="E0A4-x8c17yb">
+         <path transform="scale(1,-1)" d="M97 -125c-54 0 -97 31 -97 83c0 86 88 167 198 167c57 0 97 -32 97 -83c0 -85 -109 -167 -198 -167z" />
+      </g>
+      <g id="E240-x8c17yb">
+         <path transform="scale(1,-1)" d="M238 -790c-5 -17 -22 -23 -28 -19s-16 13 -16 29c0 4 1 9 3 15c17 45 24 92 24 137c0 59 -9 116 -24 150c-36 85 -131 221 -197 233v239c0 12 8 15 19 15c10 0 18 -6 21 -22c16 -96 58 -182 109 -261c63 -100 115 -218 115 -343c0 -78 -26 -173 -26 -173z" />
+      </g>
+   </defs>
+   <style type="text/css">#x8c17yb g.ending, #x8c17yb g.fing, #x8c17yb g.reh, #x8c17yb g.tempo {font-weight:bold;}#x8c17yb g.dir, #x8c17yb g.dynam, #x8c17yb g.mNum {font-style:italic;}#x8c17yb g.label {font-weight:normal;}#x8c17yb ellipse, #x8c17yb path, #x8c17yb polygon, #x8c17yb polyline, #x8c17yb rect {stroke:currentColor}</style>
+   <svg class="definition-scale"  font-family="Times, serif" viewBox="0 0 1290 1800">
+      <g class="page-margin" transform="translate(0, 0)">
+         <g id="y16zjtib" class="mdiv pageMilestone" />
+         <g id="z1tf2u8p" class="score pageMilestone" />
+         <g id="d8v8fdv" class="system">
+            <g id="mb002et" class="section systemMilestone" />
+            <g id="n1cv343n" class="measure">
+               <g id="wcwvtoq" class="staff">
+                  <g id="x1or6f7y" class="layer">
+                     <g id="y1hubvs7" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-x8c17yb" transform="translate(843, 990) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="l54lzri" class="stem">
+                           <path d="M1033 960 L1033 360" stroke="currentColor" stroke-width="45" />
+                           <g id="m1tqzk05" class="flag">
+                              <use href="#E240-x8c17yb" transform="translate(1011, 360) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                  </g>
+               </g>
+               </g>
+            <g id="g19l8o1c" class="systemMilestoneEnd mb002et" />
+         </g>
+         <g id="h160fxzq" class="pageMilestoneEnd z1tf2u8p" />
+         <g id="izli9m" class="pageMilestoneEnd y16zjtib" />
+      </g>
+   </svg>
+</svg></g><g fill="#151413" color="#151413"><svg x="68.2" y="615.1" width="244.7" height="341.4" viewBox="0 0 129 180" overflow="visible">
+   <desc>Engraved by Verovio 6.2.1-8d42439</desc>
+   <defs>
+      <g id="E050-cdxmgop">
+         <path transform="scale(1,-1)" d="M376 415l25 -145c3 -18 3 -18 29 -18c147 0 241 -113 241 -241c0 -113 -67 -198 -168 -238c-14 -6 -15 -5 -13 -17c11 -62 29 -157 29 -214c0 -170 -130 -200 -197 -200c-151 0 -190 98 -190 163c0 62 40 115 107 115c61 0 96 -47 96 -102c0 -58 -36 -85 -67 -94 c-23 -7 -32 -10 -32 -17c0 -13 26 -29 80 -29c59 0 159 18 159 166c0 47 -15 134 -27 201c-2 12 -4 11 -15 9c-20 -4 -46 -6 -69 -6c-245 0 -364 165 -364 339c0 202 153 345 297 464c12 10 11 12 9 24c-7 41 -14 106 -14 164c0 104 24 229 98 311c20 22 51 48 65 48 c11 0 37 -28 52 -50c41 -60 65 -146 65 -233c0 -153 -82 -280 -190 -381c-6 -6 -8 -7 -6 -19zM470 943c-61 0 -133 -96 -133 -252c0 -32 2 -66 6 -92c2 -13 6 -14 13 -8c79 69 174 159 174 270c0 55 -27 82 -60 82zM361 262l-21 128c-2 11 -4 12 -14 4 c-47 -38 -93 -75 -153 -142c-83 -94 -93 -173 -93 -232c0 -139 113 -236 288 -236c20 0 40 2 56 5c15 3 16 3 14 14l-50 298c-2 11 -4 12 -20 8c-61 -17 -100 -60 -100 -117c0 -46 30 -89 72 -107c7 -3 15 -6 15 -13c0 -6 -4 -11 -12 -11c-7 0 -19 3 -27 6 c-68 23 -115 87 -115 177c0 85 57 164 145 194c18 6 18 5 15 24zM430 103l49 -285c2 -12 4 -12 16 -6c56 28 94 79 94 142c0 88 -67 156 -148 163c-12 1 -13 -2 -11 -14z" />
+      </g>
+      <g id="E0A4-cdxmgop">
+         <path transform="scale(1,-1)" d="M97 -125c-54 0 -97 31 -97 83c0 86 88 167 198 167c57 0 97 -32 97 -83c0 -85 -109 -167 -198 -167z" />
+      </g>
+      <g id="E240-cdxmgop">
+         <path transform="scale(1,-1)" d="M238 -790c-5 -17 -22 -23 -28 -19s-16 13 -16 29c0 4 1 9 3 15c17 45 24 92 24 137c0 59 -9 116 -24 150c-36 85 -131 221 -197 233v239c0 12 8 15 19 15c10 0 18 -6 21 -22c16 -96 58 -182 109 -261c63 -100 115 -218 115 -343c0 -78 -26 -173 -26 -173z" />
+      </g>
+   </defs>
+   <style type="text/css">#cdxmgop g.ending, #cdxmgop g.fing, #cdxmgop g.reh, #cdxmgop g.tempo {font-weight:bold;}#cdxmgop g.dir, #cdxmgop g.dynam, #cdxmgop g.mNum {font-style:italic;}#cdxmgop g.label {font-weight:normal;}#cdxmgop ellipse, #cdxmgop path, #cdxmgop polygon, #cdxmgop polyline, #cdxmgop rect {stroke:currentColor}</style>
+   <svg class="definition-scale"  font-family="Times, serif" viewBox="0 0 1290 1800">
+      <g class="page-margin" transform="translate(0, 0)">
+         <g id="du8uefm" class="mdiv pageMilestone" />
+         <g id="ep0q054" class="score pageMilestone" />
+         <g id="i9bai97" class="system">
+            <g id="r1s8h6od" class="section systemMilestone" />
+            <g id="sr3bess" class="measure">
+               <g id="beuxe6i" class="staff">
+                  <g id="cizl1do" class="layer">
+                     <g id="del0vq6" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-cdxmgop" transform="translate(843, 990) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="qos21hl" class="stem">
+                           <path d="M1033 960 L1033 360" stroke="currentColor" stroke-width="45" />
+                           <g id="r1gdkqbw" class="flag">
+                              <use href="#E240-cdxmgop" transform="translate(1011, 360) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                  </g>
+               </g>
+               </g>
+            <g id="lpqdffh" class="systemMilestoneEnd r1s8h6od" />
+         </g>
+         <g id="munwy7v" class="pageMilestoneEnd ep0q054" />
+         <g id="n1d6zbjn" class="pageMilestoneEnd du8uefm" />
+      </g>
+   </svg>
+</svg></g><g fill="#151413" color="#151413"><svg x="89.8" y="403.1" width="368.8" height="514.6" viewBox="0 0 129 180" overflow="visible">
+   <desc>Engraved by Verovio 6.2.1-8d42439</desc>
+   <defs>
+      <g id="E050-h138q5y4">
+         <path transform="scale(1,-1)" d="M376 415l25 -145c3 -18 3 -18 29 -18c147 0 241 -113 241 -241c0 -113 -67 -198 -168 -238c-14 -6 -15 -5 -13 -17c11 -62 29 -157 29 -214c0 -170 -130 -200 -197 -200c-151 0 -190 98 -190 163c0 62 40 115 107 115c61 0 96 -47 96 -102c0 -58 -36 -85 -67 -94 c-23 -7 -32 -10 -32 -17c0 -13 26 -29 80 -29c59 0 159 18 159 166c0 47 -15 134 -27 201c-2 12 -4 11 -15 9c-20 -4 -46 -6 -69 -6c-245 0 -364 165 -364 339c0 202 153 345 297 464c12 10 11 12 9 24c-7 41 -14 106 -14 164c0 104 24 229 98 311c20 22 51 48 65 48 c11 0 37 -28 52 -50c41 -60 65 -146 65 -233c0 -153 -82 -280 -190 -381c-6 -6 -8 -7 -6 -19zM470 943c-61 0 -133 -96 -133 -252c0 -32 2 -66 6 -92c2 -13 6 -14 13 -8c79 69 174 159 174 270c0 55 -27 82 -60 82zM361 262l-21 128c-2 11 -4 12 -14 4 c-47 -38 -93 -75 -153 -142c-83 -94 -93 -173 -93 -232c0 -139 113 -236 288 -236c20 0 40 2 56 5c15 3 16 3 14 14l-50 298c-2 11 -4 12 -20 8c-61 -17 -100 -60 -100 -117c0 -46 30 -89 72 -107c7 -3 15 -6 15 -13c0 -6 -4 -11 -12 -11c-7 0 -19 3 -27 6 c-68 23 -115 87 -115 177c0 85 57 164 145 194c18 6 18 5 15 24zM430 103l49 -285c2 -12 4 -12 16 -6c56 28 94 79 94 142c0 88 -67 156 -148 163c-12 1 -13 -2 -11 -14z" />
+      </g>
+      <g id="E0A4-h138q5y4">
+         <path transform="scale(1,-1)" d="M97 -125c-54 0 -97 31 -97 83c0 86 88 167 198 167c57 0 97 -32 97 -83c0 -85 -109 -167 -198 -167z" />
+      </g>
+      <g id="E240-h138q5y4">
+         <path transform="scale(1,-1)" d="M238 -790c-5 -17 -22 -23 -28 -19s-16 13 -16 29c0 4 1 9 3 15c17 45 24 92 24 137c0 59 -9 116 -24 150c-36 85 -131 221 -197 233v239c0 12 8 15 19 15c10 0 18 -6 21 -22c16 -96 58 -182 109 -261c63 -100 115 -218 115 -343c0 -78 -26 -173 -26 -173z" />
+      </g>
+   </defs>
+   <style type="text/css">#h138q5y4 g.ending, #h138q5y4 g.fing, #h138q5y4 g.reh, #h138q5y4 g.tempo {font-weight:bold;}#h138q5y4 g.dir, #h138q5y4 g.dynam, #h138q5y4 g.mNum {font-style:italic;}#h138q5y4 g.label {font-weight:normal;}#h138q5y4 ellipse, #h138q5y4 path, #h138q5y4 polygon, #h138q5y4 polyline, #h138q5y4 rect {stroke:currentColor}</style>
+   <svg class="definition-scale"  font-family="Times, serif" viewBox="0 0 1290 1800">
+      <g class="page-margin" transform="translate(0, 0)">
+         <g id="ihv7cs" class="mdiv pageMilestone" />
+         <g id="j1x2kx6j" class="score pageMilestone" />
+         <g id="nf81o8b" class="system">
+            <g id="wfwdylt" class="section systemMilestone" />
+            <g id="xl1btrp" class="measure">
+               <g id="g50l6ag" class="staff">
+                  <g id="h8b52cm" class="layer">
+                     <g id="idojfpw" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-h138q5y4" transform="translate(843, 990) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="v1kau5lw" class="stem">
+                           <path d="M1033 960 L1033 360" stroke="currentColor" stroke-width="45" />
+                           <g id="w1yyq9u0" class="flag">
+                              <use href="#E240-h138q5y4" transform="translate(1011, 360) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                  </g>
+               </g>
+               </g>
+            <g id="qmu4cmm" class="systemMilestoneEnd wfwdylt" />
+         </g>
+         <g id="r352kxz" class="pageMilestoneEnd j1x2kx6j" />
+         <g id="subb31x" class="pageMilestoneEnd ihv7cs" />
+      </g>
+   </svg>
+</svg></g><g fill="#151413" color="#151413"><svg x="-767.1" y="-533.7" width="1914.9" height="2671.9" viewBox="0 0 129 180" overflow="visible">
+   <desc>Engraved by Verovio 6.2.1-8d42439</desc>
+   <defs>
+      <g id="E050-s15p4oxa">
+         <path transform="scale(1,-1)" d="M376 415l25 -145c3 -18 3 -18 29 -18c147 0 241 -113 241 -241c0 -113 -67 -198 -168 -238c-14 -6 -15 -5 -13 -17c11 -62 29 -157 29 -214c0 -170 -130 -200 -197 -200c-151 0 -190 98 -190 163c0 62 40 115 107 115c61 0 96 -47 96 -102c0 -58 -36 -85 -67 -94 c-23 -7 -32 -10 -32 -17c0 -13 26 -29 80 -29c59 0 159 18 159 166c0 47 -15 134 -27 201c-2 12 -4 11 -15 9c-20 -4 -46 -6 -69 -6c-245 0 -364 165 -364 339c0 202 153 345 297 464c12 10 11 12 9 24c-7 41 -14 106 -14 164c0 104 24 229 98 311c20 22 51 48 65 48 c11 0 37 -28 52 -50c41 -60 65 -146 65 -233c0 -153 -82 -280 -190 -381c-6 -6 -8 -7 -6 -19zM470 943c-61 0 -133 -96 -133 -252c0 -32 2 -66 6 -92c2 -13 6 -14 13 -8c79 69 174 159 174 270c0 55 -27 82 -60 82zM361 262l-21 128c-2 11 -4 12 -14 4 c-47 -38 -93 -75 -153 -142c-83 -94 -93 -173 -93 -232c0 -139 113 -236 288 -236c20 0 40 2 56 5c15 3 16 3 14 14l-50 298c-2 11 -4 12 -20 8c-61 -17 -100 -60 -100 -117c0 -46 30 -89 72 -107c7 -3 15 -6 15 -13c0 -6 -4 -11 -12 -11c-7 0 -19 3 -27 6 c-68 23 -115 87 -115 177c0 85 57 164 145 194c18 6 18 5 15 24zM430 103l49 -285c2 -12 4 -12 16 -6c56 28 94 79 94 142c0 88 -67 156 -148 163c-12 1 -13 -2 -11 -14z" />
+      </g>
+      <g id="E0A4-s15p4oxa">
+         <path transform="scale(1,-1)" d="M97 -125c-54 0 -97 31 -97 83c0 86 88 167 198 167c57 0 97 -32 97 -83c0 -85 -109 -167 -198 -167z" />
+      </g>
+      <g id="E240-s15p4oxa">
+         <path transform="scale(1,-1)" d="M238 -790c-5 -17 -22 -23 -28 -19s-16 13 -16 29c0 4 1 9 3 15c17 45 24 92 24 137c0 59 -9 116 -24 150c-36 85 -131 221 -197 233v239c0 12 8 15 19 15c10 0 18 -6 21 -22c16 -96 58 -182 109 -261c63 -100 115 -218 115 -343c0 -78 -26 -173 -26 -173z" />
+      </g>
+   </defs>
+   <style type="text/css">#s15p4oxa g.ending, #s15p4oxa g.fing, #s15p4oxa g.reh, #s15p4oxa g.tempo {font-weight:bold;}#s15p4oxa g.dir, #s15p4oxa g.dynam, #s15p4oxa g.mNum {font-style:italic;}#s15p4oxa g.label {font-weight:normal;}#s15p4oxa ellipse, #s15p4oxa path, #s15p4oxa polygon, #s15p4oxa polyline, #s15p4oxa rect {stroke:currentColor}</style>
+   <svg class="definition-scale"  font-family="Times, serif" viewBox="0 0 1290 1800">
+      <g class="page-margin" transform="translate(0, 0)">
+         <g id="t1dke48" class="mdiv pageMilestone" />
+         <g id="u1kb53x4" class="score pageMilestone" />
+         <g id="y16xx4ly" class="system">
+            <g id="h5hi0y6" class="section systemMilestone" />
+            <g id="i1y01tet" class="measure">
+               <g id="rj4opu1" class="staff">
+                  <g id="smtm47a" class="layer">
+                     <g id="t66dybu" class="note">
+                        <g class="notehead">
+                           <use href="#E0A4-s15p4oxa" transform="translate(843, 990) scale(0.72, 0.72)" />
+                        </g>
+                        <g id="g1q8pskl" class="stem">
+                           <path d="M1033 960 L1033 360" stroke="currentColor" stroke-width="45" />
+                           <g id="h12rbr89" class="flag">
+                              <use href="#E240-s15p4oxa" transform="translate(1011, 360) scale(0.72, 0.72)" />
+                           </g>
+                        </g>
+                     </g>
+                  </g>
+               </g>
+               </g>
+            <g id="b9je6qc" class="systemMilestoneEnd h5hi0y6" />
+         </g>
+         <g id="cn888fg" class="pageMilestoneEnd u1kb53x4" />
+         <g id="d1umhkuv" class="pageMilestoneEnd t1dke48" />
+      </g>
+   </svg>
+</svg></g></svg>
