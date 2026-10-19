@@ -205,3 +205,13 @@ if __name__ == "__main__":
         d.text((x, gap + big + 12), f"{key}  {line}", fill="#24221F", font=f)
     sheet.save(os.path.join(out, "round6.png"))
     print("ok", sheet.size)
+
+
+def v4_dark():
+    """D for a dark home screen: the same S on ink, ivory staff, the singing
+    line and its note in a lighter clay so they hold their weight on black."""
+    bg, defs = ink()
+    s = SShape(512, 480, 340, 430, 62, 20)
+    colors = [IVORY] * 5
+    colors[1] = CLAY_LIGHT
+    return wrap(bg + s.staff(colors) + s.note("upper", 90, 2, CLAY_LIGHT), defs)

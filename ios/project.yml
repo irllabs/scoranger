@@ -247,6 +247,21 @@ targets:
         #          asked for as one build: "build all of these necessary
         #          features for sharing playlists into the first 7.0 build."
         #          §11.9 records the difference, including what was left out.
+        #   0.23.1 THE NEW ICON (2026-10-19). Scope written before the work.
+        #          No feature and no behaviour change, so the patch bumps.
+        #          Ali chose D from design/icons/round6: five staff lines
+        #          drawn as an S, the second line in clay, and a quarter note
+        #          whose head sits on exactly that line. Notation set from
+        #          Bravura's outlines at one staff space (s7.py).
+        #
+        #          In this build:
+        #            1. The app icon is D, with a dark-appearance version
+        #               (ink ground, ivory lines) for a dark home screen.
+        #          NOT in this build, and said before it starts:
+        #            - no tinted-appearance icon: iOS derives one;
+        #            - the App Store listing's icon follows the build, so it
+        #              changes when this build is submitted, not before;
+        #            - NO OTHER CHANGE.
         #   0.23.0 THE LIBRARY'S ROWS SWIPE; A DRAGGED ROW SCROLLS ITS PAGE;
         #          iOS 26.5 OR LATER (2026-10-17). Scope written before the
         #          work. A feature, so the minor bumps; the $4.99/month
@@ -1528,7 +1543,7 @@ targets:
         # has no Firebase configuration". deploy_testflight.sh now refuses such
         # an archive outright.
         CURRENT_PROJECT_VERSION: 216
-        MARKETING_VERSION: 0.23.0
+        MARKETING_VERSION: 0.23.1
         SWIFT_VERSION: 5.10
         SWIFT_OBJC_BRIDGING_HEADER: Scoranger/PythonBridge/PythonBridge.h
         # BeeWare's install_python copies lib-$ARCHS, which requires single-arch builds
