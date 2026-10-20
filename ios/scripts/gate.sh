@@ -434,6 +434,15 @@ for _, ds in json.load(sys.stdin)['devices'].items():
   done <<< "$booted"
   [[ ${#foreign[@]} -gt 0 ]] || return 0
 
+  # GATE_KEEP_FOREIGN=1: another session may be using these and cannot be
+  # asked (its messages are held), so leave them booted and accept a slower,
+  # possibly flakier run rather than shut its devices down under it.
+  if [[ "${GATE_KEEP_FOREIGN:-0}" == "1" ]]; then
+    echo "==> leaving ${#foreign[@]} foreign booted simulator(s) alone (GATE_KEEP_FOREIGN=1)"
+    printf '    %s\n' "${foreign[@]}"
+    return 0
+  fi
+
   if pgrep -x xcodebuild >/dev/null 2>&1; then
     echo "==> REFUSING: an xcodebuild is running and these simulators are booted"
     printf '    %s\n' "${foreign[@]}"
