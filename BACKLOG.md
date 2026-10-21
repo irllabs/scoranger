@@ -153,6 +153,13 @@ record the hitch ratio here.
 passed alone against the same build. Order and load dependence in the mixer
 tests; neither release waited on them.
 
+`AddToSetlist.testThePlusAndTheVersionCountOpenDifferentLists` failed once in
+the 0.23.1 gate's pool, worker 3: "Failed to get matching snapshots ... main
+thread busy for 30.0s", the host effect gate.sh's ENGINE_SERIAL notes describe
+(dyld's loader lock under four simulators loading Python). Alone on the gate's
+own build it passed twice, 34s and 28s, and 0.23.1 shipped on that. A second
+failure in the pool moves it to ENGINE_SERIAL, as for its BookShareIn siblings.
+
 
 The 0.19.1 gate failed one test: `MixerTwoChannel.testTwoChannelTrayFitsInPortrait`
 counted 4 knobs on a fixture meant to have 2. It passed alone, all three of its
