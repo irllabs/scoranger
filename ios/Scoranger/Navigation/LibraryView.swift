@@ -628,7 +628,10 @@ struct LibraryView: View {
                                               rows: rows.count,
                                               pendingImports: pendingHere.count,
                                               isFiltered: !search.isEmpty || !filters.isEmpty) {
-                case .rows:      grouped
+                case .rows:
+                    grouped.onAppear {
+                        LaunchTiming.shared.libraryRowsAppeared(rows: rows.count)
+                    }
                 case .loading:   loading
                 case .empty, .noMatches: empty
                 }

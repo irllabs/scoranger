@@ -14,6 +14,11 @@ final class AppState: ObservableObject {
     /// arrived, and on the remote-engine path it was the alarming one ("Engine
     /// unreachable"). Nil means unknown; this says whether we have looked.
     @Published private(set) var libraryLoaded = false
+    /// The manifest on screen is `LibrarySnapshot`'s, read from disk before
+    /// the engine answered. Display only: anything that DECIDES from the
+    /// manifest waits for the engine's (`refresh` clears this).
+    private(set) var showingSnapshot = false
+
     @Published var selectedSlug: String?
     /// Sidebar preview: the score whose versions the sidebar shows. Set by a
     /// plain row tap; does NOT navigate (that's `select(slug:)`).
@@ -857,8 +862,11 @@ final class AppState: ObservableObject {
     /// Every arrangement's tags by slug, for the library's rows and filters.
     var allArrangementTags: [String: [String]] {
         var out: [String: [String]] = [:]
+        // Keyed as `tagKey` keys them, without its search of every score for
+        // each score: that made this quadratic, and it runs on every
+        // computation of the library's rows.
         for score in manifest?.scores ?? [] {
-            let tags = arrangementTags(score.slug)
+            let tags = ArrangementTags.shared.tags(for: score.uid ?? score.slug)
             if !tags.isEmpty { out[score.slug] = tags }
         }
         return out
@@ -2030,6 +2038,28 @@ final class AppState: ObservableObject {
     }
     #endif
 
+    init() {
+        showLibrarySnapshot()
+    }
+
+    /// Put the library the engine last wrote on screen at once, so the first
+    /// frame has it rather than the engine's start-up (`LibrarySnapshot`).
+    ///
+    /// Not for the remote engine, whose library is somewhere else, and not
+    /// under `-resetLibrary`, which throws this workspace away before the
+    /// engine opens it.
+    private func showLibrarySnapshot() {
+        guard useLocalEngine,
+              !ProcessInfo.processInfo.arguments.contains("-resetLibrary") else { return }
+        let snapshot = LaunchTiming.shared.measure("library snapshot collected") {
+            LibrarySnapshot.collect(
+                from: LibrarySnapshot.fileURL(workspace: PythonEngine.workspaceURL))
+        }
+        guard let snapshot, manifest == nil else { return }
+        manifest = snapshot
+        showingSnapshot = true
+    }
+
     func refresh() async {
         // whatever happens below, we will have looked
         defer { libraryLoaded = true }
@@ -2045,7 +2075,9 @@ final class AppState: ObservableObject {
             // and republishing an identical library rebuilt the whole sidebar
             // — including any open context menu — twice a second, which is why
             // a long-press could keep the app from ever going idle.
+            LaunchTiming.shared.engineManifestArrived()
             if manifest != m { manifest = m }
+            showingSnapshot = false
             engineOK = true
             reportedEngineFailure = nil   // a later outage speaks again
             // Once per launch, and only after a manifest has arrived: the
@@ -3531,7 +3563,9 @@ final class AppState: ObservableObject {
         if !force && UserDefaults.standard.bool(forKey: key) { return 0 }
         let entries = MetadataMigration.bundled()
         guard !entries.isEmpty else { return 0 }
-        guard let pieces = manifest?.pieces, !pieces.isEmpty else { return 0 }
+        // Planned from the ENGINE's library, never a snapshot of it: this
+        // writes. A snapshot is treated as no library yet, as it always was.
+        guard !showingSnapshot, let pieces = manifest?.pieces, !pieces.isEmpty else { return 0 }
 
         let plan = MetadataMigration.plan(entries: entries, pieces: pieces)
         var written = 0

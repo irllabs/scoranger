@@ -109,22 +109,71 @@ enum LibraryModel {
         let cal = Calendar.current
         if cal.isDate(date, inSameDayAs: now) { return "today" }
         if let week = cal.date(byAdding: .day, value: -6, to: now), date > week {
-            let f = DateFormatter(); f.setLocalizedDateFormatFromTemplate("EEE"); return f.string(from: date)
+            return Formatters.weekday.string(from: date)
         }
-        let f = DateFormatter()
-        f.setLocalizedDateFormatFromTemplate(cal.isDate(date, equalTo: now, toGranularity: .year) ? "d MMM" : "d MMM y")
-        return f.string(from: date)
+        return (cal.isDate(date, equalTo: now, toGranularity: .year)
+                ? Formatters.dayMonth : Formatters.dayMonthYear).string(from: date)
     }
 
     private static func parse(_ iso: String) -> Date? {
-        let withFraction = ISO8601DateFormatter()
-        withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = withFraction.date(from: iso) { return d }
-        let plain = ISO8601DateFormatter()
-        if let d = plain.date(from: iso) { return d }
-        // The engine writes local timestamps without a zone in older libraries.
-        let local = DateFormatter(); local.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
-        return local.date(from: String(iso.prefix(19)))
+        Formatters.parsed.value(for: iso) {
+            // The engine's own form first: it writes whole seconds with a zone.
+            if let d = Formatters.isoPlain.date(from: iso) { return d }
+            if let d = Formatters.isoWithFraction.date(from: iso) { return d }
+            // The engine writes local timestamps without a zone in older libraries.
+            return Formatters.localStamp.date(from: String(iso.prefix(19)))
+        }
+    }
+
+    /// Made once. Making a formatter costs far more than using one, and these
+    /// were made three or four times per row every time the list was computed
+    /// -- which is several times per redraw. With 48 pieces that was most of
+    /// a second of launch on the simulator (`LaunchTiming`, 2026-10-21).
+    /// The list computes its rows on the main thread; `parsed` is locked in
+    /// case anything else ever does.
+    private enum Formatters {
+        static let isoWithFraction: ISO8601DateFormatter = {
+            let f = ISO8601DateFormatter()
+            f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            return f
+        }()
+        static let isoPlain = ISO8601DateFormatter()
+        static let localStamp: DateFormatter = {
+            let f = DateFormatter()
+            f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+            return f
+        }()
+        static let weekday = localized("EEE")
+        static let dayMonth = localized("d MMM")
+        static let dayMonthYear = localized("d MMM y")
+        /// A timestamp's date, once per timestamp. Parsing is a pure function
+        /// of the string and still the dearest step left after the formatters
+        /// were shared: the rows are computed several times per redraw, and
+        /// every computation parsed every piece's date again.
+        static let parsed = Memo<String, Date?>()
+
+        private static func localized(_ template: String) -> DateFormatter {
+            let f = DateFormatter()
+            f.setLocalizedDateFormatFromTemplate(template)
+            return f
+        }
+    }
+
+    /// A lock-guarded map from an input to what a pure function made of it.
+    fileprivate final class Memo<Key: Hashable, Value>: @unchecked Sendable {
+        private let lock = NSLock()
+        private var values: [Key: Value] = [:]
+
+        func value(for key: Key, _ make: () -> Value) -> Value {
+            lock.lock()
+            if let hit = values[key] { lock.unlock(); return hit }
+            lock.unlock()
+            let made = make()
+            lock.lock()
+            values[key] = made
+            lock.unlock()
+            return made
+        }
     }
 
     // MARK: - Pieces

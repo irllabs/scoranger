@@ -27,6 +27,9 @@ struct ScorangerApp: App {
     /// the old reset ran from `RootView.task` -- clears keys whose values have
     /// already been handed out. Here, nothing has read a default yet.
     init() {
+        LaunchTiming.shared.mark("app init")
+        LibrarySnapshot.prefetch(
+            from: LibrarySnapshot.fileURL(workspace: PythonEngine.workspaceURL))
         TestReset.wipe()
     }
 
@@ -94,6 +97,7 @@ struct ScorangerApp: App {
                     }
                 }
                 .task {
+                    LaunchTiming.shared.mark("app task")
                     // Installs a CLOSURE and calls nothing. The closure's own
                     // body is what guards on a configured app, so this reaches
                     // no cloud at launch and returns nil for every reader who

@@ -391,8 +391,9 @@ struct PerfPanel: View {
                     PerfMetrics.shared.setOn(on)
                     ledger = PerfMetrics.shared.snapshot()
                 }
-            PanelNote(text: "Times the engine, the engraver, the page thumbnails and the "
-                      + "title-bar dropdowns. Switching it on clears what was there, so a "
+            PanelNote(text: "Times the engine, the engraver, the page thumbnails, the "
+                      + "title-bar dropdowns and, from the next launch, how long the app "
+                      + "takes to open. Switching it on clears what was there, so a "
                       + "reading is of what you do next. Off costs nothing.")
 
             if isOn {

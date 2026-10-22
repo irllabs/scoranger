@@ -23,7 +23,9 @@ actor PythonEngine {
     func start() -> EngineState {
         guard case .idle = state else { return state }
         let resources = Bundle.main.resourcePath!
-        let rc = scoranger_python_init(resources)
+        let rc = LaunchTiming.shared.measure("engine: interpreter") {
+            scoranger_python_init(resources)
+        }
         guard rc == 0 else {
             state = .failed("interpreter init failed (code \(rc))")
             return state
@@ -37,8 +39,9 @@ actor PythonEngine {
         }
         try? FileManager.default.createDirectory(at: Self.workspaceURL,
                                                  withIntermediateDirectories: true)
-        let response = rawCall(op: "configure",
-                               args: ["workspace": Self.workspaceURL.path])
+        let response = LaunchTiming.shared.measure("engine: configure") {
+            rawCall(op: "configure", args: ["workspace": Self.workspaceURL.path])
+        }
         if let ok = response["ok"] as? Bool, ok,
            let py = response["python"] as? String,
            let m21 = response["music21"] as? String {
@@ -55,7 +58,9 @@ actor PythonEngine {
         guard case .ready = state else {
             return ["ok": false, "error": "engine not ready: \(state)"]
         }
-        return rawCall(op: op, args: args)
+        // The time Python spends on the op, apart from any wait for the
+        // actor, which `LocalEngine` counts in its own span.
+        return LaunchTiming.shared.measure("py.\(op)") { rawCall(op: op, args: args) }
     }
 
     private func rawCall(op: String, args: [String: Any]) -> [String: Any] {

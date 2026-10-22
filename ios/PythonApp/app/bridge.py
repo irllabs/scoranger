@@ -15,14 +15,41 @@ _ready = False
 ops = None
 workspace = None
 
+#: Ops that read or tidy the library's database and nothing else. They answer
+#: without music21, whose import is most of the engine's start-up -- 2.1 s of a
+#: 3.8 s launch on the simulator (ios LaunchTiming, 2026-10-21) -- so the first
+#: manifest of a launch does not wait for it. music21 is imported by the first
+#: op that needs it, which at launch is `number-bars-from-one`.
+_WORKSPACE_OPS = frozenset({"manifest", "sweep", "tidy-pieces"})
+
+
+def _ensure_workspace():
+    global workspace
+    if workspace is None:
+        from scoranger_engine import workspace as _ws
+        workspace = _ws
+
 
 def _ensure_engine():
-    global _ready, ops, workspace
+    global _ready, ops
     if not _ready:
+        _ensure_workspace()
         from scoranger_engine import ops as _ops
-        from scoranger_engine import workspace as _ws
-        ops, workspace = _ops, _ws
+        ops = _ops
         _ready = True
+
+
+def _music21_version():
+    """music21's version, read from its own _version.py without importing the
+    package: music21/__init__ imports its test runner and most of the library,
+    which is the cost `_WORKSPACE_OPS` exists to keep off the launch."""
+    import importlib.util
+    package = importlib.util.find_spec("music21")
+    path = os.path.join(os.path.dirname(package.origin), "_version.py")
+    spec = importlib.util.spec_from_file_location("_scoranger_music21_version", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.__version__
 
 
 def _load(slug, version=None):
@@ -765,7 +792,7 @@ def handle(request):
         args = req.get("args") or {}
         if op == "configure":
             os.environ["SCORANGER_WORKSPACE"] = args["workspace"]
-            _ensure_engine()
+            _ensure_workspace()
             # A device that has signed in to sync keeps journaling across
             # launches, signed in or not, so what it does while signed out
             # still reaches the account (librarysync.is_on). One that never
@@ -773,10 +800,12 @@ def handle(request):
             from scoranger_engine import librarysync
             if librarysync.is_on():
                 librarysync.start()
-            import music21
             return json.dumps({"ok": True, "python": sys.version.split()[0],
-                               "music21": music21.__version__})
-        _ensure_engine()
+                               "music21": _music21_version()})
+        if op in _WORKSPACE_OPS:
+            _ensure_workspace()
+        else:
+            _ensure_engine()
         return json.dumps({"ok": True, "result": _dispatch(op, args)})
     except Exception as e:
         return json.dumps({"ok": False, "error": f"{type(e).__name__}: {e}",

@@ -119,6 +119,15 @@ find "$PKGS" -name "*.so" -delete
 find "$PKGS" -name "*.fwork" -delete
 
 # precompile (write_bytecode=0 at runtime, so ship .pyc)
-"$PY" -m compileall -q "$APP" "$PKGS"
+#
+# CHECKED-HASH, not the default timestamp mode. A timestamp .pyc is valid only
+# while its source keeps the mtime it was compiled against, and Xcode's copy of
+# these folders into the bundle stamps every .py with the BUILD time -- so
+# every .pyc the app shipped was stale, and the embedded interpreter compiled
+# the engine and music21 from source on every launch (and could not cache the
+# result, write_bytecode being off). A checked-hash .pyc records a hash of its
+# source instead, which a copy does not change, and an edited source still
+# invalidates it. Found by LaunchTiming, 2026-10-21.
+"$PY" -m compileall -q --invalidation-mode checked-hash "$APP" "$PKGS"
 
 echo "vendored: $(du -sh $PKGS | cut -f1) packages, $(du -sh $APP | cut -f1) app"

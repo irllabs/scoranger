@@ -231,6 +231,7 @@ struct RootView: View {
         }
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
         .task {
+            LaunchTiming.shared.mark("root task")
             // reclaim anything whose undo window passed while the app was shut
             await state.sweepDeleted()
             // and clear pieces left holding nothing by a build that shipped

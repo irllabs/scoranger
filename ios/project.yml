@@ -247,6 +247,42 @@ targets:
         #          asked for as one build: "build all of these necessary
         #          features for sharing playlists into the first 7.0 build."
         #          §11.9 records the difference, including what was left out.
+        #   0.23.2 THE LIBRARY WITH THE FIRST FRAME; THE ICON'S NOTE
+        #          (2026-10-21). Scope written before the release. No feature:
+        #          the library appears sooner and the icon is redrawn, so the
+        #          patch bumps. Ali: "There is a slight delay when I open the
+        #          app before I can see my pieces ... under 300 ms", and "make
+        #          the quarter note in the app icon a bit bigger so it's a bit
+        #          more visible on a small screen" -- then, after seeing two
+        #          beamed eighths, "let's go to a single note again, but an
+        #          8th note".
+        #
+        #          In this build:
+        #            1. THE LIBRARY IS IN THE FIRST FRAME. It is drawn from the
+        #               manifest.json the engine last wrote (LibrarySnapshot)
+        #               and the engine's own library replaces it when it
+        #               answers; music21 loads at the first op that needs it;
+        #               the bundled bytecode is checked-hash, so the
+        #               interpreter uses it instead of compiling music21 on
+        #               every launch; a row's date formatters are made once.
+        #               Simulator, 141 arrangements: 3.8 s -> 0.7 s, against
+        #               0.27 s for an empty SwiftUI app on the same simulator.
+        #            2. Settings > Diagnostics reads "launch: library on
+        #               screen" and "launch: engine's library" from the launch
+        #               after its switch is turned on.
+        #            3. THE ICON'S NOTE: one eighth note, still on the clay
+        #               line, drawn at 1.6 staff spaces -- the largest whose
+        #               head clears the lines either side -- so it holds at
+        #               home-screen size (design/icons/round7/notes.py). The
+        #               dark-appearance version follows.
+        #          NOT in this build, and said before it starts:
+        #            - the 300 ms budget confirmed on a device: this build is
+        #              how it is read;
+        #            - Python's standard library precompiled (+12 MB, about
+        #              250 ms off the engine's start) -- Ali's call;
+        #            - a pinned music21 in vendor_engine.sh;
+        #            - the 2 s library poll that rewrites manifest.json;
+        #            - NO OTHER CHANGE.
         #   0.23.1 THE NEW ICON (2026-10-19). Scope written before the work.
         #          No feature and no behaviour change, so the patch bumps.
         #          Ali chose D from design/icons/round6: five staff lines
@@ -1543,7 +1579,7 @@ targets:
         # has no Firebase configuration". deploy_testflight.sh now refuses such
         # an archive outright.
         CURRENT_PROJECT_VERSION: 217
-        MARKETING_VERSION: 0.23.1
+        MARKETING_VERSION: 0.23.2
         SWIFT_VERSION: 5.10
         SWIFT_OBJC_BRIDGING_HEADER: Scoranger/PythonBridge/PythonBridge.h
         # BeeWare's install_python copies lib-$ARCHS, which requires single-arch builds

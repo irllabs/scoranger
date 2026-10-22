@@ -60,6 +60,22 @@ human.
 - OMR (PDF → MusicXML) stays off-device — run Audiveris on a Mac and import
   the resulting `.mxl` via the Files picker.
 
+## Launch time
+
+```
+scripts/measure_launch.sh              # 10 cold launches, Release, median
+scripts/measure_launch.sh -n 20 --budget 300
+```
+
+Process start to the first frame with library rows (`LaunchTiming`), on its
+own simulator, `scoranger-launch-ipad`, with a library the size of a working
+musician's (`scripts/make_launch_library.py`: 48 pieces, 141 arrangements, 495
+versions). It also prints when the engine's own library arrived and the
+breakdown of the median run. Not in the gate: a wall-clock budget on a loaded
+host measures the host. On a device the same reading is in Settings >
+Diagnostics, from the launch after the switch is turned on, and in the unified
+log under `SCORANGER-LAUNCH`.
+
 ## The gate
 
 ```

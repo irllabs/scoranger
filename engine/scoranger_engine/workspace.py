@@ -1959,7 +1959,13 @@ def rebuild_manifest() -> dict:
     manifest = {"generated": _now(), "scores": scores, "pieces": pieces,
                 "setlists": setlists, "books": books, "library": library}
     WORKSPACE.mkdir(parents=True, exist_ok=True)
-    (WORKSPACE / "manifest.json").write_text(json.dumps(manifest, indent=2))
+    # Replaced whole, never rewritten in place: the iOS app reads this file at
+    # launch to draw the library before the engine is up (LibrarySnapshot),
+    # and a process killed mid-write would leave it half a file.
+    path = WORKSPACE / "manifest.json"
+    partial = path.with_name(path.name + ".partial")
+    partial.write_text(json.dumps(manifest, indent=2))
+    os.replace(partial, path)
     return manifest
 
 

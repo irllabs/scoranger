@@ -83,9 +83,13 @@ deleted, a second device's own library merges in),
   words land on the notes ABC 2.1 puts them on), `check_pdf_text.py` (a
   PDF's own text corrects what the scanner read, against a committed
   MuseScore-engraved fixture and its Audiveris reading in
-  `engine/scripts/text-layer/`), and `check_lyrics.py` (the word ops, words
+  `engine/scripts/text-layer/`), `check_lyrics.py` (the word ops, words
   kept beside a whistle column and a tab, and the app's address for a word
-  resolving to that word).
+  resolving to that word), and `check_launch_path.py` (the library answers
+  before music21 is imported, and every .pyc the app ships is checked-hash,
+  which the bundle copy cannot make stale -- the timestamp ones shipped
+  until 2026-10-21 were all stale, so music21 compiled from source on every
+  launch).
 
 ## Releases and version numbers
 

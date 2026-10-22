@@ -1,0 +1,207 @@
+{
+  "generated": "2026-10-21T14:32:42-07:00",
+  "scores": [
+    {
+      "slug": "drowsy-maggie",
+      "uid": "01M5G62X181Z21B363PRH69NNH",
+      "name": "Drowsy Maggie",
+      "title": "Drowsy Maggie",
+      "composer": null,
+      "arranger": null,
+      "latest": "01M5G62X3VV3A9A45DY33E69D6",
+      "versions": [
+        {
+          "id": "01M5G62X18PM38XM4KMPSZBJRX",
+          "seq": 1,
+          "label": "v001",
+          "file": "01M5G62X18PM38XM4KMPSZBJRX.musicxml",
+          "op": "import",
+          "args": {
+            "source": "/var/folders/2t/mm58pdnd565d4xv81_fn1qth0000gp/T/tmpruz4p2pl/setting-0.abc"
+          },
+          "parent": null,
+          "time": "2026-10-21T14:32:41-07:00",
+          "parts": [
+            {
+              "index": 0,
+              "name": "Melody",
+              "abbreviation": null,
+              "instrument": null,
+              "clefs": [
+                "treble"
+              ],
+              "range": [
+                "D4",
+                "A5"
+              ],
+              "measures": 12,
+              "notes": 87
+            }
+          ],
+          "kind": "musicxml"
+        },
+        {
+          "id": "01M5G62X3VV3A9A45DY33E69D6",
+          "seq": 2,
+          "label": "v002",
+          "file": "01M5G62X3VV3A9A45DY33E69D6.musicxml",
+          "op": "transpose",
+          "args": {
+            "score": "drowsy-maggie",
+            "interval": "M2"
+          },
+          "parent": "01M5G62X18PM38XM4KMPSZBJRX",
+          "time": "2026-10-21T14:32:41-07:00",
+          "parts": [
+            {
+              "index": 0,
+              "name": "Melody",
+              "abbreviation": null,
+              "instrument": null,
+              "clefs": [
+                "treble"
+              ],
+              "range": [
+                "E4",
+                "B5"
+              ],
+              "measures": 12,
+              "notes": 87
+            }
+          ],
+          "kind": "musicxml"
+        }
+      ],
+      "sources": [],
+      "piece": "drowsy-maggie",
+      "sharedEntry": null
+    },
+    {
+      "slug": "drowsy-maggie-2",
+      "uid": "01M5G62X28YDMR9MM40B655N62",
+      "name": "Drowsy Maggie",
+      "title": "Drowsy Maggie",
+      "composer": null,
+      "arranger": null,
+      "latest": "01M5G62X28R1NFVA3FRNSKGR1X",
+      "versions": [
+        {
+          "id": "01M5G62X28R1NFVA3FRNSKGR1X",
+          "seq": 1,
+          "label": "v001",
+          "file": "01M5G62X28R1NFVA3FRNSKGR1X.musicxml",
+          "op": "import",
+          "args": {
+            "source": "/var/folders/2t/mm58pdnd565d4xv81_fn1qth0000gp/T/tmpruz4p2pl/setting-1.abc"
+          },
+          "parent": null,
+          "time": "2026-10-21T14:32:41-07:00",
+          "parts": [
+            {
+              "index": 0,
+              "name": "Melody",
+              "abbreviation": null,
+              "instrument": null,
+              "clefs": [
+                "treble"
+              ],
+              "range": [
+                "A3",
+                "F#5"
+              ],
+              "measures": 17,
+              "notes": 121
+            }
+          ],
+          "kind": "musicxml"
+        }
+      ],
+      "sources": [],
+      "piece": "drowsy-maggie",
+      "sharedEntry": null
+    },
+    {
+      "slug": "drowsy-maggie-3",
+      "uid": "01M5G62X36E94M0HXJ2WBRQWCB",
+      "name": "Drowsy Maggie",
+      "title": "Drowsy Maggie",
+      "composer": null,
+      "arranger": null,
+      "latest": "01M5G62X363D8HQEVC7TNZ7Q3F",
+      "versions": [
+        {
+          "id": "01M5G62X363D8HQEVC7TNZ7Q3F",
+          "seq": 1,
+          "label": "v001",
+          "file": "01M5G62X363D8HQEVC7TNZ7Q3F.musicxml",
+          "op": "import",
+          "args": {
+            "source": "/var/folders/2t/mm58pdnd565d4xv81_fn1qth0000gp/T/tmpruz4p2pl/setting-2.abc"
+          },
+          "parent": null,
+          "time": "2026-10-21T14:32:41-07:00",
+          "parts": [
+            {
+              "index": 0,
+              "name": "Melody",
+              "abbreviation": null,
+              "instrument": null,
+              "clefs": [
+                "treble"
+              ],
+              "range": [
+                "D4",
+                "B5"
+              ],
+              "measures": 8,
+              "notes": 58
+            }
+          ],
+          "kind": "musicxml"
+        }
+      ],
+      "sources": [],
+      "piece": null,
+      "sharedEntry": null
+    }
+  ],
+  "pieces": [
+    {
+      "slug": "drowsy-maggie",
+      "uid": "01M5G62X1SV8FM2D5VW2G1Q1QB",
+      "name": "Drowsy Maggie",
+      "composer": null,
+      "arranger": null,
+      "tags": [],
+      "arrangements": [
+        "drowsy-maggie",
+        "drowsy-maggie-2"
+      ]
+    }
+  ],
+  "setlists": [
+    {
+      "slug": "friday-gig",
+      "uid": "01M5G62X4A20V03DBS85Y0BA1H",
+      "name": "Friday gig",
+      "shareId": null,
+      "ownerUid": null,
+      "arrangements": [
+        "drowsy-maggie"
+      ]
+    }
+  ],
+  "books": [
+    {
+      "slug": "session-tunebook",
+      "uid": "01M5G62X7NEEBNDZPE4GCFABHN",
+      "name": "Session Tunebook",
+      "pages": 3,
+      "contents": []
+    }
+  ],
+  "library": {
+    "uid": "01M5G62X17XD37AA1HV4G32Q6M",
+    "created": "2026-10-21T14:32:41-07:00"
+  }
+}

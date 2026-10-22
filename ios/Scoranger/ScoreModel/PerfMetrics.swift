@@ -226,6 +226,13 @@ final class PerfMetrics: @unchecked Sendable {
         static let engraveModel = "engrave: geometry model"
         /// One manifest fetch and the library rebuild it triggers.
         static let manifest = "manifest refresh"
+        /// Process start to the first frame with library rows (`LaunchTiming`).
+        /// Recorded on the launch AFTER the switch is turned on, since the
+        /// switch is read when the app starts.
+        static let launchLibrary = "launch: library on screen"
+        /// Process start to the engine's own library replacing the snapshot:
+        /// how long a tap on a row may wait for the engine.
+        static let launchEngine = "launch: engine's library"
         /// One page thumbnail.
         static let thumbnail = "thumbnail"
         /// One tile of the continuous strip, drawn from the PDF.
