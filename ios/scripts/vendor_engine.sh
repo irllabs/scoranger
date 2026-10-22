@@ -82,7 +82,7 @@ CLOSURE
 # the library switched to Books, and nothing was there. Pure Python, no wheels
 # to strip. check_books.py now imports a book on the device's OWN sys.path so
 # the omission cannot come back.
-"$PY" -m pip install --quiet --no-deps --target "$PKGS" \
+"$PY" -m pip install --quiet --no-deps --no-compile --target "$PKGS" \
   music21 chardet joblib jsonpickle more-itertools webcolors \
   requests certifi urllib3 idna charset_normalizer pypdf
 
@@ -128,6 +128,12 @@ find "$PKGS" -name "*.fwork" -delete
 # result, write_bytecode being off). A checked-hash .pyc records a hash of its
 # source instead, which a copy does not change, and an edited source still
 # invalidates it. Found by LaunchTiming, 2026-10-21.
-"$PY" -m compileall -q --invalidation-mode checked-hash "$APP" "$PKGS"
+#
+# -f, and pip's --no-compile above, because without them this line did almost
+# nothing: pip wrote timestamp .pyc files at install, compileall judged them
+# current against sources it had just seen, and skipped them -- music21,
+# chardet and every other package shipped in timestamp mode while the engine,
+# compiled here first, did not. check_launch_path.py found it on 2026-10-21.
+"$PY" -m compileall -q -f --invalidation-mode checked-hash "$APP" "$PKGS"
 
 echo "vendored: $(du -sh $PKGS | cut -f1) packages, $(du -sh $APP | cut -f1) app"
