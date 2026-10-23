@@ -116,7 +116,7 @@ enum TabStaff {
     }
 
     private static func columns(in svg: String) -> [Column] {
-        guard let verseRE = try? NSRegularExpression(
+        guard let verseRE = RegexCache.regex(
                 pattern: "<g[^>]*class=\"verse\">.*?</g>\\s*</g>",
                 options: [.dotMatchesLineSeparators]) else { return [] }
         let ns = svg as NSString
@@ -216,7 +216,7 @@ enum TabStaff {
     }
 
     private static func value(of pattern: String, in text: String) -> String? {
-        guard let re = try? NSRegularExpression(pattern: pattern),
+        guard let re = RegexCache.regex(pattern: pattern),
               let m = re.firstMatch(in: text,
                                     range: NSRange(location: 0, length: (text as NSString).length))
         else { return nil }
@@ -224,7 +224,7 @@ enum TabStaff {
     }
 
     private static func number(of pattern: String, in text: String) -> Double? {
-        guard let re = try? NSRegularExpression(pattern: pattern),
+        guard let re = RegexCache.regex(pattern: pattern),
               let m = re.firstMatch(in: text,
                                     range: NSRange(location: 0, length: (text as NSString).length)),
               m.numberOfRanges > 1

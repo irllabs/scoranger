@@ -140,13 +140,20 @@ enum EngravingOptions {
     /// reason `breaks` is: the toolkit is shared and `setOptions` merges, so a
     /// score that asked for wide staves would otherwise leave them wide for the
     /// next score, which asked for nothing.
+    ///
+    /// `layOut: false` is the same set with `breaks` at `none`, for a load
+    /// whose only product is the MEI (`VerovioRenderer.engrave`, which says
+    /// how that MEI was checked): Verovio then skips casting the document off
+    /// into pages, which is most of what a load costs. Nothing may be DRAWN
+    /// from a document loaded this way.
     static func json(lyricSize: Double, continuous: Bool,
                      spacing: StaffSpacing.Values = StaffSpacing.defaults,
                      readerPaginated: Bool = false,
-                     measureNumbers: MeasureNumbers.Mode = .system) -> String {
+                     measureNumbers: MeasureNumbers.Mode = .system,
+                     layOut: Bool = true) -> String {
         """
         {"scale": \(scale), "footer": "none",
-         "breaks": "\(breaks(continuous: continuous, readerPaginated: readerPaginated))",
+         "breaks": "\(layOut ? breaks(continuous: continuous, readerPaginated: readerPaginated) : "none")",
          "spacingStaff": \(spacing.staff), "spacingSystem": \(spacing.system),
          "mnumInterval": \(MeasureNumbers.interval(measureNumbers)),
          "adjustPageHeight": \(adjustPageHeight(continuous: continuous)),

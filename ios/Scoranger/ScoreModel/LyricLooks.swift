@@ -44,13 +44,13 @@ enum LyricLooks {
         return look.isPlain ? nil : look
     }
 
-    private static let verseRE = try? NSRegularExpression(
+    private static let verseRE = RegexCache.regex(
         pattern: #"<g[^>]*class="verse">.*?</g>\s*</g>"#, options: [.dotMatchesLineSeparators])
-    private static let labelRE = try? NSRegularExpression(
+    private static let labelRE = RegexCache.regex(
         pattern: #"<title class="labelAttr">([^<]*)</title>"#)
-    private static let sizeRE = try? NSRegularExpression(
+    private static let sizeRE = RegexCache.regex(
         pattern: #"(<tspan[^>]*font-size=")([\d.]+)(px")"#)
-    private static let textRE = try? NSRegularExpression(pattern: #"<text\b[^>]*>"#)
+    private static let textRE = RegexCache.regex(pattern: #"<text\b[^>]*>"#)
 
     /// Every word on a page drawn at its own size and in its own style.
     static func apply(to svg: String) -> String {
@@ -102,9 +102,9 @@ enum LyricLooks {
     /// Each word's stored size, by its MEI id, so the adjust row starts from
     /// the size the word already has rather than from the default.
     static func scales(inMEI mei: String) -> [String: CGFloat] {
-        guard let verse = try? NSRegularExpression(pattern: #"<verse\b[^>]*>"#),
-              let id = try? NSRegularExpression(pattern: #"xml:id="([^"]+)""#),
-              let label = try? NSRegularExpression(pattern: #"\blabel="([^"]*)""#)
+        guard let verse = RegexCache.regex(pattern: #"<verse\b[^>]*>"#),
+              let id = RegexCache.regex(pattern: #"xml:id="([^"]+)""#),
+              let label = RegexCache.regex(pattern: #"\blabel="([^"]*)""#)
         else { return [:] }
         let ns = mei as NSString
         var out: [String: CGFloat] = [:]

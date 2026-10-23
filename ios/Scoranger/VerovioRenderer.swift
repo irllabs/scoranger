@@ -83,10 +83,11 @@ actor VerovioRenderer {
     static func options(lyricSize: Double, continuous: Bool = false,
                         spacing: StaffSpacing.Values = StaffSpacing.defaults,
                         readerPaginated: Bool = false,
-                        measureNumbers: MeasureNumbers.Mode = .system) -> String {
+                        measureNumbers: MeasureNumbers.Mode = .system,
+                        layOut: Bool = true) -> String {
         EngravingOptions.json(lyricSize: lyricSize, continuous: continuous,
                               spacing: spacing, readerPaginated: readerPaginated,
-                              measureNumbers: measureNumbers)
+                              measureNumbers: measureNumbers, layOut: layOut)
     }
 
     /// One engrave: the pages to draw, and the model to hit-test against.
@@ -124,6 +125,21 @@ actor VerovioRenderer {
         let spacing = StaffSpacing.values(inMusicXML: source)
         let paginated = EngravingOptions.readerPaginated(inMusicXML: source)
         let numbering = MeasureNumbers.mode(inMusicXML: source)
+        // The user's adjustments live in the MusicXML, and Verovio's importer
+        // drops them, so they are carried across here -- for every kind
+        // `adjust-element` can reach, not for chord symbols alone.
+        let byKind = ChordAdjustments.allAdjustments(inMusicXML: source)
+        let chordsOnStaff = ChordPlacement.onStaffFlags(inMusicXML: source)
+        let diagramAdjustments = ChordDiagrams.adjustments(inMusicXML: source)
+        // A score whose MEI is about to be rewritten is laid out from the
+        // rewritten MEI, so its first load needs no layout of its own. The
+        // strip is never laid out on load (`breaks` is already `none`).
+        // Measured with Verovio 6.2.1 on the six open-speed scores, in paged
+        // and reader-paginated layouts: the MEI exported after an unlaid load
+        // is the MEI exported after a laid-out one, ids aside.
+        let skipFirstLayout = !continuous && MEIRewritePrediction.likely(
+            inMusicXML: source, adjustments: byKind, chordsOnStaff: chordsOnStaff,
+            diagrams: diagramAdjustments, numbering: numbering)
         // BEFORE the load: Verovio lays the document out as it reads it, so
         // options set afterwards do not take until something reloads it -- and
         // on a score with no fingerings and no adjustments nothing does. Set
@@ -131,7 +147,8 @@ actor VerovioRenderer {
         _ = t.setOptions(Self.options(lyricSize: FingeringDiagrams.defaultLyricSize,
                                       continuous: continuous, spacing: spacing,
                                       readerPaginated: paginated,
-                                      measureNumbers: numbering))
+                                      measureNumbers: numbering,
+                                      layOut: !skipFirstLayout))
         let loaded = PerfMetrics.shared.measure(PerfMetrics.Name.engraveLoad) {
             t.loadFile(musicXMLPath)
         }
@@ -146,15 +163,11 @@ actor VerovioRenderer {
         // One text size, whatever the score carries: `lyricSize` also sizes
         // chord symbols, so shrinking it for the diagrams halved every chord
         // name on a fingered score. The diagrams are scaled in our own pass.
+        // With the layout, too, when the first load went without it.
         _ = t.setOptions(Self.options(lyricSize: FingeringDiagrams.defaultLyricSize,
                                       continuous: continuous, spacing: spacing,
                                       readerPaginated: paginated,
                                       measureNumbers: numbering))
-
-        // The user's adjustments live in the MusicXML, and Verovio's importer
-        // drops them, so they are carried across here -- for every kind
-        // `adjust-element` can reach, not for chord symbols alone.
-        let byKind = ChordAdjustments.allAdjustments(inMusicXML: source)
 
         var reload = false
         if let above = FingeringDiagrams.meiWithFingeringsAbove(mei, rows: spacing.rows) {
@@ -166,8 +179,7 @@ actor VerovioRenderer {
         // and this one to none, so the same file drew its names on the staff in
         // an export and above it here -- and a nudge would have meant two
         // different things. Both read the notation now.
-        if let styled = ChordPlacement.meiWithChartStyling(
-            mei, onStaff: ChordPlacement.onStaffFlags(inMusicXML: source)) {
+        if let styled = ChordPlacement.meiWithChartStyling(mei, onStaff: chordsOnStaff) {
             mei = styled
             reload = true
         }
@@ -179,8 +191,7 @@ actor VerovioRenderer {
         // text, and a diagram is seven lines tall, so the block is opened up
         // here and the document reloaded around it. render.py does the same on
         // the export side.
-        if let diagrams = ChordDiagrams.meiWithDiagrams(
-            mei, adjustments: ChordDiagrams.adjustments(inMusicXML: source)) {
+        if let diagrams = ChordDiagrams.meiWithDiagrams(mei, adjustments: diagramAdjustments) {
             mei = diagrams
             reload = true
         }
@@ -199,6 +210,13 @@ actor VerovioRenderer {
         }
         if reload {
             guard t.loadData(mei) else { throw RenderError.loadFailed(musicXMLPath) }
+        } else if skipFirstLayout {
+            // Predicted wrongly: nothing was rewritten, and the document in
+            // the toolkit was never laid out. Loaded again from the file with
+            // its layout -- NOT from the MEI, which is not always drawn the
+            // same as the MusicXML it came from (measured on the accordion
+            // solo) -- so the pages are the ones this score always had.
+            guard t.loadFile(musicXMLPath) else { throw RenderError.loadFailed(musicXMLPath) }
         }
         meiSpan?.end()
         // Verovio draws every page FIRST, and alone.

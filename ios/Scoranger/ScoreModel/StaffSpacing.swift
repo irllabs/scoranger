@@ -50,7 +50,7 @@ enum StaffSpacing {
     /// rather than stopping a page from drawing. The op is the strict side.
     static func values(inMusicXML xml: String) -> Values {
         let pattern = "<miscellaneous-field[^>]*name=\"\(field)\"[^>]*>([^<]*)</miscellaneous-field>"
-        guard let re = try? NSRegularExpression(pattern: pattern),
+        guard let re = RegexCache.regex(pattern: pattern),
               let match = re.firstMatch(in: xml, range: NSRange(xml.startIndex..., in: xml)),
               let range = Range(match.range(at: 1), in: xml) else {
             return defaults

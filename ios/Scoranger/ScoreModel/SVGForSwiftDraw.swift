@@ -31,10 +31,18 @@ enum SVGForSwiftDraw {
         // fingerings become drawn circles before anything else looks at the
         // text: they are shapes from here on, not glyphs
         var s = TabStaff.draw(in: ChordDiagrams.draw(in: FingeringDiagrams.draw(in: svg)))
-        for (glyph, ascii) in accidentalSubs {
+        // Looked for literally before replacing: Foundation's default search
+        // compares grapheme clusters, a third of a dense score's raster time,
+        // and most pages carry none of these glyphs. None of them has a
+        // canonically equivalent spelling, so a page with no literal
+        // occurrence has none at all, and a page with one is replaced exactly
+        // as before.
+        for (glyph, ascii) in accidentalSubs where s.range(of: glyph, options: .literal) != nil {
             s = s.replacingOccurrences(of: glyph, with: ascii)
         }
-        s = s.replacingOccurrences(of: "currentColor", with: "black")
+        if s.range(of: "currentColor", options: .literal) != nil {
+            s = s.replacingOccurrences(of: "currentColor", with: "black")
+        }
 
         // flatten <svg class="definition-scale" viewBox="..."> into a <g>,
         // hoisting its viewBox onto the root svg (which has only px width/height)
@@ -83,7 +91,7 @@ enum SVGForSwiftDraw {
     /// It is done as a separate pass because the flattener works one `<text>`
     /// block at a time and a block does not know what encloses it.
     static func applyElementFaces(_ svg: String) -> String {
-        guard let tagRe = try? NSRegularExpression(pattern: "<[^>]+>") else { return svg }
+        guard let tagRe = RegexCache.regex(pattern: "<[^>]+>") else { return svg }
         let ns = svg as NSString
         var out = ""
         var cursor = 0
@@ -243,12 +251,12 @@ enum SVGForSwiftDraw {
         //
         // `(?:(?!<text[^>]*>).)*?` is the same non-greedy body that additionally
         // refuses to step over another opening tag.
-        guard let blockRe = try? NSRegularExpression(
+        guard let blockRe = RegexCache.regex(
             pattern: "<text[^>]*[^/]>(?:(?!<text[^>]*>).)*?</text>",
             options: [.dotMatchesLineSeparators]),
-            let tokenRe = try? NSRegularExpression(pattern: "<[^>]+>|[^<]+"),
-            let attrRe = try? NSRegularExpression(pattern: #"([a-zA-Z-]+)="([^"]*)""#),
-            let titleRe = try? NSRegularExpression(
+            let tokenRe = RegexCache.regex(pattern: "<[^>]+>|[^<]+"),
+            let attrRe = RegexCache.regex(pattern: #"([a-zA-Z-]+)="([^"]*)""#),
+            let titleRe = RegexCache.regex(
                 pattern: "<title[^>]*>.*?</title>", options: [.dotMatchesLineSeparators])
         else { return svg }
 

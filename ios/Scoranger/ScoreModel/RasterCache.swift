@@ -128,6 +128,12 @@ final class MemoCache<Key: Hashable, Value>: @unchecked Sendable {
         return made
     }
 
+    /// Whether `key` is held, without counting a hit or a miss or touching
+    /// its age: a question about the cache, not a use of it.
+    func contains(_ key: Key) -> Bool {
+        lock.withLock { entries[key] != nil }
+    }
+
     /// What is held for this key, WITHOUT making it.
     ///
     /// For a caller that must not block -- a view body deciding whether it can

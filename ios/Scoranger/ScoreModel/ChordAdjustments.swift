@@ -110,7 +110,7 @@ enum ChordAdjustments {
         let ns = xml as NSString
         let whole = NSRange(location: 0, length: ns.length)
         func all(_ pattern: String) -> [String] {
-            guard let re = try? NSRegularExpression(pattern: pattern) else { return [] }
+            guard let re = RegexCache.regex(pattern: pattern) else { return [] }
             return re.matches(in: xml, range: whole).map { ns.substring(with: $0.range) }
         }
         switch kind {
@@ -120,17 +120,17 @@ enum ChordAdjustments {
         case .text:
             // a chord DIAGRAM rides in a <words> too, and ChordDiagrams carries
             // its three numbers -- we draw diagrams, Verovio does not
-            guard let re = try? NSRegularExpression(
+            guard let re = RegexCache.regex(
                 pattern: "<words\\b([^>]*)>([^<]*)</words>") else { return [] }
             return re.matches(in: xml, range: whole).compactMap { m in
                 ChordDiagrams.parseShape(ns.substring(with: m.range(at: 2))) == nil
                     ? "<words" + ns.substring(with: m.range(at: 1)) + ">" : nil
             }
         case .articulation:
-            guard let blockRE = try? NSRegularExpression(
+            guard let blockRE = RegexCache.regex(
                     pattern: "<articulations\\b[^>]*>(.*?)</articulations>",
                     options: [.dotMatchesLineSeparators]),
-                  let childRE = try? NSRegularExpression(pattern: "<[a-z-]+\\b[^>]*/?>")
+                  let childRE = RegexCache.regex(pattern: "<[a-z-]+\\b[^>]*/?>")
             else { return [] }
             return blockRE.matches(in: xml, range: whole).flatMap { m -> [String] in
                 let block = ns.substring(with: m.range(at: 1))
@@ -170,7 +170,7 @@ enum ChordAdjustments {
         // too and ChordDiagrams places those -- matching them here would move
         // them twice.
         let pattern = kind == .text ? "<dir\\b[^>]*>([^<]*)" : "<\(kind.meiTag)\\b"
-        guard let re = try? NSRegularExpression(pattern: pattern) else { return mei }
+        guard let re = RegexCache.regex(pattern: pattern) else { return mei }
 
         let ns = mei as NSString
         var out = ""
@@ -243,11 +243,11 @@ enum ChordAdjustments {
         let pattern = kind.drawnAsText
             ? "<g[^>]*class=\"\(kind.svgClass)\".*?</g>\\s*</g>"
             : "<g[^>]*class=\"\(kind.svgClass)\"[^>]*>(?:(?!<g\\b).)*?</g>"
-        guard let blockRE = try? NSRegularExpression(
+        guard let blockRE = RegexCache.regex(
                 pattern: pattern, options: [.dotMatchesLineSeparators]),
-              let sizeRE = try? NSRegularExpression(
+              let sizeRE = RegexCache.regex(
                 pattern: "(<tspan[^>]*font-size=\")([0-9.]+)(px\")"),
-              let scaleRE = try? NSRegularExpression(
+              let scaleRE = RegexCache.regex(
                 pattern: "(transform=\"translate\\([^)]*\\)\\s*scale\\()([0-9.]+),\\s*([0-9.]+)(\\))")
         else { return svg }
 
@@ -317,7 +317,7 @@ enum ChordAdjustments {
     }
 
     private static func number(_ attribute: String, in tag: String) -> CGFloat? {
-        guard let re = try? NSRegularExpression(pattern: "\(attribute)=\"([-0-9.]+)\""),
+        guard let re = RegexCache.regex(pattern: "\(attribute)=\"([-0-9.]+)\""),
               let m = re.firstMatch(in: tag,
                                     range: NSRange(location: 0, length: (tag as NSString).length)),
               m.numberOfRanges > 1,

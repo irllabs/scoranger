@@ -2134,6 +2134,50 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// The file behind a version, from the library the app already holds.
+    ///
+    /// The manifest names every version's file, and a version's file never
+    /// changes once written, so `<workspace>/<slug>/<file>` is the engine's own
+    /// answer (`workspace.resolve_path`) without asking it. Asking cost 60 ms on
+    /// an idle engine, and at an open the engine is not idle: the transport
+    /// asks it for the performance at the same moment, and the path waited
+    /// behind music21 writing the MIDI -- 0.7 s of the 4.2 s "Espresso" took
+    /// to open on the simulator. Nil when the file is not where the manifest
+    /// says (a snapshot from before a rename, say), and the engine is asked.
+    private func versionFileOnDisk(score: ScoreDoc, version: String) -> String? {
+        guard useLocalEngine,
+              let file = score.versions.first(where: { $0.id == version })?.file
+        else { return nil }
+        let path = PythonEngine.workspaceURL.appending(path: score.slug)
+            .appending(path: file).path
+        return FileManager.default.fileExists(atPath: path) ? path : nil
+    }
+
+    /// An engrave `select` started before `renderIfNeeded` could ask for it,
+    /// and the key it was started for. At most one: a newer selection replaces
+    /// it, and the one replaced finishes on the renderer and is dropped.
+    private var engraveStarted: (key: String, task: Task<VerovioRenderer.Engraving, Error>)?
+
+    /// Start the selected version's engrave now, off the main actor.
+    ///
+    /// `select` hands the render to a Task, which runs only once the main
+    /// actor is free -- after the score screen it has just opened is built,
+    /// 110 to 165 ms after the tap. The engrave needs nothing from that screen,
+    /// so it starts here and `renderIfNeeded` picks it up by its key.
+    private func startEngraveEarly() {
+        guard useLocalEngine, let score = selectedScore, let vid = displayedVersionID
+        else { return }
+        let key = "\(score.slug)/\(vid)/\(layoutChoice.engraving.rawValue)"
+        guard key != renderedKey, !Self.engravings.contains(key),
+              engraveStarted?.key != key,
+              let path = versionFileOnDisk(score: score, version: vid),
+              ScoreArtifact.kind(ofFile: path).isNotation else { return }
+        let layout = layoutChoice
+        engraveStarted = (key, Task.detached(priority: .userInitiated) {
+            try await VerovioRenderer.shared.engrave(musicXMLPath: path, layout: layout)
+        })
+    }
+
     /// Re-fetch the PDF when the displayed (score, version) changes.
     func renderIfNeeded(force: Bool = false) async {
         guard let score = selectedScore, let vid = displayedVersionID else { return }
@@ -2154,7 +2198,10 @@ final class AppState: ObservableObject {
         guard force || key != renderedKey else { return }
         // A forced render is asked for when the FILE behind the key changed
         // under it, which is the one thing the cache cannot see.
-        if force { Self.engravings.forget(key) }
+        if force {
+            Self.engravings.forget(key)
+            if engraveStarted?.key == key { engraveStarted = nil }
+        }
         // Nothing, rather than the wrong thing -- but only when the thing has
         // actually changed.
         //
@@ -2207,7 +2254,12 @@ final class AppState: ObservableObject {
             /// only where a new one is actually made.
             var stamp = 0
             if useLocalEngine {
-                let path = try await local.versionFilePath(score: score.slug, version: vid)
+                let path: String
+                if let onDisk = versionFileOnDisk(score: score, version: vid) {
+                    path = onDisk
+                } else {
+                    path = try await local.versionFilePath(score: score.slug, version: vid)
+                }
                 let artifact = ScoreArtifact.kind(ofFile: path)
                 if !artifact.isNotation {
                     // A scan the reader brought in -- a PDF or a photograph of
@@ -2239,8 +2291,14 @@ final class AppState: ObservableObject {
                     let held = try await Self.engravings.asyncValue(
                         for: key, cost: Self.engravingBytes,
                         make: {
-                            let made = try await VerovioRenderer.shared.engrave(
-                                musicXMLPath: path, layout: layoutChoice)
+                            let made: VerovioRenderer.Engraving
+                            if let started = engraveStarted, started.key == key {
+                                engraveStarted = nil
+                                made = try await started.task.value
+                            } else {
+                                made = try await VerovioRenderer.shared.engrave(
+                                    musicXMLPath: path, layout: layoutChoice)
+                            }
                             engravingCount += 1
                             return HeldEngraving(engraving: made,
                                                  stamp: engravingCount)
@@ -3414,6 +3472,7 @@ final class AppState: ObservableObject {
         selectedSlug = slug
         previewedSlug = slug
         pinnedVersion = version
+        startEngraveEarly()
         Task { await renderIfNeeded() }
     }
 

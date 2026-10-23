@@ -33,7 +33,7 @@ enum MeasureNumbers {
     /// must draw whatever the field says. The op is the strict side.
     static func mode(inMusicXML xml: String) -> Mode {
         let pattern = "<miscellaneous-field[^>]*name=\"\(field)\"[^>]*>([^<]*)</miscellaneous-field>"
-        guard let re = try? NSRegularExpression(pattern: pattern),
+        guard let re = RegexCache.regex(pattern: pattern),
               let match = re.firstMatch(in: xml, range: NSRange(xml.startIndex..., in: xml)),
               let range = Range(match.range(at: 1), in: xml) else {
             return .system

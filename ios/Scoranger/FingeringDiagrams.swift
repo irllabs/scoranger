@@ -132,10 +132,10 @@ enum FingeringDiagrams {
         guard mei.contains("<verse") else { return nil }
         // chord first: a fingered note inside a chord hangs its verses off the
         // chord, and matching the inner <note> separately would miss them
-        guard let noteRE = try? NSRegularExpression(
+        guard let noteRE = RegexCache.regex(
                 pattern: "<(chord|note)\\b[^>]*>.*?</\\1>",
                 options: [.dotMatchesLineSeparators]),
-              let verseRE = try? NSRegularExpression(
+              let verseRE = RegexCache.regex(
                 pattern: "<verse\\b[^>]*>.*?</verse>",
                 options: [.dotMatchesLineSeparators])
         else { return nil }
@@ -204,12 +204,12 @@ enum FingeringDiagrams {
     /// whistle's range lines up with its neighbours. Mirrors
     /// render._words_under_lifted_columns.
     static func wordsUnderLiftedColumns(_ mei: String) -> String {
-        guard let staffRE = try? NSRegularExpression(
+        guard let staffRE = RegexCache.regex(
                 pattern: "<staff\\b[^>]*>.*?</staff>", options: [.dotMatchesLineSeparators]),
-              let numberRE = try? NSRegularExpression(pattern: "^<staff\\b[^>]*?\\bn=\"(\\d+)\""),
-              let verseRE = try? NSRegularExpression(
+              let numberRE = RegexCache.regex(pattern: "^<staff\\b[^>]*?\\bn=\"(\\d+)\""),
+              let verseRE = RegexCache.regex(
                 pattern: "<verse\\b[^>]*>.*?</verse>", options: [.dotMatchesLineSeparators]),
-              let verseNRE = try? NSRegularExpression(pattern: "(<verse\\b[^>]*?\\bn=\")(\\d+)\"")
+              let verseNRE = RegexCache.regex(pattern: "(<verse\\b[^>]*?\\bn=\")(\\d+)\"")
         else { return mei }
         let ns = mei as NSString
         let staves = staffRE.matches(in: mei, range: NSRange(location: 0, length: ns.length))
@@ -310,10 +310,10 @@ enum FingeringDiagrams {
     /// Mirrors render._unpack_fingering_columns.
     static func unpackColumns(in svg: String) -> String {
         guard svg.contains(packedPrefix),
-              let verseRE = try? NSRegularExpression(
+              let verseRE = RegexCache.regex(
                 pattern: "<g[^>]*class=\"verse\">.*?</g>\\s*</g>",
                 options: [.dotMatchesLineSeparators]),
-              let titleRE = try? NSRegularExpression(
+              let titleRE = RegexCache.regex(
                 pattern: "<title class=\"labelAttr\">" +
                     NSRegularExpression.escapedPattern(for: packedPrefix) + "([^<]*)</title>")
         else { return svg }
@@ -358,7 +358,7 @@ enum FingeringDiagrams {
                 row = replacingFirst("(<text\\b[^>]*\\by=\")-?[\\d.]+(\")",
                                      in: row, with: "$1\(svgNumber(y))$2")
                 // ids stay unique: the rows are copies of one block
-                row = (try? NSRegularExpression(pattern: "\\bid=\"([^\"]+)\""))
+                row = (RegexCache.regex(pattern: "\\bid=\"([^\"]+)\""))
                     .map { $0.stringByReplacingMatches(
                         in: row, range: NSRange(row.startIndex..., in: row),
                         withTemplate: "id=\"$1-r\(index)\"") } ?? row
@@ -367,10 +367,19 @@ enum FingeringDiagrams {
             edits.append((column[0].range, rows))
             for block in column.dropFirst() { edits.append((block.range, "")) }
         }
-        var out = svg as NSString
-        for edit in edits.sorted(by: { $0.range.location > $1.range.location }) {
-            out = out.replacingCharacters(in: edit.range, with: edit.text) as NSString
+        // One pass from the front. The edits are distinct matches of one
+        // regex, so they never overlap, and splicing them in order is the
+        // same text as replacing them one by one from the back -- which copied
+        // the whole page once per edit, 157 ms of a dense score's raster.
+        let out = NSMutableString(capacity: ns.length)
+        var cursor = 0
+        for edit in edits.sorted(by: { $0.range.location < $1.range.location }) {
+            out.append(ns.substring(with: NSRange(location: cursor,
+                                                  length: edit.range.location - cursor)))
+            out.append(edit.text)
+            cursor = edit.range.location + edit.range.length
         }
+        out.append(ns.substring(from: cursor))
         return out as String
     }
 
@@ -387,7 +396,7 @@ enum FingeringDiagrams {
     /// The first match of `pattern` replaced by `template` ($1-style groups).
     private static func replacingFirst(_ pattern: String, in text: String,
                                        with template: String) -> String {
-        guard let re = try? NSRegularExpression(pattern: pattern),
+        guard let re = RegexCache.regex(pattern: pattern),
               let m = re.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
               let range = Range(m.range, in: text) else { return text }
         let replacement = re.replacementString(for: m, in: text, offset: 0, template: template)
@@ -415,7 +424,7 @@ enum FingeringDiagrams {
         // so everything below sees the column it was written for
         let svg = unpackColumns(in: input)
         guard svg.contains("class=\"verse\"") else { return svg }
-        guard let verseRE = try? NSRegularExpression(
+        guard let verseRE = RegexCache.regex(
                 pattern: "<g[^>]*class=\"verse\">.*?</g>\\s*</g>",
                 options: [.dotMatchesLineSeparators]) else { return svg }
 
@@ -671,7 +680,7 @@ enum FingeringDiagrams {
     private static func scaleText(_ block: String, y: CGFloat? = nil,
                                   radius: CGFloat? = nil,
                                   anchorX: CGFloat? = nil) -> String? {
-        guard let re = try? NSRegularExpression(pattern: "<tspan font-size=\"([0-9.]+)px\">"),
+        guard let re = RegexCache.regex(pattern: "<tspan font-size=\"([0-9.]+)px\">"),
               let m = re.firstMatch(in: block,
                                     range: NSRange(location: 0, length: (block as NSString).length)),
               m.numberOfRanges > 1
@@ -682,7 +691,7 @@ enum FingeringDiagrams {
         let wanted = radius.map { $0 * 2 * octaveMarkVsDiameter } ?? (size * diagramScale)
         var moved = ns.replacingCharacters(
             in: m.range, with: "<tspan font-size=\"\(wanted)px\">") as String
-        if let y, let yre = try? NSRegularExpression(pattern: "(<text[^>]*y=\")[-0-9.]+(\")"),
+        if let y, let yre = RegexCache.regex(pattern: "(<text[^>]*y=\")[-0-9.]+(\")"),
            let ym = yre.firstMatch(in: moved,
                                    range: NSRange(location: 0, length: (moved as NSString).length)) {
             let mns = moved as NSString
@@ -693,7 +702,7 @@ enum FingeringDiagrams {
         }
         if let radius, let own = number(of: "<text x=\"([-0-9.]+)\"", in: moved) {
             let centre = (anchorX ?? own) + centreXVsRadius * radius
-            if let xre = try? NSRegularExpression(pattern: "<text x=\"[-0-9.]+\""),
+            if let xre = RegexCache.regex(pattern: "<text x=\"[-0-9.]+\""),
                let xm = xre.firstMatch(
                    in: moved,
                    range: NSRange(location: 0, length: (moved as NSString).length)) {
@@ -713,7 +722,7 @@ enum FingeringDiagrams {
 
     /// Swap the `<text>…</text>` for the shape, leaving the rest of the group.
     private static func replacingText(in block: String, with shape: String) -> String? {
-        guard let re = try? NSRegularExpression(pattern: "<text.*?</text>",
+        guard let re = RegexCache.regex(pattern: "<text.*?</text>",
                                                 options: [.dotMatchesLineSeparators])
         else { return nil }
         let ns = block as NSString
@@ -724,7 +733,7 @@ enum FingeringDiagrams {
     }
 
     private static func value(of pattern: String, in text: String) -> String? {
-        guard let re = try? NSRegularExpression(pattern: pattern),
+        guard let re = RegexCache.regex(pattern: pattern),
               let m = re.firstMatch(in: text,
                                     range: NSRange(location: 0, length: (text as NSString).length))
         else { return nil }
@@ -732,7 +741,7 @@ enum FingeringDiagrams {
     }
 
     private static func number(of pattern: String, in text: String) -> CGFloat? {
-        guard let re = try? NSRegularExpression(pattern: pattern),
+        guard let re = RegexCache.regex(pattern: pattern),
               let m = re.firstMatch(in: text,
                                     range: NSRange(location: 0, length: (text as NSString).length)),
               m.numberOfRanges > 1

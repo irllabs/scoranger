@@ -48,7 +48,7 @@ enum ChordDiagrams {
     /// `[x,3,2,0,1,0]` -> six frets, nil for a string that is not sounded.
     /// A trailing `(...)` is the fingering and is not part of the shape.
     static func parseShape(_ text: String) -> [Int?]? {
-        guard let re = try? NSRegularExpression(pattern: "\\[(?:[x\\d]{1,2},){5}[x\\d]{1,2}\\]"),
+        guard let re = RegexCache.regex(pattern: "\\[(?:[x\\d]{1,2},){5}[x\\d]{1,2}\\]"),
               let m = re.firstMatch(in: text,
                                     range: NSRange(location: 0, length: (text as NSString).length))
         else { return nil }
@@ -63,7 +63,7 @@ enum ChordDiagrams {
     /// is not stopped. nil for a marker that names no fingering at all, which
     /// is what makes the marks row fall back to the frets.
     static func parseFingering(_ text: String) -> [Int?]? {
-        guard let re = try? NSRegularExpression(
+        guard let re = RegexCache.regex(
                 pattern: "\\[(?:[x\\d]{1,2},){5}[x\\d]{1,2}\\]\\(((?:[x\\d],){5}[x\\d])\\)"),
               let m = re.firstMatch(in: text,
                                     range: NSRange(location: 0, length: (text as NSString).length))
@@ -226,7 +226,7 @@ enum ChordDiagrams {
     }
 
     static func adjustments(inMusicXML xml: String) -> [Adjustment] {
-        guard let re = try? NSRegularExpression(pattern: "<words\\b([^>]*)>([^<]*)</words>")
+        guard let re = RegexCache.regex(pattern: "<words\\b([^>]*)>([^<]*)</words>")
         else { return [] }
         let ns = xml as NSString
         var out: [Adjustment] = []
@@ -242,7 +242,7 @@ enum ChordDiagrams {
     }
 
     private static func number(_ attr: String, in tag: String) -> Double? {
-        guard let re = try? NSRegularExpression(pattern: "\(attr)=\"([-0-9.]+)\""),
+        guard let re = RegexCache.regex(pattern: "\(attr)=\"([-0-9.]+)\""),
               let m = re.firstMatch(in: tag,
                                     range: NSRange(location: 0, length: (tag as NSString).length)),
               m.numberOfRanges > 1
@@ -261,7 +261,7 @@ enum ChordDiagrams {
     /// own text is not what anyone should read on the page.
     static func meiWithDiagrams(_ mei: String,
                                 adjustments: [Adjustment] = []) -> String? {
-        guard let re = try? NSRegularExpression(
+        guard let re = RegexCache.regex(
             pattern: "<dir\\b([^>]*)>\\s*(\\[[x\\d,]+\\](?:\\([x\\d,]+\\))?)\\s*</dir>",
             options: [.dotMatchesLineSeparators]) else { return nil }
         let ns = mei as NSString
@@ -323,12 +323,12 @@ enum ChordDiagrams {
         // including the great majority that carry no diagram at all. A filter,
         // not a behaviour change: the two conditions are the same condition.
         guard svg.contains("labelAttr") else { return [] }
-        guard let groupRE = try? NSRegularExpression(
+        guard let groupRE = RegexCache.regex(
                 pattern: "<g[^>]*class=\"dir\">.*?</g>",
                 options: [.dotMatchesLineSeparators]),
-              let labelRE = try? NSRegularExpression(
+              let labelRE = RegexCache.regex(
                 pattern: "<title class=\"labelAttr\">(\\[[x\\d,]+\\](?:\\([x\\d,]+\\))?)(?:@([\\d.]+))?</title>"),
-              let rowRE = try? NSRegularExpression(
+              let rowRE = RegexCache.regex(
                 pattern: "<t(?:ext|span)[^>]*\\bx=\"([-\\d.]+)\"[^>]*\\by=\"([-\\d.]+)\"")
         else { return [] }
 
