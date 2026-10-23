@@ -109,6 +109,18 @@ enum ChordAdjustments {
     private static func tags(inMusicXML xml: String, kind: Kind) -> [String] {
         let ns = xml as NSString
         let whole = NSRange(location: 0, length: ns.length)
+        // Every pattern below opens with its element's name, so a file that
+        // never names it has none; most scores carry two or three of these
+        // five kinds, and each pattern is otherwise a pass over the file.
+        let element: String
+        switch kind {
+        case .harm: element = "<harmony"
+        case .dynamic: element = "<dynamics"
+        case .fermata: element = "<fermata"
+        case .text: element = "<words"
+        case .articulation: element = "<articulations"
+        }
+        guard TextSearch.contains(xml, element) else { return [] }
         func all(_ pattern: String) -> [String] {
             guard let re = RegexCache.regex(pattern: pattern) else { return [] }
             return re.matches(in: xml, range: whole).map { ns.substring(with: $0.range) }

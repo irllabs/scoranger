@@ -226,7 +226,8 @@ enum ChordDiagrams {
     }
 
     static func adjustments(inMusicXML xml: String) -> [Adjustment] {
-        guard let re = RegexCache.regex(pattern: "<words\\b([^>]*)>([^<]*)</words>")
+        guard TextSearch.contains(xml, "<words"),
+              let re = RegexCache.regex(pattern: "<words\\b([^>]*)>([^<]*)</words>")
         else { return [] }
         let ns = xml as NSString
         var out: [Adjustment] = []
@@ -322,7 +323,7 @@ enum ChordDiagrams {
         // over the whole page, built and run once per page of every score --
         // including the great majority that carry no diagram at all. A filter,
         // not a behaviour change: the two conditions are the same condition.
-        guard svg.contains("labelAttr") else { return [] }
+        guard TextSearch.contains(svg, "<title class=\"labelAttr\">[") else { return [] }
         guard let groupRE = RegexCache.regex(
                 pattern: "<g[^>]*class=\"dir\">.*?</g>",
                 options: [.dotMatchesLineSeparators]),

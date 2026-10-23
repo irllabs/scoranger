@@ -90,8 +90,14 @@ enum EngravingOptions {
 
     /// Has the READER laid this score out, as opposed to its source edition?
     static func readerPaginated(inMusicXML xml: String) -> Bool {
-        xml.range(of: "<miscellaneous-field[^>]*name=\"\(paginationField)\"[^>]*>\\s*reader\\s*</miscellaneous-field>",
-                  options: .regularExpression) != nil
+        // as StaffSpacing.values: the name first, in the bytes, and the
+        // pattern compiled once rather than on every engrave
+        guard TextSearch.contains(xml, "name=\"\(paginationField)\""),
+              let re = RegexCache.regex(
+                pattern: "<miscellaneous-field[^>]*name=\"\(paginationField)\"[^>]*>\\s*reader\\s*</miscellaneous-field>")
+        else { return false }
+        return re.firstMatch(in: xml, range: NSRange(location: 0,
+                                                     length: (xml as NSString).length)) != nil
     }
 
     /// A page's top and bottom margins are paper: they keep a printed page

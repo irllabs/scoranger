@@ -84,10 +84,12 @@ final class EngravingStore: @unchecked Sendable {
     /// while the executable is a stub. The linker makes a new one for every
     /// build whose code differs.
     private static func bundledImageUUIDs() -> [String] {
-        let bundle = Bundle.main.bundlePath
+        // by the bundle's own directory name rather than its whole path: on a
+        // device the loader and Bundle may spell /var as /private/var
+        let bundle = "/" + Bundle.main.bundleURL.lastPathComponent + "/"
         var uuids: [String] = []
         for i in 0..<_dyld_image_count() {
-            guard let name = _dyld_get_image_name(i), String(cString: name).hasPrefix(bundle),
+            guard let name = _dyld_get_image_name(i), String(cString: name).contains(bundle),
                   let header = _dyld_get_image_header(i) else { continue }
             var cursor = UnsafeRawPointer(header).advanced(by: MemoryLayout<mach_header_64>.size)
             for _ in 0..<header.pointee.ncmds {

@@ -32,6 +32,8 @@ enum MeasureNumbers {
     /// The score's numbering, or the default for anything unreadable: a page
     /// must draw whatever the field says. The op is the strict side.
     static func mode(inMusicXML xml: String) -> Mode {
+        // as StaffSpacing.values: the name first, in the bytes
+        guard TextSearch.contains(xml, "name=\"\(field)\"") else { return .system }
         let pattern = "<miscellaneous-field[^>]*name=\"\(field)\"[^>]*>([^<]*)</miscellaneous-field>"
         guard let re = RegexCache.regex(pattern: pattern),
               let match = re.firstMatch(in: xml, range: NSRange(xml.startIndex..., in: xml)),

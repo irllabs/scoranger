@@ -216,6 +216,13 @@ final class PerfMetrics: @unchecked Sendable {
         /// SwiftDraw and Core Graphics and might.
         static let engraveLoad = "engrave: load"
         static let engraveMEI = "engrave: MEI passes"
+        /// The parts of the span above, which used to be one number: the
+        /// notation read and scanned for what the MEI passes will need, the
+        /// MEI export, our own rewrites of it, and Verovio laying it out again.
+        static let engraveRead = "engrave: read notation"
+        static let engraveGetMEI = "engrave: MEI export"
+        static let engraveRewrite = "engrave: MEI rewrites (swift)"
+        static let engraveReload = "engrave: reload (verovio layout)"
         static let engraveSVG = "engrave: SVG (verovio)"
         static let engravePDF = "engrave: SVG -> PDF (swiftdraw)"
         /// The whole rasterisation phase, once per engrave.

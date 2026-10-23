@@ -54,7 +54,12 @@ enum LyricLooks {
 
     /// Every word on a page drawn at its own size and in its own style.
     static func apply(to svg: String) -> String {
-        guard svg.contains("ly"), let verseRE, let labelRE else { return svg }
+        // A look needs a verse name starting "ly" (`look(label:)`), and Verovio
+        // writes the name as the verse's labelAttr title -- so a page without
+        // that literal has nothing to restyle. "ly" alone is in every page's
+        // `font-family`.
+        guard TextSearch.contains(svg, "<title class=\"labelAttr\">ly"),
+              let verseRE, let labelRE else { return svg }
         let ns = svg as NSString
         var out = ""
         var cursor = 0
@@ -106,6 +111,8 @@ enum LyricLooks {
               let id = RegexCache.regex(pattern: #"xml:id="([^"]+)""#),
               let label = RegexCache.regex(pattern: #"\blabel="([^"]*)""#)
         else { return [:] }
+        // a scale needs a verse named "ly@..."; see `apply`
+        guard TextSearch.contains(mei, "label=\"ly") else { return [:] }
         let ns = mei as NSString
         var out: [String: CGFloat] = [:]
         for match in verse.matches(in: mei, range: NSRange(location: 0, length: ns.length)) {

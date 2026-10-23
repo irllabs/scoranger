@@ -121,6 +121,7 @@ actor VerovioRenderer {
         // The notation, read BEFORE the options: the score's own spacing rides
         // in it, and has to reach Verovio before the load for the same reason
         // the layout does.
+        let readSpan = PerfMetrics.shared.begin(PerfMetrics.Name.engraveRead)
         let source = (try? String(contentsOfFile: musicXMLPath, encoding: .utf8)) ?? ""
         let spacing = StaffSpacing.values(inMusicXML: source)
         let paginated = EngravingOptions.readerPaginated(inMusicXML: source)
@@ -140,6 +141,7 @@ actor VerovioRenderer {
         let skipFirstLayout = !continuous && MEIRewritePrediction.likely(
             inMusicXML: source, adjustments: byKind, chordsOnStaff: chordsOnStaff,
             diagrams: diagramAdjustments, numbering: numbering)
+        readSpan?.end()
         // BEFORE the load: Verovio lays the document out as it reads it, so
         // options set afterwards do not take until something reloads it -- and
         // on a score with no fingerings and no adjustments nothing does. Set
@@ -159,7 +161,8 @@ actor VerovioRenderer {
         // Whistle fingerings belong above their staff. Verovio ignores
         // MusicXML's lyric placement, so the move is made on the MEI and the
         // document reloaded before anything is drawn.
-        var mei = t.getMEI("{}")
+        var mei = PerfMetrics.shared.measure(PerfMetrics.Name.engraveGetMEI) { t.getMEI("{}") }
+        let rewriteSpan = PerfMetrics.shared.begin(PerfMetrics.Name.engraveRewrite)
         // One text size, whatever the score carries: `lyricSize` also sizes
         // chord symbols, so shrinking it for the diagrams halved every chord
         // name on a fingered score. The diagrams are scaled in our own pass.
@@ -208,6 +211,8 @@ actor VerovioRenderer {
             mei = hidden
             reload = true
         }
+        rewriteSpan?.end()
+        let reloadSpan = PerfMetrics.shared.begin(PerfMetrics.Name.engraveReload)
         if reload {
             guard t.loadData(mei) else { throw RenderError.loadFailed(musicXMLPath) }
         } else if skipFirstLayout {
@@ -218,6 +223,7 @@ actor VerovioRenderer {
             // solo) -- so the pages are the ones this score always had.
             guard t.loadFile(musicXMLPath) else { throw RenderError.loadFailed(musicXMLPath) }
         }
+        reloadSpan?.end()
         meiSpan?.end()
         // Verovio writes every page's SVG alone, and each page starts drawing
         // the moment its SVG exists.
@@ -231,6 +237,11 @@ actor VerovioRenderer {
         // PageRasteriserTests for the proof.
         var rawPages: [String] = []
         let rasters = PageRasteriser.Pipeline()
+        // The hit-test model's two parses, run beside the drawing as their
+        // inputs arrive: the MEI is final now, and each page as it is written.
+        // The same MEI the pages are drawn from, so addresses line up.
+        let model = ScoreModelBuilder.Concurrent()
+        model.start(mei: mei)
         for page in 1...max(t.getPageCount(), 1) {
             // size is applied to the drawn glyph, because Verovio has no
             // per-element text size to ask for
@@ -241,15 +252,16 @@ actor VerovioRenderer {
             }
             rawPages.append(svg)
             rasters.start(number: page, svg: svg)
+            model.start(page: page - 1, svg: svg)
         }
         // the fidelity dump of a timed open (`OpenTiming`); nothing otherwise
         OpenTiming.shared.dumpRasteriserInput(pages: rawPages, musicXMLPath: musicXMLPath)
 
-        // The model reads Verovio's own SVG and the MEI, not the drawing, so
-        // it is built here while the last pages are still being drawn.
-        // The same MEI the pages were drawn from, so addresses line up.
+        // The model reads Verovio's own SVG and the MEI, not the drawing; its
+        // parses ran beside the drawing, and what is timed here is the wait
+        // for them and the join.
         let geometry = PerfMetrics.shared.measure(PerfMetrics.Name.engraveModel) {
-            try? ScoreModelBuilder.build(svgPages: rawPages, mei: mei)
+            try? model.finish(pageCount: rawPages.count)
         }
         let drawn = rasters.finish()
 

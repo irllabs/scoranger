@@ -30,9 +30,21 @@ enum ScoreModelBuilder {
     ///   - mei: the same document's MEI, from `getMEI()`.
     static func build(svgPages: [String], mei: String) throws -> ScoreGeometry {
         let addresses = try MEISemanticsParser.parse(mei)
+        return try assemble(pages: svgPages.map { try SVGGeometryParser.parse($0) },
+                            addresses: addresses)
+    }
+
+    /// The model from pages already parsed (`SVGGeometryParser.parse`) and the
+    /// MEI's addresses (`MEISemanticsParser.parse`), in page order.
+    ///
+    /// The two parses are the cost and depend on nothing but their own text,
+    /// so the renderer runs them as each page and the MEI become available
+    /// (`Concurrent`); this join is what is left, and `build` is the same
+    /// join over the same parses made one after another.
+    static func assemble(pages parsedPages: [SVGGeometryParser.Page],
+                         addresses: [String: ScoreAddress]) throws -> ScoreGeometry {
         var pages: [ScorePage] = []
-        for (index, svg) in svgPages.enumerated() {
-            let parsed = try SVGGeometryParser.parse(svg)
+        for (index, parsed) in parsedPages.enumerated() {
             var elements: [ScoreElement] = []
             for group in parsed.groups {
                 // a class attribute can carry modifiers, e.g. "ledgerLines below"
@@ -58,6 +70,60 @@ enum ScoreModelBuilder {
                                    elements: elements, drawnSystems: drawn))
         }
         return ScoreGeometry(pages: pages)
+    }
+
+    /// `build`, with its parses run on other threads as their inputs arrive.
+    ///
+    /// The renderer hands over each page's SVG the moment Verovio writes it
+    /// and the MEI once it is final; `finish` waits for the parses and joins
+    /// them. The model used to be built on the renderer actor after the last
+    /// page's SVG, which put every parse after every page on the path to the
+    /// score appearing. The parses touch nothing but their argument, and the
+    /// join is `assemble`, so the model is the one `build` makes -- which
+    /// `ScoreModelTests` holds it to.
+    final class Concurrent: @unchecked Sendable {
+        private let group = DispatchGroup()
+        private let lock = NSLock()
+        private var pages: [Int: Result<SVGGeometryParser.Page, Error>] = [:]
+        private var addresses: Result<[String: ScoreAddress], Error>?
+
+        init() {}
+
+        func start(mei: String) {
+            DispatchQueue.global(qos: .userInitiated).async(group: group) { [self] in
+                let parsed = Result { try MEISemanticsParser.parse(mei) }
+                lock.lock()
+                addresses = parsed
+                lock.unlock()
+            }
+        }
+
+        /// `index` is 0-based, the model's own page numbering.
+        func start(page index: Int, svg: String) {
+            DispatchQueue.global(qos: .userInitiated).async(group: group) { [self] in
+                let parsed = Result { try SVGGeometryParser.parse(svg) }
+                lock.lock()
+                pages[index] = parsed
+                lock.unlock()
+            }
+        }
+
+        /// The model, once every started parse is done. Throws what `build`
+        /// would have thrown, the MEI's error first as `build` meets it first.
+        func finish(pageCount: Int) throws -> ScoreGeometry {
+            group.wait()
+            lock.lock()
+            defer { lock.unlock() }
+            guard let addresses else { throw BuildError.notStarted }
+            let found = try addresses.get()
+            let parsed = try (0..<pageCount).map { index -> SVGGeometryParser.Page in
+                guard let page = pages[index] else { throw BuildError.notStarted }
+                return try page.get()
+            }
+            return try assemble(pages: parsed, addresses: found)
+        }
+
+        enum BuildError: Error { case notStarted }
     }
 }
 

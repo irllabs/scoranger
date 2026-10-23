@@ -28,16 +28,13 @@ enum MEIRewritePrediction {
                        numbering: MeasureNumbers.Mode) -> Bool {
         // FingeringDiagrams.meiWithFingeringsAbove: a note carrying a column
         // of hole letters, each a lyric syllable
-        let holes = ["X", "O", "/"].contains { xml.contains("<text>\($0)</text>") }
+        let holes = ["X", "O", "/"].contains { TextSearch.contains(xml, "<text>\($0)</text>") }
         // ChordAdjustments.meiWithAdjustments: any added mark with an offset
         let offsets = adjustments.values.contains { kind in
             kind.contains { $0.dx != nil || $0.dy != nil }
         }
         // RehearsalMarks.meiWithDedupedMarks: two marks or more
-        let rehearsals: Bool = {
-            guard let first = xml.range(of: "<rehearsal") else { return false }
-            return xml.range(of: "<rehearsal", range: first.upperBound..<xml.endIndex) != nil
-        }()
+        let rehearsals = TextSearch.occursTwice("<rehearsal", in: xml)
         return holes
             || offsets
             // ChordPlacement.meiWithChartStyling

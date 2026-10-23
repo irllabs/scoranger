@@ -208,6 +208,37 @@ final class ScoreModelTests: XCTestCase {
         XCTAssertTrue(ScoreSelection([]).isEmpty)
     }
 
+    // MARK: the model built beside the drawing
+
+    /// The renderer parses each page as Verovio writes it and the MEI once,
+    /// on other threads, and joins them at the end. That has to be the model
+    /// `build` makes, page for page and element for element -- started out of
+    /// order here, as the threads may finish.
+    func testConcurrentModelIsTheBuiltModel() throws {
+        let pages = [try fixture("fixture-a", "svg"), try fixture("words-page", "svg"),
+                     try fixture("fixture-b", "svg")]
+        let mei = try fixture("fixture-a", "mei")
+        let built = try ScoreModelBuilder.build(svgPages: pages, mei: mei)
+        let concurrent = ScoreModelBuilder.Concurrent()
+        concurrent.start(page: 2, svg: pages[2])
+        concurrent.start(page: 0, svg: pages[0])
+        concurrent.start(mei: mei)
+        concurrent.start(page: 1, svg: pages[1])
+        let joined = try concurrent.finish(pageCount: pages.count)
+        XCTAssertEqual(joined.pages.count, 3)
+        XCTAssertEqual(OpenTiming.canonicalJSON(joined), OpenTiming.canonicalJSON(built))
+    }
+
+    /// A parse that fails fails the model, as it does in `build`.
+    func testConcurrentModelFailsWhereBuildFails() throws {
+        let concurrent = ScoreModelBuilder.Concurrent()
+        concurrent.start(mei: try fixture("fixture-a", "mei"))
+        concurrent.start(page: 0, svg: "<svg")
+        XCTAssertThrowsError(try ScoreModelBuilder.build(
+            svgPages: ["<svg"], mei: try fixture("fixture-a", "mei")))
+        XCTAssertThrowsError(try concurrent.finish(pageCount: 1))
+    }
+
     // MARK: a harder score
 
     /// The fixture is four staves with chord symbols and ties: the material
