@@ -25,7 +25,14 @@ final class AppState: ObservableObject {
     @Published var previewedSlug: String?
     /// nil = follow the score's latest version
     @Published var pinnedVersion: String?
-    @Published var pdfDocument: PDFDocument?
+    @Published var pdfDocument: PDFDocument? {
+        // every document a timed open publishes, and when (`OpenTiming`)
+        didSet {
+            if OpenTiming.isRequested, let pdfDocument {
+                OpenTiming.shared.documentPublished(pdfDocument, slug: selectedSlug)
+            }
+        }
+    }
     @Published var loadingPDF = false
     @Published var engineOK = false
     /// Why the RENDER failed, and nothing else.
@@ -121,7 +128,12 @@ final class AppState: ObservableObject {
     /// The hit-test model for the engraving currently on screen, built from the
     /// same Verovio load that drew it.
     @Published var geometry: ScoreGeometry? {
-        didSet { barPopulations = geometry?.barPopulations ?? [:] }
+        didSet {
+            barPopulations = geometry?.barPopulations ?? [:]
+            if OpenTiming.isRequested, let geometry {
+                OpenTiming.shared.geometryPublished(geometry, slug: selectedSlug)
+            }
+        }
     }
 
     /// How many selectable addresses each bar-on-a-staff holds, cached with
@@ -2275,11 +2287,25 @@ final class AppState: ObservableObject {
                 // reader's next press of play, not this render's business.
                 invalidatePlaybackIfStale()
                 lastError = nil
+                // the end of a timed open's render pass (`OpenTiming`)
+                if OpenTiming.isRequested {
+                    OpenTiming.shared.renderFinished(slug: score.slug, error: nil,
+                                                     document: pdfDocument)
+                }
             }
         } catch let e as EngineError {
             lastError = e.error
+            if OpenTiming.isRequested {
+                OpenTiming.shared.renderFinished(slug: score.slug, error: e.error,
+                                                 document: nil)
+            }
         } catch {
             lastError = error.localizedDescription
+            if OpenTiming.isRequested {
+                OpenTiming.shared.renderFinished(slug: score.slug,
+                                                 error: error.localizedDescription,
+                                                 document: nil)
+            }
         }
     }
 

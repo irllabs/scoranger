@@ -114,6 +114,14 @@ struct PerfLedger {
         .sorted { $0.total > $1.total }
     }
 
+    /// Every sample that overlaps the window, earliest first: the stages of
+    /// one timed open (`OpenTiming`), each where it actually fell.
+    func samples(from: TimeInterval, to: TimeInterval) -> [PerfSample] {
+        order.flatMap { samples[$0] ?? [] }
+            .filter { $0.end > from && $0.start < to }
+            .sorted { $0.start < $1.start }
+    }
+
     /// The part of the window nothing accounts for.
     ///
     /// This is the number that matters when a tap takes a second: if the engine

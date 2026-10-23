@@ -246,6 +246,7 @@ struct RootView: View {
             Theme.verifyFontsRegistered()
             state.migrateScoreLayout()
             state.startPolling()
+            if let slug = OpenTiming.requestedSlug { await openForTiming(slug) }
             #if DEBUG
             // Measurement fixture (L21): reach the spread with no tapping, so
             // the layout can be read on a rotated simulator without XCUITest,
@@ -785,6 +786,36 @@ struct RootView: View {
     private func open(_ slug: String, version: String? = nil) {
         state.select(slug: slug, version: version)
         withAnimation(.easeOut(duration: 0.18)) { scoreOpen = true }
+    }
+
+    /// `-openTiming <slug>` (`ios/scripts/measure_open.sh`): open one
+    /// arrangement the way a row tap does, once the app has settled, and time
+    /// it. A reader taps a row in a running app, so the open waits for:
+    ///
+    ///  - the engine's own library, holding the arrangement;
+    ///  - the engrave the launch starts by itself. `adoptDefaultSelection`
+    ///    selects the most recently changed arrangement and `refresh` engraves
+    ///    it behind the library, about 4 s of Verovio on the simulator. An
+    ///    open requested during it queues behind it on the renderer actor,
+    ///    and if it is the SAME arrangement the open is a cache hit. The
+    ///    measurement library makes a small decoy the most recent one, so
+    ///    this engrave warms the toolkit and leaves the target cold; the
+    ///    report names what was selected (`selectedBefore`) so a run where
+    ///    that failed can be thrown out;
+    ///  - a second with no render in flight.
+    private func openForTiming(_ slug: String) async {
+        var quiet = 0
+        for _ in 0..<1200 where quiet < 10 {
+            let ready = !state.showingSnapshot
+                && state.manifest?.scores.contains(where: { $0.slug == slug }) == true
+                && !state.loadingPDF
+                && (state.selectedSlug == nil || state.pdfDocument != nil)
+            quiet = ready ? quiet + 1 : 0
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        OpenTiming.shared.begin(slug: slug, layout: state.layoutChoice.rawValue,
+                                selectedBefore: state.selectedSlug)
+        open(slug)
     }
 
     private func openSetlist(_ setlist: SetlistDoc) {

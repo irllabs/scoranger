@@ -224,6 +224,8 @@ actor VerovioRenderer {
         // another, against 1609 ms of Verovio C++ nobody here can shorten.
         // Nothing in it depends on anything else in it. See PageRasteriser for
         // what makes that safe and PageRasteriserTests for the proof.
+        // the fidelity dump of a timed open (`OpenTiming`); nothing otherwise
+        OpenTiming.shared.dumpRasteriserInput(pages: rawPages, musicXMLPath: musicXMLPath)
         let drawn = PerfMetrics.shared.measure(PerfMetrics.Name.engravePDFAll) {
             PageRasteriser.rasterise(pages: rawPages)
         }

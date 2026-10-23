@@ -78,7 +78,10 @@ final class PerfMetrics: @unchecked Sendable {
         subsystem: "com.irllabs.scoranger", category: "performance")
 
     private init() {
+        // A timed open reports its stages from this ledger, so the switch is
+        // on for that launch whatever Settings says.
         Self.enabled = UserDefaults.standard.bool(forKey: Self.defaultsKey)
+            || OpenTiming.isRequested
     }
 
     var isOn: Bool { Self.enabled }
