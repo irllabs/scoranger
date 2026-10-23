@@ -656,6 +656,17 @@ final class AppState: ObservableObject {
     @discardableResult
     func handleTap(at point: CGPoint, onPage index: Int, taps: Int,
                    modifierFingerDown: Bool = false) -> Bool {
+        // First pages, no model yet: a tap that would SELECT is kept for when
+        // the model comes (`showFirstPages`). A plain single tap only drops
+        // from a selection, and an open score has none, so it is left to mean
+        // whatever else a tap on the canvas means.
+        let selects = LassoGate.tap(count: taps) != .dropElement
+            || LassoGate.singleTap(modifierFingerDown: modifierFingerDown) == .addElement
+        if geometry == nil, firstPagesTotal != nil, selects, let renderedKey {
+            awaitingModel = (renderedKey, .tap(point: point, page: index, taps: taps,
+                                               modifierFingerDown: modifierFingerDown))
+            return true
+        }
         switch LassoGate.tap(count: taps) {
         case .dropElement:
             // A held finger turns a tap into "add this one", the same way it
@@ -2156,7 +2167,82 @@ final class AppState: ObservableObject {
     /// An engrave `select` started before `renderIfNeeded` could ask for it,
     /// and the key it was started for. At most one: a newer selection replaces
     /// it, and the one replaced finishes on the renderer and is dropped.
-    private var engraveStarted: (key: String, task: Task<VerovioRenderer.Engraving, Error>)?
+    private var engraveStarted: (key: String, stamp: Int,
+                                 task: Task<VerovioRenderer.Engraving, Error>)?
+
+    /// How many pages the engraving on screen will have, while only its first
+    /// pages are (`showFirstPages`); nil when the document on screen is whole.
+    /// The page counter reads it, and printing waits for it to clear.
+    @Published private(set) var firstPagesTotal: Int?
+
+    /// A selecting gesture made on first pages, whose model comes with the
+    /// whole engraving: kept, by the key of the engraving it was made on, and
+    /// carried out when the model arrives (`show`). One, the latest: the
+    /// window is a fraction of a second.
+    private enum GestureAwaitingModel {
+        case lasso(path: [CGPoint], page: Int, adding: Bool)
+        case tap(point: CGPoint, page: Int, taps: Int, modifierFingerDown: Bool)
+    }
+    private var awaitingModel: (key: String, gesture: GestureAwaitingModel)?
+
+    /// Where the renderer's first pages go: to the main actor, and on screen
+    /// if they are still wanted (`showFirstPages`).
+    private func firstPagesHandler(key: String, stamp: Int, engravedWith: ScoreLayout,
+                                   slug: String) -> VerovioRenderer.FirstPages {
+        { [weak self] data, pageCount in
+            Task { @MainActor in
+                self?.showFirstPages(data, pageCount: pageCount, key: key, stamp: stamp,
+                                     engravedWith: engravedWith, slug: slug)
+            }
+        }
+    }
+
+    /// Put an engraving's first pages on a canvas that is waiting for them.
+    ///
+    /// Opening a score used to wait for every page to be engraved, drawn and
+    /// modelled before the first was shown; the reader looks at page 1 (or
+    /// pages 1 and 2 of a spread), and on a dense score the rest were half
+    /// the wait. Only onto a BLANK canvas -- a score being opened -- for the
+    /// engraving `renderIfNeeded` is waiting on: after an op the previous
+    /// version stays up until the whole new one arrives, as it always has,
+    /// so the reader's page and selection are never taken from them.
+    ///
+    /// Under the stamp the whole engraving will carry, so its first pages'
+    /// pictures are the canvas's pictures of those pages when it arrives and
+    /// nothing is drawn twice. No model: selection waits for the whole
+    /// engraving (`lasso`), and printing for the whole document.
+    private func showFirstPages(_ data: Data, pageCount: Int, key: String, stamp: Int,
+                                engravedWith: ScoreLayout, slug: String) {
+        guard renderedKey == key, pdfDocument == nil,
+              engravingInFlight == engravedWith.engraving,
+              selectedScore?.slug == slug,
+              let document = PDFDocument(data: data) else { return }
+        engravingKey = "\(key)#\(stamp)"
+        firstPagesTotal = pageCount
+        pdfDocument = document
+        renderedLayout = engravedWith
+        pageIndex = PagedCanvas.clampedIndex(pageIndex, pageCount: document.pageCount)
+    }
+
+    /// A lasso closed on a page: catch what it encloses, or -- on first pages
+    /// whose model is still being made -- keep it until the model arrives.
+    func lasso(path: [CGPoint], onPage index: Int, adding: Bool) {
+        guard let page = geometry?.page(index) else {
+            selectionPaths = [index: path]
+            if firstPagesTotal != nil, let renderedKey {
+                awaitingModel = (renderedKey, .lasso(path: path, page: index, adding: adding))
+            }
+            return
+        }
+        // Unit coordinates -> page (SVG user) coordinates, by the page's OWN
+        // size. In continuous mode that page is the whole strip, and this is
+        // the only place the two spaces meet: the surface is in PDF points and
+        // the geometry in SVG viewBox units, twenty-two times apart, and
+        // neither number appears here.
+        let caught = page.elements(
+            caughtBy: LassoPath.onPage(unit: path, pageSize: page.size))
+        commitSelection(caught, path: path, page: index, adding: adding)
+    }
 
     /// One engrave of `path`, read back from `EngravingStore` when this build
     /// has made it before, and kept there when it has not.
@@ -2165,7 +2251,9 @@ final class AppState: ObservableObject {
     /// decoded, wherever the caller is. A timed open that dumps what it drew
     /// (`OpenTiming.dumpsFidelity`) always engraves, because the dump is of
     /// the engrave's own SVG.
-    nonisolated static func engraveRemembering(path: String, layout: ScoreLayout) async throws
+    nonisolated static func engraveRemembering(
+        path: String, layout: ScoreLayout,
+        firstPages: VerovioRenderer.FirstPages? = nil) async throws
         -> VerovioRenderer.Engraving {
         let store = EngravingStore.shared
         let key = (try? Data(contentsOf: URL(fileURLWithPath: path)))
@@ -2177,7 +2265,8 @@ final class AppState: ObservableObject {
             return VerovioRenderer.Engraving(pdf: kept.pdf, failedPages: kept.failedPages,
                                              geometry: kept.geometry, markAdjustments: kept.marks)
         }
-        let made = try await VerovioRenderer.shared.engrave(musicXMLPath: path, layout: layout)
+        let made = try await VerovioRenderer.shared.engrave(musicXMLPath: path, layout: layout,
+                                                            firstPages: firstPages)
         if let key {
             store.keep(EngravingArchive.Contents(pdf: made.pdf, failedPages: made.failedPages,
                                                  geometry: made.geometry,
@@ -2254,8 +2343,13 @@ final class AppState: ObservableObject {
               let path = versionFileOnDisk(score: score, version: vid),
               ScoreArtifact.kind(ofFile: path).isNotation else { return }
         let layout = layoutChoice
-        engraveStarted = (key, Task.detached(priority: .userInitiated) {
-            try await Self.engraveRemembering(path: path, layout: layout)
+        engravingCount += 1
+        let stamp = engravingCount
+        let firstPages = firstPagesHandler(key: key, stamp: stamp, engravedWith: layout,
+                                           slug: score.slug)
+        engraveStarted = (key, stamp, Task.detached(priority: .userInitiated) {
+            try await Self.engraveRemembering(path: path, layout: layout,
+                                              firstPages: firstPages)
         })
     }
 
@@ -2267,6 +2361,7 @@ final class AppState: ObservableObject {
         // Before the document, so the canvas the publish rebuilds
         // reads the key belonging to the pages it is handed.
         engravingKey = "\(key)#\(stamp)"
+        firstPagesTotal = nil
         pdfDocument = PDFDocument(data: data)
         // In the SAME publish as the document, or the canvas draws
         // one of them a frame before the other -- which is the flash
@@ -2286,6 +2381,19 @@ final class AppState: ObservableObject {
         let previousKey = geometryKey
         geometryKey = key
         carrySelection(from: previousKey, to: key, into: model)
+        // a gesture made on the first pages, carried out now there is a model
+        if let waiting = awaitingModel {
+            awaitingModel = nil
+            if waiting.key == key, model != nil {
+                switch waiting.gesture {
+                case let .lasso(path, page, adding):
+                    lasso(path: path, onPage: page, adding: adding)
+                case let .tap(point, page, taps, modifier):
+                    handleTap(at: point, onPage: page, taps: taps,
+                              modifierFingerDown: modifier)
+                }
+            }
+        }
         // the addresses survived the re-render, so the session follows
         // them: nudge, commit, nudge again on the same symbol
         retargetAdjustment()
@@ -2343,6 +2451,8 @@ final class AppState: ObservableObject {
         let transition = RenderTransition.between(previous: renderedKey, next: key)
         if transition.blanksTheCanvas {
             pageIndex = 0
+            firstPagesTotal = nil
+            awaitingModel = nil
             pdfDocument = nil
             renderedLayout = nil
             geometry = nil
@@ -2414,17 +2524,25 @@ final class AppState: ObservableObject {
                     let held = try await Self.engravings.asyncValue(
                         for: key, cost: Self.engravingBytes,
                         make: {
+                            // The stamp is taken when the engrave STARTS, so
+                            // the first pages it shows early carry the one the
+                            // whole engraving will (`showFirstPages`).
                             let made: VerovioRenderer.Engraving
+                            let madeStamp: Int
                             if let started = engraveStarted, started.key == key {
                                 engraveStarted = nil
+                                madeStamp = started.stamp
                                 made = try await started.task.value
                             } else {
+                                engravingCount += 1
+                                madeStamp = engravingCount
                                 made = try await Self.engraveRemembering(
-                                    path: path, layout: layoutChoice)
+                                    path: path, layout: layoutChoice,
+                                    firstPages: firstPagesHandler(
+                                        key: key, stamp: madeStamp,
+                                        engravedWith: engravedWith, slug: score.slug))
                             }
-                            engravingCount += 1
-                            return HeldEngraving(engraving: made,
-                                                 stamp: engravingCount)
+                            return HeldEngraving(engraving: made, stamp: madeStamp)
                         })
                     data = held.engraving.pdf
                     model = held.engraving.geometry

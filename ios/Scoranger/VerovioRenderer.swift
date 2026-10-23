@@ -115,7 +115,18 @@ actor VerovioRenderer {
         var markAdjustments: [ScoreAddress: ChordAdjustments.Adjustment] = [:]
     }
 
-    func engrave(musicXMLPath: String, layout: ScoreLayout = .page) throws -> Engraving {
+    /// The first pages of an engraving, ahead of the rest: the document of
+    /// pages 1...n, made exactly as the whole one is
+    /// (`PageRasteriser.document`), and how many pages the whole one will have.
+    typealias FirstPages = @Sendable (_ document: Data, _ pageCount: Int) -> Void
+
+    /// - Parameter firstPages: told once, from a drawing thread, when the
+    ///   first `layout.pagesPerUnit` pages are drawn -- what a reader opening
+    ///   the score sees first -- while the rest are still being made. Not told
+    ///   when one of them could not be drawn, nor for the strip, which is one
+    ///   page. The returned `Engraving` is the same with or without it.
+    func engrave(musicXMLPath: String, layout: ScoreLayout = .page,
+                 firstPages: FirstPages? = nil) throws -> Engraving {
         let continuous = layout.isContinuous
         let t = try tk()
         // The notation, read BEFORE the options: the score's own spacing rides
@@ -236,13 +247,19 @@ actor VerovioRenderer {
         // PageRasteriser.Pipeline for what makes the overlap safe and
         // PageRasteriserTests for the proof.
         var rawPages: [String] = []
-        let rasters = PageRasteriser.Pipeline()
+        let pageCount = max(t.getPageCount(), 1)
+        let first = firstPages.flatMap { handler in
+            continuous ? nil : PageRasteriser.FirstPages(
+                count: min(layout.pagesPerUnit, pageCount),
+                handler: { handler($0, pageCount) })
+        }
+        let rasters = PageRasteriser.Pipeline(onDrawn: first.map { watch in { watch.drawn($0) } })
         // The hit-test model's two parses, run beside the drawing as their
         // inputs arrive: the MEI is final now, and each page as it is written.
         // The same MEI the pages are drawn from, so addresses line up.
         let model = ScoreModelBuilder.Concurrent()
         model.start(mei: mei)
-        for page in 1...max(t.getPageCount(), 1) {
+        for page in 1...pageCount {
             // size is applied to the drawn glyph, because Verovio has no
             // per-element text size to ask for
             let svg = PerfMetrics.shared.measure(PerfMetrics.Name.engraveSVG) {
@@ -265,30 +282,9 @@ actor VerovioRenderer {
         }
         let drawn = rasters.finish()
 
-        // Assembling the document stays here, serial and on the actor. PDFKit
-        // promises nothing about concurrent use and this costs nothing: what
-        // was expensive is already done.
-        let document = PDFDocument()
-        /// Pages that could not be drawn, kept so the caller can say which.
-        var failures: [RenderError] = []
-        for page in drawn {
-            // A page that cannot be drawn is SKIPPED, not fatal. Throwing here
-            // meant one unconvertible page threw away every good page with it:
-            // a reader whose page 1 failed got no score at all rather than
-            // pages 2 to 9. The pages that work are the point.
-            guard let pageData = page.pdf else {
-                switch page.failure {
-                case .empty: failures.append(.pageEmpty(page.number))
-                case .unconvertible, .none:
-                    failures.append(.pageUnconvertible(page.number))
-                }
-                continue
-            }
-            guard let pageDoc = PDFDocument(data: pageData),
-                  let p = pageDoc.page(at: 0) else {
-                failures.append(.pageUnconvertible(page.number)); continue
-            }
-            document.insert(p, at: document.pageCount)
+        let (document, left) = PageRasteriser.document(of: drawn)
+        let failures: [RenderError] = left.map { page in
+            page.failure == .empty ? .pageEmpty(page.number) : .pageUnconvertible(page.number)
         }
         // Only a score with NO drawable page at all is a failure.
         guard document.pageCount > 0, let data = document.dataRepresentation() else {

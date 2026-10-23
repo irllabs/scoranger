@@ -610,7 +610,8 @@ struct ContentView: View {
 
     private var pageCounter: String {
         ScorePosition.pageLabel(visible: state.visiblePageIndices,
-                                total: state.pdfDocument?.pageCount ?? 0)
+                                total: state.firstPagesTotal
+                                    ?? state.pdfDocument?.pageCount ?? 0)
     }
 
     /// The bar on screen, from the geometry the selection layer already builds.

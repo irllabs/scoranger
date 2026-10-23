@@ -1080,18 +1080,9 @@ struct ScorePagesView: View {
     }
 
     private func select(path: [CGPoint], onPage index: Int, adding: Bool) {
-        guard let page = state.geometry?.page(index) else {
-            state.selectionPaths = [index: path]
-            return
-        }
-        // Unit coordinates -> page (SVG user) coordinates, by the page's OWN
-        // size. In continuous mode that page is the whole strip, and this is
-        // the only place the two spaces meet: the surface is in PDF points and
-        // the geometry in SVG viewBox units, twenty-two times apart, and
-        // neither number appears here.
-        let caught = page.elements(
-            caughtBy: LassoPath.onPage(unit: path, pageSize: page.size))
-        state.commitSelection(caught, path: path, page: index, adding: adding)
+        // AppState, so a lasso drawn before the model arrives can be caught
+        // when it does (`AppState.lasso`)
+        state.lasso(path: path, onPage: index, adding: adding)
     }
 
 }

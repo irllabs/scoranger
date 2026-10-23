@@ -1,3 +1,4 @@
+import PDFKit
 import XCTest
 
 /// Does drawing the pages of a score on several cores draw the SAME score?
@@ -279,5 +280,80 @@ final class PageRasteriserTests: XCTestCase {
 
     func testNoPagesIsNoResultsAndNotACrash() {
         XCTAssertTrue(PageRasteriser.rasterise(pages: []).isEmpty)
+    }
+
+    // MARK: - The first pages, ahead of the rest
+
+    /// Collects what a `FirstPages` hands over, from whichever thread.
+    private final class Handed: @unchecked Sendable {
+        private let lock = NSLock()
+        private var documents: [Data] = []
+        func add(_ data: Data) { lock.lock(); documents.append(data); lock.unlock() }
+        var all: [Data] { lock.lock(); defer { lock.unlock() }; return documents }
+    }
+
+    /// Opening a score shows pages 1...n the moment they are drawn: handed
+    /// over once, holding exactly those pages, however the drawing threads
+    /// happen to finish -- and never a later page in their place.
+    func testFirstPagesAreHandedOverOnceWhenTheyAreAllDrawn() throws {
+        let pages = try distinctPages(7)
+        for count in [1, 2] {
+            for run in 0..<4 {
+                let handed = Handed()
+                let first = PageRasteriser.FirstPages(count: count) { handed.add($0) }
+                let pipeline = PageRasteriser.Pipeline(onDrawn: { first.drawn($0) })
+                for (i, svg) in pages.enumerated() {
+                    pipeline.start(number: i + 1, svg: svg)
+                    if run.isMultiple(of: 2) { Thread.sleep(forTimeInterval: 0.002) }
+                }
+                _ = pipeline.finish()
+                XCTAssertEqual(handed.all.count, 1, "count \(count), run \(run)")
+                let document = try XCTUnwrap(handed.all.first.flatMap { PDFDocument(data: $0) })
+                XCTAssertEqual(document.pageCount, count)
+            }
+        }
+    }
+
+    /// The first page a reader is shown is the first page of the document
+    /// that replaces it: the canvas keeps its picture of page 1 across the
+    /// handover, so the two must draw the same pixels. Both documents are
+    /// read back from their bytes, as AppState reads them.
+    func testTheFirstPageShownDrawsAsTheWholeDocumentsFirstPage() throws {
+        let pages = try distinctPages(5)
+        let drawn = PageRasteriser.rasteriseSerially(pages: pages)
+        let handed = Handed()
+        let first = PageRasteriser.FirstPages(count: 1) { handed.add($0) }
+        for page in drawn.reversed() { first.drawn(page) }
+        let early = try XCTUnwrap(handed.all.first.flatMap { PDFDocument(data: $0) })
+        let (whole, left) = PageRasteriser.document(of: drawn)
+        XCTAssertTrue(left.isEmpty)
+        let reread = try XCTUnwrap(whole.dataRepresentation().flatMap { PDFDocument(data: $0) })
+        XCTAssertEqual(reread.pageCount, 5)
+        func pixels(_ document: PDFDocument) throws -> Data {
+            let page = try XCTUnwrap(document.page(at: 0))
+            let bounds = page.bounds(for: .mediaBox)
+            let image = page.thumbnail(of: CGSize(width: bounds.width * 2,
+                                                  height: bounds.height * 2), for: .mediaBox)
+            return try XCTUnwrap(image.pngData())
+        }
+        XCTAssertEqual(try pixels(early), try pixels(reread))
+        XCTAssertEqual(early.page(at: 0)?.bounds(for: .mediaBox),
+                       reread.page(at: 0)?.bounds(for: .mediaBox))
+    }
+
+    /// A first page that could not be drawn is not shown early: the score
+    /// then appears whole, with the page named, as it always has.
+    func testFirstPagesAreNotHandedOverWhenOneOfThemFailed() throws {
+        var pages = try distinctPages(3)
+        pages[1] = "<svg"
+        let handed = Handed()
+        let first = PageRasteriser.FirstPages(count: 2) { handed.add($0) }
+        let pipeline = PageRasteriser.Pipeline(onDrawn: { first.drawn($0) })
+        for (i, svg) in pages.enumerated() { pipeline.start(number: i + 1, svg: svg) }
+        let drawn = pipeline.finish()
+        XCTAssertTrue(handed.all.isEmpty)
+        let (document, left) = PageRasteriser.document(of: drawn)
+        XCTAssertEqual(document.pageCount, 2)
+        XCTAssertEqual(left.map(\.number), [2])
     }
 }

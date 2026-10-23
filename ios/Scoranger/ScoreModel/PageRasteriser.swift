@@ -1,4 +1,5 @@
 import Foundation
+import PDFKit
 import SwiftDraw
 
 /// One page of Verovio's SVG turned into a one-page PDF, and the whole score's
@@ -130,8 +131,16 @@ enum PageRasteriser {
         private var done: [Int: Page] = [:]
         private var started: [Int] = []
         private var firstStart: TimeInterval?
+        /// Told of each page as it is drawn, on the thread that drew it.
+        private let onDrawn: (@Sendable (Page) -> Void)?
 
-        init() {}
+        /// `onDrawn` hears of each page the moment it is drawn, in whatever
+        /// order they finish, which is how the first page reaches the screen
+        /// before the last is drawn. It runs on a drawing thread and must not
+        /// block it.
+        init(onDrawn: (@Sendable (Page) -> Void)? = nil) {
+            self.onDrawn = onDrawn
+        }
 
         /// Start drawing one page. Returns at once.
         func start(number: Int, svg: String) {
@@ -146,6 +155,7 @@ enum PageRasteriser {
                 lock.lock()
                 done[number] = page
                 lock.unlock()
+                onDrawn?(page)
             }
         }
 
@@ -160,6 +170,70 @@ enum PageRasteriser {
                                           duration: PerfClock.now - firstStart)
             }
             return started.compactMap { done[$0] }
+        }
+    }
+
+    // MARK: - The document
+
+    /// The document of the drawn pages, in the order given, and the pages
+    /// that could not go in it.
+    ///
+    /// A page that cannot be drawn is SKIPPED, not fatal. Throwing here meant
+    /// one unconvertible page threw away every good page with it: a reader
+    /// whose page 1 failed got no score at all rather than pages 2 to 9. The
+    /// pages that work are the point. (A page whose PDF will not even open is
+    /// left out as `unconvertible`.)
+    ///
+    /// Serial over a PDFDocument of its own, which is all PDFKit is asked to
+    /// bear: the first pages (`FirstPages`) are assembled by this on a drawing
+    /// thread while the renderer goes on making the rest, each into its own
+    /// document. One function for both is what makes the first page a reader
+    /// is shown the page the whole document holds.
+    static func document(of drawn: [Page]) -> (PDFDocument, left: [Page]) {
+        let document = PDFDocument()
+        var left: [Page] = []
+        for page in drawn {
+            guard let pageData = page.pdf else { left.append(page); continue }
+            guard let pageDoc = PDFDocument(data: pageData),
+                  let p = pageDoc.page(at: 0) else {
+                left.append(.failed(page.number, .unconvertible)); continue
+            }
+            document.insert(p, at: document.pageCount)
+        }
+        return (document, left)
+    }
+
+    /// Waits for pages 1...count to be drawn, in whatever order the drawing
+    /// threads finish them, and hands their document's bytes over ONCE --
+    /// never when one of them could not be drawn, since a first page that is
+    /// not the score's first page is worse than waiting for the whole score.
+    final class FirstPages: @unchecked Sendable {
+        private let count: Int
+        private let handler: @Sendable (Data) -> Void
+        private let lock = NSLock()
+        private var got: [Int: Page] = [:]
+        private var sent = false
+
+        init(count: Int, handler: @escaping @Sendable (Data) -> Void) {
+            self.count = count
+            self.handler = handler
+        }
+
+        /// Called from a drawing thread with each page as it is drawn
+        /// (`Pipeline`'s `onDrawn`).
+        func drawn(_ page: Page) {
+            guard page.number >= 1, page.number <= count else { return }
+            lock.lock()
+            got[page.number] = page
+            let ready = !sent && got.count == count
+            if ready { sent = true }
+            let pages = ready ? (1...count).compactMap { got[$0] } : []
+            lock.unlock()
+            guard ready else { return }
+            let (document, left) = PageRasteriser.document(of: pages)
+            guard left.isEmpty, document.pageCount == count,
+                  let data = document.dataRepresentation() else { return }
+            handler(data)
         }
     }
 

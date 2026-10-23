@@ -118,8 +118,9 @@ struct ScoreTopBar: View {
                 barButton("printer", label: "Print", identifier: "score-print") {
                     ScorePrinting.present(state.pdfDocument, title: title)
                 }
+                // and not while only the first pages are here
                 .disabled(!ScorePrinting.available(in: state.layoutChoice)
-                          || state.pdfDocument == nil)
+                          || state.pdfDocument == nil || state.firstPagesTotal != nil)
                 .opacity(ScorePrinting.available(in: state.layoutChoice) ? 1 : 0.35)
             }
             // On a phone these three are the second row's (Ph4); everywhere
