@@ -662,7 +662,7 @@ final class AppState: ObservableObject {
         // whatever else a tap on the canvas means.
         let selects = LassoGate.tap(count: taps) != .dropElement
             || LassoGate.singleTap(modifierFingerDown: modifierFingerDown) == .addElement
-        if geometry == nil, firstPagesTotal != nil, selects, let renderedKey {
+        if geometry == nil, showingFirstPagesOnly, selects, let renderedKey {
             awaitingModel = (renderedKey, .tap(point: point, page: index, taps: taps,
                                                modifierFingerDown: modifierFingerDown))
             return true
@@ -1013,6 +1013,15 @@ final class AppState: ObservableObject {
     /// publish here would only invalidate the views this exists to spare.
     private(set) var engravingKey: String = ""
     private var engravingCount = 0
+
+    /// The canvas shows pages of the arrangement being read: this version's,
+    /// or the previous version's while an op's engraving is made. False while
+    /// a newly opened arrangement waits for its first pages, when the pages
+    /// still up (if any) are another arrangement's.
+    var showsSelectedArrangement: Bool {
+        guard pdfDocument != nil, let slug = selectedScore?.slug else { return false }
+        return engravingKey.split(separator: "/").first.map(String.init) == slug
+    }
 
     /// An engraving and the stamp that names it.
     ///
@@ -2170,9 +2179,15 @@ final class AppState: ObservableObject {
     private var engraveStarted: (key: String, stamp: Int,
                                  task: Task<VerovioRenderer.Engraving, Error>)?
 
+    /// Only the first pages of the engraving are on screen
+    /// (`showFirstPages`); false when the document on screen is whole.
+    /// Printing waits for it to clear, and a selecting gesture for the model.
+    @Published private(set) var showingFirstPagesOnly = false
+
     /// How many pages the engraving on screen will have, while only its first
-    /// pages are (`showFirstPages`); nil when the document on screen is whole.
-    /// The page counter reads it, and printing waits for it to clear.
+    /// pages are; nil when the document on screen is whole, or when its first
+    /// pages were laid out from a cut of the score and nothing knows yet
+    /// (`EarlyPages`). The page counter reads it.
     @Published private(set) var firstPagesTotal: Int?
 
     /// A selecting gesture made on first pages, whose model comes with the
@@ -2186,10 +2201,16 @@ final class AppState: ObservableObject {
     private var awaitingModel: (key: String, gesture: GestureAwaitingModel)?
 
     /// Where the renderer's first pages go: to the main actor, and on screen
-    /// if they are still wanted (`showFirstPages`).
+    /// if they are still wanted (`showFirstPages`). Nil when they cannot be:
+    /// the canvas is keeping the pages it has (an op, a layout switch), and
+    /// asking for first pages would make the renderer lay out a cut of the
+    /// score (`EarlyPages`) for nothing.
     private func firstPagesHandler(key: String, stamp: Int, engravedWith: ScoreLayout,
-                                   slug: String) -> VerovioRenderer.FirstPages {
-        { [weak self] data, pageCount in
+                                   slug: String) -> VerovioRenderer.FirstPages? {
+        guard pdfDocument == nil
+                || RenderTransition.between(previous: renderedKey, next: key).blanksTheCanvas
+        else { return nil }
+        return { [weak self] data, pageCount in
             Task { @MainActor in
                 self?.showFirstPages(data, pageCount: pageCount, key: key, stamp: stamp,
                                      engravedWith: engravedWith, slug: slug)
@@ -2211,13 +2232,14 @@ final class AppState: ObservableObject {
     /// pictures are the canvas's pictures of those pages when it arrives and
     /// nothing is drawn twice. No model: selection waits for the whole
     /// engraving (`lasso`), and printing for the whole document.
-    private func showFirstPages(_ data: Data, pageCount: Int, key: String, stamp: Int,
+    private func showFirstPages(_ data: Data, pageCount: Int?, key: String, stamp: Int,
                                 engravedWith: ScoreLayout, slug: String) {
         guard renderedKey == key, pdfDocument == nil,
               engravingInFlight == engravedWith.engraving,
               selectedScore?.slug == slug,
               let document = PDFDocument(data: data) else { return }
         engravingKey = "\(key)#\(stamp)"
+        showingFirstPagesOnly = true
         firstPagesTotal = pageCount
         pdfDocument = document
         renderedLayout = engravedWith
@@ -2229,7 +2251,7 @@ final class AppState: ObservableObject {
     func lasso(path: [CGPoint], onPage index: Int, adding: Bool) {
         guard let page = geometry?.page(index) else {
             selectionPaths = [index: path]
-            if firstPagesTotal != nil, let renderedKey {
+            if showingFirstPagesOnly, let renderedKey {
                 awaitingModel = (renderedKey, .lasso(path: path, page: index, adding: adding))
             }
             return
@@ -2361,6 +2383,7 @@ final class AppState: ObservableObject {
         // Before the document, so the canvas the publish rebuilds
         // reads the key belonging to the pages it is handed.
         engravingKey = "\(key)#\(stamp)"
+        showingFirstPagesOnly = false
         firstPagesTotal = nil
         pdfDocument = PDFDocument(data: data)
         // In the SAME publish as the document, or the canvas draws
@@ -2451,6 +2474,7 @@ final class AppState: ObservableObject {
         let transition = RenderTransition.between(previous: renderedKey, next: key)
         if transition.blanksTheCanvas {
             pageIndex = 0
+            showingFirstPagesOnly = false
             firstPagesTotal = nil
             awaitingModel = nil
             pdfDocument = nil
@@ -2541,6 +2565,13 @@ final class AppState: ObservableObject {
                                     firstPages: firstPagesHandler(
                                         key: key, stamp: madeStamp,
                                         engravedWith: engravedWith, slug: score.slug))
+                            }
+                            // First pages that do not draw as these do were
+                            // shown under this stamp; a new one makes the
+                            // canvas draw every page afresh.
+                            if made.firstPagesSuperseded {
+                                engravingCount += 1
+                                return HeldEngraving(engraving: made, stamp: engravingCount)
                             }
                             return HeldEngraving(engraving: made, stamp: madeStamp)
                         })

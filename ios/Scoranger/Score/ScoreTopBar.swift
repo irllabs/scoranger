@@ -120,7 +120,7 @@ struct ScoreTopBar: View {
                 }
                 // and not while only the first pages are here
                 .disabled(!ScorePrinting.available(in: state.layoutChoice)
-                          || state.pdfDocument == nil || state.firstPagesTotal != nil)
+                          || state.pdfDocument == nil || state.showingFirstPagesOnly)
                 .opacity(ScorePrinting.available(in: state.layoutChoice) ? 1 : 0.35)
             }
             // On a phone these three are the second row's (Ph4); everywhere

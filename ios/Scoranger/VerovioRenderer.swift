@@ -1,5 +1,7 @@
 import Foundation
+import OSLog
 import PDFKit
+import SwiftDraw
 import VerovioToolkit
 
 /// On-device engraving: MusicXML -> SVG pages (Verovio) -> PDF (SwiftDraw).
@@ -113,12 +115,19 @@ actor VerovioRenderer {
         /// relies on to place the offsets in the first place, and the same for
         /// the other four kinds.
         var markAdjustments: [ScoreAddress: ChordAdjustments.Adjustment] = [:]
+        /// The first pages handed over early (`FirstPages`) do not draw as
+        /// this engraving's do. The canvas must then draw these pages afresh
+        /// instead of keeping its pictures of those. Never expected: see
+        /// `earlyPages`.
+        var firstPagesSuperseded = false
     }
 
     /// The first pages of an engraving, ahead of the rest: the document of
     /// pages 1...n, made exactly as the whole one is
-    /// (`PageRasteriser.document`), and how many pages the whole one will have.
-    typealias FirstPages = @Sendable (_ document: Data, _ pageCount: Int) -> Void
+    /// (`PageRasteriser.document`), and how many pages the whole one will
+    /// have -- nil when they were laid out from a cut of the score
+    /// (`EarlyPages`), before anything knows.
+    typealias FirstPages = @Sendable (_ document: Data, _ pageCount: Int?) -> Void
 
     /// - Parameter firstPages: told once, from a drawing thread, when the
     ///   first `layout.pagesPerUnit` pages are drawn -- what a reader opening
@@ -223,6 +232,19 @@ actor VerovioRenderer {
             reload = true
         }
         rewriteSpan?.end()
+        // The hit-test model's two parses, run beside everything after this
+        // as their inputs arrive: the MEI is final now, and each page as it
+        // is written. The same MEI the pages are drawn from, so addresses
+        // line up.
+        let model = ScoreModelBuilder.Concurrent()
+        model.start(mei: mei)
+        // A reader opening a score sees its first pages laid out from the bars
+        // they need, while the whole score is laid out after them.
+        let shownCount = layout.pagesPerUnit
+        let early = (reload && !continuous)
+            ? firstPages.flatMap { earlyPages(t, mei: mei, count: shownCount, byKind: byKind,
+                                              handler: $0) }
+            : nil
         let reloadSpan = PerfMetrics.shared.begin(PerfMetrics.Name.engraveReload)
         if reload {
             guard t.loadData(mei) else { throw RenderError.loadFailed(musicXMLPath) }
@@ -248,25 +270,16 @@ actor VerovioRenderer {
         // PageRasteriserTests for the proof.
         var rawPages: [String] = []
         let pageCount = max(t.getPageCount(), 1)
-        let first = firstPages.flatMap { handler in
+        let first = early != nil ? nil : firstPages.flatMap { handler in
             continuous ? nil : PageRasteriser.FirstPages(
-                count: min(layout.pagesPerUnit, pageCount),
+                count: min(shownCount, pageCount),
                 handler: { handler($0, pageCount) })
         }
-        let rasters = PageRasteriser.Pipeline(onDrawn: first.map { watch in { watch.drawn($0) } })
-        // The hit-test model's two parses, run beside the drawing as their
-        // inputs arrive: the MEI is final now, and each page as it is written.
-        // The same MEI the pages are drawn from, so addresses line up.
-        let model = ScoreModelBuilder.Concurrent()
-        model.start(mei: mei)
+        let rasters = PageRasteriser.Pipeline(
+            onDrawn: first.map { watch in { watch.drawn($0) } },
+            keepingDrawingsOf: early.map { _ in Set(1...shownCount) } ?? [])
         for page in 1...pageCount {
-            // size is applied to the drawn glyph, because Verovio has no
-            // per-element text size to ask for
-            let svg = PerfMetrics.shared.measure(PerfMetrics.Name.engraveSVG) {
-                // a word's size and style ride in its verse name (0.21.0)
-                LyricLooks.apply(to: ChordAdjustments.applySizes(t.renderToSVG(page, true),
-                                                                 byKind: byKind))
-            }
+            let svg = Self.pageSVG(t, page: page, byKind: byKind)
             rawPages.append(svg)
             rasters.start(number: page, svg: svg)
             model.start(page: page - 1, svg: svg)
@@ -281,6 +294,23 @@ actor VerovioRenderer {
             try? model.finish(pageCount: rawPages.count)
         }
         let drawn = rasters.finish()
+        // The early pages were only ever shown because nothing they depend on
+        // was cut away. Held to the whole engraving here regardless, drawing
+        // against drawing, so a page that got past `EarlyPages` wrongly is
+        // replaced rather than kept.
+        var superseded = false
+        // (finished first: a page is handed over before its drawing thread
+        // leaves the pipeline, so after this `handedOver` is final)
+        if let early, case let shown = early.rasters.finish(), early.gate.handedOver {
+            let whole = drawn.filter { $0.number <= shownCount }
+            superseded = shown.count != whole.count
+                || zip(shown, whole).contains { $0.drawing == nil || $0.drawing != $1.drawing }
+            if superseded {
+                Self.log.error("early first pages differ from the whole engraving: \(musicXMLPath, privacy: .public)")
+            } else {
+                Self.log.info("early first pages drew as the whole engraving's: \(musicXMLPath, privacy: .public)")
+            }
+        }
 
         let (document, left) = PageRasteriser.document(of: drawn)
         let failures: [RenderError] = left.map { page in
@@ -304,7 +334,77 @@ actor VerovioRenderer {
         return Engraving(pdf: data,
                          failedPages: failures.compactMap(\.pageNumber),
                          geometry: geometry,
-                         markAdjustments: marks)
+                         markAdjustments: marks,
+                         firstPagesSuperseded: superseded)
+    }
+
+    private static let log = Logger(subsystem: "com.irllabs.scoranger", category: "engrave")
+
+    /// One page of the document in the toolkit, as the rasteriser takes it.
+    private static func pageSVG(_ t: VerovioToolkit, page: Int,
+                                byKind: [ChordAdjustments.Kind: [ChordAdjustments.Adjustment]])
+        -> String {
+        // size is applied to the drawn glyph, because Verovio has no
+        // per-element text size to ask for
+        PerfMetrics.shared.measure(PerfMetrics.Name.engraveSVG) {
+            // a word's size and style ride in its verse name (0.21.0)
+            LyricLooks.apply(to: ChordAdjustments.applySizes(t.renderToSVG(page, true),
+                                                             byKind: byKind))
+        }
+    }
+
+    /// The first `count` pages, laid out from a cut of the score and handed
+    /// to `handler` once drawn -- if what was cut away cannot have changed
+    /// them (`EarlyPages`). Leaves the CUT document in the toolkit; the caller
+    /// loads the whole one next.
+    ///
+    /// Why: Verovio's layout is most of an open. "Espresso" laid out whole
+    /// took 1.05 s on the simulator and its first 23 bars 0.5 s; natively
+    /// 90 ms and 34 ms (Verovio 6.2.1, the six open-speed scores, where every
+    /// first page laid out this way matched the whole score's, ids aside).
+    /// The whole layout still follows, so the rest of the score and the
+    /// model come later by what the cut costs.
+    ///
+    /// Returns the drawing of the pages and their gate, or nil when the score
+    /// gets no early pages.
+    private func earlyPages(_ t: VerovioToolkit, mei: String, count: Int,
+                            byKind: [ChordAdjustments.Kind: [ChordAdjustments.Adjustment]],
+                            handler: @escaping FirstPages)
+        -> (rasters: PageRasteriser.Pipeline, gate: PageRasteriser.FirstPages)? {
+        let span = PerfMetrics.shared.begin(PerfMetrics.Name.engraveEarly)
+        defer { span?.end() }
+        guard let cut = EarlyPages.cut(mei: mei, pages: count) else { return nil }
+        if let reach = EarlyPages.reachPastCut(cut, throughBar: max(cut.keptMeasures / 2, 1)) {
+            Self.log.info("no early pages: \(reach, privacy: .public)")
+            return nil
+        }
+        guard t.loadData(cut.mei) else { return nil }
+        let pageCount = t.getPageCount()
+        guard pageCount > count else { return nil }
+        let gate = PageRasteriser.FirstPages(count: count, awaitsVouch: true,
+                                             handler: { handler($0, nil) })
+        let rasters = PageRasteriser.Pipeline(onDrawn: { gate.drawn($0) },
+                                              keepingDrawingsOf: Set(1...count))
+        // drawn while the cut is checked; shown only if it passes
+        for page in 1...count {
+            rasters.start(number: page, svg: Self.pageSVG(t, page: page, byKind: byKind))
+        }
+        // The system after the shown pages decides where the last of them
+        // breaks, so it must be one the whole score has: complete, which the
+        // cut's last system need not be.
+        let next = EarlyPages.systemsOnPage(svg: t.renderToSVG(count + 1, true))
+        guard let following = next.first, let lastBar = following.last,
+              pageCount > count + 1 || next.count >= 2 else {
+            gate.withdraw()
+            return nil
+        }
+        if let reach = EarlyPages.reachPastCut(cut, throughMeasure: lastBar) {
+            Self.log.info("no early pages: \(reach, privacy: .public)")
+            gate.withdraw()
+            return nil
+        }
+        gate.vouch()
+        return (rasters, gate)
     }
 
     /// Pair each added mark's stored adjustment with its address.

@@ -341,6 +341,55 @@ final class PageRasteriserTests: XCTestCase {
                        reread.page(at: 0)?.bounds(for: .mediaBox))
     }
 
+    /// Pages drawn from a cut of the score wait for the renderer to vouch for
+    /// them, and pages it withdraws are never shown, however soon they are
+    /// drawn.
+    func testFirstPagesFromACutWaitToBeVouchedFor() throws {
+        let drawn = PageRasteriser.rasteriseSerially(pages: try distinctPages(2))
+        let handed = Handed()
+        let vouched = PageRasteriser.FirstPages(count: 1, awaitsVouch: true) { handed.add($0) }
+        vouched.drawn(drawn[0])
+        XCTAssertTrue(handed.all.isEmpty)
+        XCTAssertFalse(vouched.handedOver)
+        vouched.vouch()
+        XCTAssertEqual(handed.all.count, 1)
+        XCTAssertTrue(vouched.handedOver)
+        vouched.vouch()
+        XCTAssertEqual(handed.all.count, 1, "handed over once")
+
+        let refused = Handed()
+        let withdrawn = PageRasteriser.FirstPages(count: 1, awaitsVouch: true) { refused.add($0) }
+        withdrawn.withdraw()
+        withdrawn.drawn(drawn[0])
+        withdrawn.vouch()
+        XCTAssertTrue(refused.all.isEmpty)
+        XCTAssertFalse(withdrawn.handedOver)
+
+        // vouched before the page is drawn: handed over when it is
+        let early = Handed()
+        let ahead = PageRasteriser.FirstPages(count: 1, awaitsVouch: true) { early.add($0) }
+        ahead.vouch()
+        XCTAssertTrue(early.all.isEmpty)
+        ahead.drawn(drawn[0])
+        XCTAssertEqual(early.all.count, 1)
+    }
+
+    /// The drawing kept for a page is what tells an early page from the
+    /// whole engraving's: equal for the same SVG drawn twice, different for a
+    /// page that differs by one rectangle, and kept only where asked.
+    func testAKeptDrawingTellsPagesApart() throws {
+        let pages = try distinctPages(2)
+        let pipeline = PageRasteriser.Pipeline(keepingDrawingsOf: [1, 2])
+        pipeline.start(number: 1, svg: pages[0])
+        pipeline.start(number: 2, svg: pages[1])
+        let kept = pipeline.finish()
+        let again = PageRasteriser.rasterise(number: 1, svg: pages[0], keepDrawing: true)
+        XCTAssertNotNil(kept[0].drawing)
+        XCTAssertEqual(kept[0].drawing, again.drawing)
+        XCTAssertNotEqual(kept[0].drawing, kept[1].drawing)
+        XCTAssertNil(PageRasteriser.rasterise(number: 1, svg: pages[0]).drawing)
+    }
+
     /// A first page that could not be drawn is not shown early: the score
     /// then appears whole, with the page named, as it always has.
     func testFirstPagesAreNotHandedOverWhenOneOfThemFailed() throws {

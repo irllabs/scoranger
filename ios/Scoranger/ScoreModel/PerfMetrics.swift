@@ -234,6 +234,9 @@ final class PerfMetrics: @unchecked Sendable {
         /// compared before and after honestly.
         static let engravePDFAll = "engrave: SVG -> PDF (all pages)"
         static let engraveModel = "engrave: geometry model"
+        /// The first pages laid out from a cut of the score and checked
+        /// (`EarlyPages`), on the renderer; their drawing is `engravePDF`.
+        static let engraveEarly = "engrave: early first pages (verovio)"
         /// An engraving read back from disk (`EngravingStore`) instead of made:
         /// reading the file, its hash and the archive.
         static let engraveRecall = "engrave: recalled from disk"
