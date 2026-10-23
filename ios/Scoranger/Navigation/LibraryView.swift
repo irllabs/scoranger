@@ -319,7 +319,8 @@ struct LibraryView: View {
             Text("Library").typeRole(.title).foregroundStyle(Theme.Ink.ink)
             // a phrase, not a bare number: "My library 1" names nothing, and
             // "My library 0" is a count where a new reader needs a sentence
-            Text(LibraryModel.countPhrase(segment: segment, rows: rows))
+            Text(LibraryModel.countPhrase(segment: segment, rows: rows,
+                                            existing: existingRows))
                 .typeRole(.data).foregroundStyle(Theme.Ink.ink3)
                 .accessibilityIdentifier("library-count")
             Spacer()
@@ -1083,19 +1084,24 @@ struct LibraryView: View {
 
     private var rows: [LibraryRow] {
         guard let manifest = state.manifest else { return [] }
-        var base: [LibraryRow]
+        let base = LibraryModel.filtered(existingRows, by: filters, manifest: manifest)
+        return LibraryModel.sorted(LibraryModel.searched(base, query: search), by: sort)
+    }
+
+    /// The segment's rows before any filter or search: what the header
+    /// counts, so a filter that hides rows cannot make them read as absent.
+    private var existingRows: [LibraryRow] {
+        guard let manifest = state.manifest else { return [] }
         switch segment {
         case .pieces:
             let tags = state.allArrangementTags
-            base = LibraryModel.pieceRows(manifest: manifest, arrangementTags: tags)
+            return LibraryModel.pieceRows(manifest: manifest, arrangementTags: tags)
                 + LibraryModel.unfiledRows(manifest: manifest, arrangementTags: tags)
         case .setlists:
-            base = LibraryModel.setlistRows(manifest: manifest)
+            return LibraryModel.setlistRows(manifest: manifest)
         case .books:
-            base = LibraryModel.bookRows(manifest: manifest)
+            return LibraryModel.bookRows(manifest: manifest)
         }
-        base = LibraryModel.filtered(base, by: filters, manifest: manifest)
-        return LibraryModel.sorted(LibraryModel.searched(base, query: search), by: sort)
     }
 
     /// Derived filters, computed from the manifest -- not a tag store (§7).

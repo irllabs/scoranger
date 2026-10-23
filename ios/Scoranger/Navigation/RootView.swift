@@ -56,7 +56,16 @@ struct RootView: View {
     @State private var librarySearch = ""
     @State private var segment: LibrarySegment = .pieces
     @State private var sort: LibrarySort = .name
-    @State private var filters: Set<LibraryFilter> = []
+    /// One filter per segment. A single set shared by all three let a Pieces
+    /// filter (Accordion, say) follow the reader onto Set lists, where it
+    /// matched nothing: Ali's "I lost all of my setlists" on 2026-10-22,
+    /// which a relaunch "fixed" because the filter is not saved. Each segment
+    /// keeps its own, so coming back to Pieces finds the filter still on.
+    @State private var filtersBySegment: [LibrarySegment: Set<LibraryFilter>] = [:]
+    private var filters: Binding<Set<LibraryFilter>> {
+        Binding(get: { filtersBySegment[segment] ?? [] },
+                set: { filtersBySegment[segment] = $0 })
+    }
     @State private var editing = false
 
     /// The piece an import should land in, set only by a piece's own "Import
@@ -410,7 +419,7 @@ struct RootView: View {
         case .sort:
             SortPanel(sort: $sort)
         case .filter:
-            FilterPanel(filters: $filters, groups: filterGroups)
+            FilterPanel(filters: filters, groups: filterGroups)
         case .importMenu:
             ImportPanel(run: runQuickAction)
         case .pieceArrangements(let slug):
@@ -580,7 +589,7 @@ struct RootView: View {
 
     private var library: some View {
         LibraryView(segment: $segment, search: $librarySearch, sort: $sort,
-                    filters: $filters, editing: $editing,
+                    filters: filters, editing: $editing,
                     creatingName: $libraryNaming,
                     onOpenPiece: openPieceOrArrangement,
                     onOpenArrangement: { open($0) },
