@@ -1,6 +1,6 @@
 # Backlog
 
-## Next build (0.23.3) -- collecting
+## Next build (0.23.4) -- collecting
 
 Tracked in Springboard under EPIC-20261023-023203-ali-momeni (.springboard/, committed).
 
@@ -13,6 +13,7 @@ Tracked in Springboard under EPIC-20261023-023203-ali-momeni (.springboard/, com
   about four times before it settles. Not reproduced yet; the hypothesis is
   that the displayed layout passes through each intermediate state the
   engraving handover goes through, and a one-page score can draw all of them.
+  0.23.3 changed how a score opens, so reproduce it on 0.23.3 first.
   TASK-20261023-023453.
 - **A scan with no words says its words did not line up** (Ali, 2026-10-22,
   Cat's Meow). The notice fires on any PDF with a text layer whose pages did
@@ -22,12 +23,37 @@ Tracked in Springboard under EPIC-20261023-023203-ali-momeni (.springboard/, com
   best guess as movable words, or written below the music; ask the reader
   which when unsure. A feature, so it makes the build 0.24.0 if taken.
   TASK-20261023-023708.
-- **A Pieces filter hides every set list** (found 2026-10-22, approved
-  for this build by Ali the same day). The library's filter is shared by all three tabs
-  and is not cleared on switching; on Set lists it can match nothing, and the
-  page then says "No set lists yet" over "No matches". Relaunching clears it.
-  Reproduced on build 217's code with Ali's iPhone library
-  (ios/build/setlists-hidden-by-pieces-filter.png). TASK-20261023-045100.
+
+## 0.23.3: a dense score opens fast; a filter belongs to its tab -- what it does not do
+
+Build 219, 2026-10-23. Each of these is in the ios/project.yml scope block.
+
+- **200 ms is not reached on the simulator.** First page, cold, median of 9
+  (scripts/measure_open.sh --ab against the 0.23.2 code): Espresso 4143 ->
+  877 ms, Morrison 2874 -> 722, Tam Lin 6619 -> 1120, the quartet 5090 ->
+  1191, Under Paris 4896 -> 1191, Drowsy Maggie 1030 -> 659. About 70% of
+  what is left is Verovio laying out page 1, which on the simulator is mostly
+  std::locale construction (about 30x its native cost on this Mac). The
+  iPad reading (Settings > Diagnostics) is what this build is for. If it
+  still misses, the two levers are an engraving made at import and op time
+  into the EngravingStore (no pin change), or a patched Verovio (a pin
+  change, Ali's call).
+- **The early window.** Between page 1 and the whole score (1.3 s on
+  Espresso, about 2 s on the larger scores, simulator) the counter shows no
+  total, Print waits, and a lasso waits for the model. A page turn in it is
+  held and made when the rest arrive (0.23.3 item 2).
+- **The engraving kept on disk is unconfirmed on a device.** Its key reads
+  the app's loaded image paths, and a device may name them differently from
+  the bundle; if so it never hits, which costs only the second-open speed.
+- **The early page 1 is checked against the whole engraving after it is
+  shown**; a mismatch would show a wrong page 1 until the whole arrives. It
+  never fired in any measured run.
+- **The search text is still shared between tabs** (the filter is not). It
+  is visible in the field, which the filter was not.
+- **The open-speed loop's tools stay**: scripts/measure_open.sh,
+  scripts/compare_open_fidelity.py, the `-openTiming` and `-openFidelity`
+  launch arguments. The benchmark scores are Ali's and live gitignored in
+  ios/build/open-bench/corpus.
 
 ## 0.23.0: library rows swipe, a dragged row scrolls its page, iOS 26.5 -- what it does not do
 
@@ -188,6 +214,19 @@ thread busy for 30.0s", the host effect gate.sh's ENGINE_SERIAL notes describe
 (dyld's loader lock under four simulators loading Python). Alone on the gate's
 own build it passed twice, 34s and 28s, and 0.23.1 shipped on that. A second
 failure in the pool moves it to ENGINE_SERIAL, as for its BookShareIn siblings.
+
+`TrayBehaviour.testTheKnobSlotFollowsTheParts` failed in the 0.23.3 gate's
+pool, worker 2: the accordion solo's `arrangement-choice-` button did not
+appear within its 60 s wait, `TrayFixture.openTray` carried on WITHOUT
+tapping it, and the quartet (the library's default selection) opened with 4
+knobs. Alone on the gate's build it passed three times out of three (and on
+the 0.23.2 build twice out of two). The helper should fail when the choice
+never appears instead of opening whatever is selected.
+
+The 0.23.3 gate also first died at start-up with "too many open files in
+system": kern.maxfiles is 50000, and nine booted simulators (this session's
+leftovers plus a gate pool booting) reached 49960. Shutting this session's
+simulators down brought it to 22296 and the gate ran.
 
 
 The 0.19.1 gate failed one test: `MixerTwoChannel.testTwoChannelTrayFitsInPortrait`
