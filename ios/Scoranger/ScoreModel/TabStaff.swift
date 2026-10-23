@@ -116,7 +116,7 @@ enum TabStaff {
     }
 
     private static func columns(in svg: String) -> [Column] {
-        guard let verseRE = try? NSRegularExpression(
+        guard let verseRE = RegexCache.regex(
                 pattern: "<g[^>]*class=\"verse\">.*?</g>\\s*</g>",
                 options: [.dotMatchesLineSeparators]) else { return [] }
         let ns = svg as NSString
@@ -169,7 +169,10 @@ enum TabStaff {
 
     /// Draw the tab staff through every tab column in a page.
     static func draw(in svg: String) -> String {
-        guard svg.contains("class=\"verse\"") else { return svg }
+        // A column is a verse named `gt...` (`parseLabel`), and Verovio writes
+        // the name as the verse's labelAttr title: a page without one has no
+        // tab, and is not scanned verse by verse to find that out.
+        guard TextSearch.contains(svg, "<title class=\"labelAttr\">\(tag)") else { return svg }
         let found = columns(in: svg)
         guard !found.isEmpty else { return svg }
 
@@ -216,7 +219,7 @@ enum TabStaff {
     }
 
     private static func value(of pattern: String, in text: String) -> String? {
-        guard let re = try? NSRegularExpression(pattern: pattern),
+        guard let re = RegexCache.regex(pattern: pattern),
               let m = re.firstMatch(in: text,
                                     range: NSRange(location: 0, length: (text as NSString).length))
         else { return nil }
@@ -224,7 +227,7 @@ enum TabStaff {
     }
 
     private static func number(of pattern: String, in text: String) -> Double? {
-        guard let re = try? NSRegularExpression(pattern: pattern),
+        guard let re = RegexCache.regex(pattern: pattern),
               let m = re.firstMatch(in: text,
                                     range: NSRange(location: 0, length: (text as NSString).length)),
               m.numberOfRanges > 1

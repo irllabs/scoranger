@@ -111,6 +111,19 @@ final class PerfLedgerTests: XCTestCase {
         XCTAssertTrue(l.accounted(from: 10.0, to: 11.0).isEmpty)
     }
 
+    /// A timed open's timeline (`OpenTiming`): every sample touching the
+    /// window, whole and in the order it began, whatever its name.
+    func testTheSamplesOfAWindowAreEveryOneTouchingItEarliestFirst() {
+        var l = PerfLedger()
+        l.record("render", start: 10.2, duration: 0.6)        // inside
+        l.record("engrave: load", start: 9.5, duration: 1.0)  // straddles the start
+        l.record("manifest", start: 5.0, duration: 0.1)       // before
+        l.record("render", start: 11.5, duration: 0.1)        // after
+        let s = l.samples(from: 10.0, to: 11.0)
+        XCTAssertEqual(s.map(\.name), ["engrave: load", "render"])
+        XCTAssertEqual(s[0].duration, 1.0, accuracy: 1e-9)   // not clipped
+    }
+
     /// The finding this whole panel exists to make sayable: the reader waited
     /// a second and the app was measurably doing NOTHING it knows how to name.
     func testUnaccountedTimeIsTheAnswerWhenNothingWasMeasured() {

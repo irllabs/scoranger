@@ -247,6 +247,41 @@ targets:
         #          asked for as one build: "build all of these necessary
         #          features for sharing playlists into the first 7.0 build."
         #          §11.9 records the difference, including what was left out.
+        #   0.23.3 A DENSE SCORE OPENS FAST; A FILTER BELONGS TO ITS TAB
+        #          (2026-10-22). Scope written before the work and narrowed
+        #          before the release, when Ali asked for the speed on
+        #          TestFlight to measure on his iPad. Fixes only, so the patch
+        #          bumps. Tracked in Springboard, EPIC-20261023-023203.
+        #
+        #          In this build:
+        #            1. OPENING A SCORE. Ali: Espresso "takes more than a
+        #               second ... I'd like to see no more than something like
+        #               200 ms". The open no longer waits on the engine; page 1
+        #               is laid out from the bars it needs and shown while the
+        #               rest are engraved; the Swift passes are cheaper; the
+        #               music font is registered once; an unchanged version
+        #               opens from an engraving kept on disk. Simulator, cold,
+        #               first page (scripts/measure_open.sh, six scores from
+        #               his library): Espresso 4143 -> 877 ms, Tam Lin 6619 ->
+        #               1120, the quartet 5090 -> 1191. Every page and the
+        #               geometry identical to before (compare_open_fidelity.py).
+        #            2. A page turn made while only page 1 exists is carried
+        #               out when the rest arrive, not lost.
+        #            3. A library filter belongs to its tab; the header counts
+        #               what exists and how many are shown ("I lost all of my
+        #               setlists", build 217).
+        #          NOT in this build, and said before it ships:
+        #            - 200 ms on the simulator: Verovio's own layout is most of
+        #              what is left there, and the iPad reading in Settings >
+        #              Diagnostics is what this build is for;
+        #            - in the window before the rest of the score arrives the
+        #              counter shows no total, Print waits, and a lasso waits
+        #              for the model;
+        #            - the engraving kept on disk is unconfirmed on a device
+        #              (the key reads the app's own image paths);
+        #            - the OMR upload bar, the page/scroll flicker and the scan
+        #              words notice: 0.23.4;
+        #            - placing words a scan could not line up: a feature.
         #   0.23.2 THE LIBRARY WITH THE FIRST FRAME; THE ICON'S NOTE
         #          (2026-10-21). Scope written before the release. No feature:
         #          the library appears sooner and the icon is redrawn, so the
@@ -1578,8 +1613,8 @@ targets:
         # not on link_worktree_inputs.sh's list -- so Settings read "This build
         # has no Firebase configuration". deploy_testflight.sh now refuses such
         # an archive outright.
-        CURRENT_PROJECT_VERSION: 218
-        MARKETING_VERSION: 0.23.2
+        CURRENT_PROJECT_VERSION: 219
+        MARKETING_VERSION: 0.23.3
         SWIFT_VERSION: 5.10
         SWIFT_OBJC_BRIDGING_HEADER: Scoranger/PythonBridge/PythonBridge.h
         # BeeWare's install_python copies lib-$ARCHS, which requires single-arch builds

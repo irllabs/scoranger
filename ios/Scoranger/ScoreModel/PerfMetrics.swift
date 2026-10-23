@@ -78,7 +78,10 @@ final class PerfMetrics: @unchecked Sendable {
         subsystem: "com.irllabs.scoranger", category: "performance")
 
     private init() {
+        // A timed open reports its stages from this ledger, so the switch is
+        // on for that launch whatever Settings says.
         Self.enabled = UserDefaults.standard.bool(forKey: Self.defaultsKey)
+            || OpenTiming.isRequested
     }
 
     var isOn: Bool { Self.enabled }
@@ -213,6 +216,13 @@ final class PerfMetrics: @unchecked Sendable {
         /// SwiftDraw and Core Graphics and might.
         static let engraveLoad = "engrave: load"
         static let engraveMEI = "engrave: MEI passes"
+        /// The parts of the span above, which used to be one number: the
+        /// notation read and scanned for what the MEI passes will need, the
+        /// MEI export, our own rewrites of it, and Verovio laying it out again.
+        static let engraveRead = "engrave: read notation"
+        static let engraveGetMEI = "engrave: MEI export"
+        static let engraveRewrite = "engrave: MEI rewrites (swift)"
+        static let engraveReload = "engrave: reload (verovio layout)"
         static let engraveSVG = "engrave: SVG (verovio)"
         static let engravePDF = "engrave: SVG -> PDF (swiftdraw)"
         /// The whole rasterisation phase, once per engrave.
@@ -224,6 +234,12 @@ final class PerfMetrics: @unchecked Sendable {
         /// compared before and after honestly.
         static let engravePDFAll = "engrave: SVG -> PDF (all pages)"
         static let engraveModel = "engrave: geometry model"
+        /// The first pages laid out from a cut of the score and checked
+        /// (`EarlyPages`), on the renderer; their drawing is `engravePDF`.
+        static let engraveEarly = "engrave: early first pages (verovio)"
+        /// An engraving read back from disk (`EngravingStore`) instead of made:
+        /// reading the file, its hash and the archive.
+        static let engraveRecall = "engrave: recalled from disk"
         /// One manifest fetch and the library rebuild it triggers.
         static let manifest = "manifest refresh"
         /// Process start to the first frame with library rows (`LaunchTiming`).

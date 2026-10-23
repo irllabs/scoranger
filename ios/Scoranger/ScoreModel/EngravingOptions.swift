@@ -90,8 +90,14 @@ enum EngravingOptions {
 
     /// Has the READER laid this score out, as opposed to its source edition?
     static func readerPaginated(inMusicXML xml: String) -> Bool {
-        xml.range(of: "<miscellaneous-field[^>]*name=\"\(paginationField)\"[^>]*>\\s*reader\\s*</miscellaneous-field>",
-                  options: .regularExpression) != nil
+        // as StaffSpacing.values: the name first, in the bytes, and the
+        // pattern compiled once rather than on every engrave
+        guard TextSearch.contains(xml, "name=\"\(paginationField)\""),
+              let re = RegexCache.regex(
+                pattern: "<miscellaneous-field[^>]*name=\"\(paginationField)\"[^>]*>\\s*reader\\s*</miscellaneous-field>")
+        else { return false }
+        return re.firstMatch(in: xml, range: NSRange(location: 0,
+                                                     length: (xml as NSString).length)) != nil
     }
 
     /// A page's top and bottom margins are paper: they keep a printed page
@@ -140,13 +146,20 @@ enum EngravingOptions {
     /// reason `breaks` is: the toolkit is shared and `setOptions` merges, so a
     /// score that asked for wide staves would otherwise leave them wide for the
     /// next score, which asked for nothing.
+    ///
+    /// `layOut: false` is the same set with `breaks` at `none`, for a load
+    /// whose only product is the MEI (`VerovioRenderer.engrave`, which says
+    /// how that MEI was checked): Verovio then skips casting the document off
+    /// into pages, which is most of what a load costs. Nothing may be DRAWN
+    /// from a document loaded this way.
     static func json(lyricSize: Double, continuous: Bool,
                      spacing: StaffSpacing.Values = StaffSpacing.defaults,
                      readerPaginated: Bool = false,
-                     measureNumbers: MeasureNumbers.Mode = .system) -> String {
+                     measureNumbers: MeasureNumbers.Mode = .system,
+                     layOut: Bool = true) -> String {
         """
         {"scale": \(scale), "footer": "none",
-         "breaks": "\(breaks(continuous: continuous, readerPaginated: readerPaginated))",
+         "breaks": "\(layOut ? breaks(continuous: continuous, readerPaginated: readerPaginated) : "none")",
          "spacingStaff": \(spacing.staff), "spacingSystem": \(spacing.system),
          "mnumInterval": \(MeasureNumbers.interval(measureNumbers)),
          "adjustPageHeight": \(adjustPageHeight(continuous: continuous)),

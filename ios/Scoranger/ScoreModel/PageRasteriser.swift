@@ -1,4 +1,5 @@
 import Foundation
+import PDFKit
 import SwiftDraw
 
 /// One page of Verovio's SVG turned into a one-page PDF, and the whole score's
@@ -38,9 +39,13 @@ enum PageRasteriser {
         let number: Int
         let pdf: Data?
         let failure: Failure?
+        /// What SwiftDraw drew, when the caller asked to keep it: every path,
+        /// fill and glyph of the page, with none of Verovio's per-load ids.
+        /// Two pages whose drawings are equal look the same.
+        var drawing: SVG? = nil
 
-        static func drawn(_ number: Int, _ pdf: Data) -> Page {
-            Page(number: number, pdf: pdf, failure: nil)
+        static func drawn(_ number: Int, _ pdf: Data, drawing: SVG? = nil) -> Page {
+            Page(number: number, pdf: pdf, failure: nil, drawing: drawing)
         }
         static func failed(_ number: Int, _ failure: Failure) -> Page {
             Page(number: number, pdf: nil, failure: failure)
@@ -58,7 +63,10 @@ enum PageRasteriser {
     /// SwiftDraw's URL cache, which only the `fileURL` initialiser reads; and
     /// `pdfData()` allocates its own `NSMutableData`, `CGDataConsumer` and
     /// `CGContext` per call. That is what makes `rasterise(pages:)` legal.
-    static func rasterise(number: Int, svg: String) -> Page {
+    ///
+    /// `keepDrawing` keeps what SwiftDraw parsed on the page (`Page.drawing`),
+    /// for a caller that will compare it with another drawing of the page.
+    static func rasterise(number: Int, svg: String, keepDrawing: Bool = false) -> Page {
         let prepared = SVGForSwiftDraw.prepare(svg)
         guard !prepared.isEmpty else { return .failed(number, .empty) }
         guard let parsed = SVG(data: Data(prepared.utf8)) else {
@@ -67,7 +75,7 @@ enum PageRasteriser {
         guard let pdf = try? parsed.pdfData() else {
             return .failed(number, .unconvertible)
         }
-        return .drawn(number, pdf)
+        return .drawn(number, pdf, drawing: keepDrawing ? parsed : nil)
     }
 
     // MARK: - Every page
@@ -108,6 +116,183 @@ enum PageRasteriser {
             lock.unlock()
         }
         return (0..<pages.count).compactMap { done[$0] }
+    }
+
+    // MARK: - Pages as they are engraved
+
+    /// Draws each page the moment Verovio hands it over.
+    ///
+    /// `rasterise(pages:)` starts only once every page's SVG exists, and
+    /// Verovio makes them one at a time on the renderer actor: on "Espresso"
+    /// that was 220 ms of SVG with every core but one idle, then 340 ms of
+    /// drawing. Here page 1 is drawing while Verovio writes page 2, and the
+    /// actor can build the hit-test model while the last pages finish.
+    ///
+    /// Each page is the same `rasterise(number:svg:)` the other paths run, on
+    /// its own input, so what is drawn does not depend on the order or the
+    /// overlap -- the property `PageRasteriserTests` holds the concurrent path
+    /// to, and holds this one to as well.
+    final class Pipeline: @unchecked Sendable {
+        private let group = DispatchGroup()
+        private let lock = NSLock()
+        private var done: [Int: Page] = [:]
+        private var started: [Int] = []
+        private var firstStart: TimeInterval?
+        /// Told of each page as it is drawn, on the thread that drew it.
+        private let onDrawn: (@Sendable (Page) -> Void)?
+        /// The pages whose drawing is kept (`Page.drawing`).
+        private let keeping: Set<Int>
+
+        /// `onDrawn` hears of each page the moment it is drawn, in whatever
+        /// order they finish, which is how the first page reaches the screen
+        /// before the last is drawn. It runs on a drawing thread and must not
+        /// block it. `keepingDrawingsOf` names the pages whose drawing comes
+        /// back with them.
+        init(onDrawn: (@Sendable (Page) -> Void)? = nil, keepingDrawingsOf keeping: Set<Int> = []) {
+            self.onDrawn = onDrawn
+            self.keeping = keeping
+        }
+
+        /// Start drawing one page. Returns at once.
+        func start(number: Int, svg: String) {
+            lock.lock()
+            started.append(number)
+            if firstStart == nil { firstStart = PerfClock.now }
+            lock.unlock()
+            DispatchQueue.global(qos: .userInitiated).async(group: group) { [self] in
+                let span = PerfMetrics.shared.begin(PerfMetrics.Name.engravePDF)
+                let page = PageRasteriser.rasterise(number: number, svg: svg,
+                                                    keepDrawing: keeping.contains(number))
+                span?.end()
+                lock.lock()
+                done[number] = page
+                lock.unlock()
+                onDrawn?(page)
+            }
+        }
+
+        /// Every started page, in the order they were started, once all are
+        /// drawn. `engravePDFAll` covers the first start to the last finish.
+        func finish() -> [Page] {
+            group.wait()
+            lock.lock()
+            defer { lock.unlock() }
+            if let firstStart {
+                PerfMetrics.shared.record(PerfMetrics.Name.engravePDFAll, start: firstStart,
+                                          duration: PerfClock.now - firstStart)
+            }
+            return started.compactMap { done[$0] }
+        }
+    }
+
+    // MARK: - The document
+
+    /// The document of the drawn pages, in the order given, and the pages
+    /// that could not go in it.
+    ///
+    /// A page that cannot be drawn is SKIPPED, not fatal. Throwing here meant
+    /// one unconvertible page threw away every good page with it: a reader
+    /// whose page 1 failed got no score at all rather than pages 2 to 9. The
+    /// pages that work are the point. (A page whose PDF will not even open is
+    /// left out as `unconvertible`.)
+    ///
+    /// Serial over a PDFDocument of its own, which is all PDFKit is asked to
+    /// bear: the first pages (`FirstPages`) are assembled by this on a drawing
+    /// thread while the renderer goes on making the rest, each into its own
+    /// document. One function for both is what makes the first page a reader
+    /// is shown the page the whole document holds.
+    static func document(of drawn: [Page]) -> (PDFDocument, left: [Page]) {
+        let document = PDFDocument()
+        var left: [Page] = []
+        for page in drawn {
+            guard let pageData = page.pdf else { left.append(page); continue }
+            guard let pageDoc = PDFDocument(data: pageData),
+                  let p = pageDoc.page(at: 0) else {
+                left.append(.failed(page.number, .unconvertible)); continue
+            }
+            document.insert(p, at: document.pageCount)
+        }
+        return (document, left)
+    }
+
+    /// Waits for pages 1...count to be drawn, in whatever order the drawing
+    /// threads finish them, and hands their document's bytes over ONCE --
+    /// never when one of them could not be drawn, since a first page that is
+    /// not the score's first page is worse than waiting for the whole score.
+    ///
+    /// Pages drawn from a CUT of the score (`EarlyPages`) are not known to be
+    /// the score's pages until the renderer has asked of the cut what it
+    /// needs to: made with `awaitsVouch`, nothing is handed over until
+    /// `vouch()`, and after `withdraw()` nothing ever is.
+    final class FirstPages: @unchecked Sendable {
+        private let count: Int
+        private let handler: @Sendable (Data) -> Void
+        private let awaitsVouch: Bool
+        private let lock = NSLock()
+        private var got: [Int: Page] = [:]
+        private var sent = false
+        private var vouched = false
+        private var withdrawn = false
+
+        init(count: Int, awaitsVouch: Bool = false,
+             handler: @escaping @Sendable (Data) -> Void) {
+            self.count = count
+            self.awaitsVouch = awaitsVouch
+            self.handler = handler
+        }
+
+        /// Whether the pages were handed over.
+        var handedOver: Bool {
+            lock.lock()
+            defer { lock.unlock() }
+            return sent
+        }
+
+        /// Called from a drawing thread with each page as it is drawn
+        /// (`Pipeline`'s `onDrawn`).
+        func drawn(_ page: Page) {
+            guard page.number >= 1, page.number <= count else { return }
+            lock.lock()
+            got[page.number] = page
+            lock.unlock()
+            sendIfReady()
+        }
+
+        /// The pages may be shown once drawn.
+        func vouch() {
+            lock.lock()
+            vouched = true
+            lock.unlock()
+            sendIfReady()
+        }
+
+        /// The pages must never be shown.
+        func withdraw() {
+            lock.lock()
+            withdrawn = true
+            lock.unlock()
+        }
+
+        private func sendIfReady() {
+            lock.lock()
+            let ready = !sent && !withdrawn && got.count == count && (vouched || !awaitsVouch)
+            if ready { sent = true }
+            let pages = ready ? (1...count).compactMap { got[$0] } : []
+            lock.unlock()
+            guard ready else { return }
+            // One page is handed over as it was drawn: a page's own PDF is a
+            // document of that page, and copying it into a PDFDocument and
+            // writing that out again cost 15 ms on "Espresso" ahead of the
+            // first page. The reader still gets nothing when it failed.
+            if count == 1, let only = pages.first {
+                if let pdf = only.pdf { handler(pdf) }
+                return
+            }
+            let (document, left) = PageRasteriser.document(of: pages)
+            guard left.isEmpty, document.pageCount == count,
+                  let data = document.dataRepresentation() else { return }
+            handler(data)
+        }
     }
 
     /// The same work, one page after another. Kept because it is what the

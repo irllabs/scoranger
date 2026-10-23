@@ -43,6 +43,24 @@ enum PagedCanvas {
         return next
     }
 
+    /// Where turns the reader made before the pages existed land, once they
+    /// do: `turns` net steps from `index`, each a whole unit, stopping at the
+    /// ends. While a score's first page is on screen alone, a swipe to the
+    /// next page has nowhere to go and used to be thrown away -- the reader
+    /// swiped, nothing happened, and they had to swipe again once the rest
+    /// arrived (0.23.3). The turns are held instead and carried out here.
+    static func landing(afterHeldTurns turns: Int, from index: Int,
+                        pageCount: Int, spread: Bool) -> Int {
+        var landed = clampedIndex(index, pageCount: pageCount)
+        let direction = turns > 0 ? 1 : -1
+        for _ in 0..<abs(turns) {
+            guard let next = step(from: landed, by: direction,
+                                  pageCount: pageCount, spread: spread) else { break }
+            landed = next
+        }
+        return landed
+    }
+
     /// The index a thumbnail tap should land on: the unit HOLDING that page,
     /// not the page itself, so tapping the right half of a spread does not
     /// scroll the left half off.

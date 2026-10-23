@@ -101,7 +101,7 @@ struct ScoreOptionsScreen: View {
             // Print, where the bar has no room for it (ScoreBarLayout), and
             // only on the pages: the strip cannot be printed.
             if barFit.optionsCarriesPrint, ScorePrinting.available(in: state.layoutChoice),
-               state.pdfDocument != nil {
+               state.pdfDocument != nil, !state.showingFirstPagesOnly {
                 ScreenRow(title: "Print", leads: false, identifier: "more-print") {
                     onBack()
                     ScorePrinting.present(state.pdfDocument,

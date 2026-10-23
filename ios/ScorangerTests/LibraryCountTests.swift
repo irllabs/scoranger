@@ -118,4 +118,30 @@ final class LibraryCountTests: XCTestCase {
         XCTAssertTrue(LibraryModel.isUnfiled(unfiled("a")))
         XCTAssertFalse(LibraryModel.isUnfiled(piece("a")))
     }
+
+    /// 2026-10-22: a filter that hides every set list made the header say
+    /// there were none. It counts what EXISTS, and how many are shown.
+    func testAFilteredSegmentCountsWhatExistsAndWhatIsShown() {
+        let three = [piece("a"), piece("b"), piece("c")]
+        XCTAssertEqual(LibraryModel.countPhrase(segment: .setlists, rows: [],
+                                                existing: three),
+                       "3 set lists · 0 shown")
+        XCTAssertEqual(LibraryModel.countPhrase(segment: .setlists, rows: [three[0]],
+                                                existing: three),
+                       "3 set lists · 1 shown")
+        XCTAssertEqual(LibraryModel.countPhrase(segment: .pieces, rows: [piece("a")],
+                                                existing: [piece("a"), unfiled("b")]),
+                       "1 piece · 1 unfiled · 1 shown")
+    }
+
+    /// Nothing hidden, nothing added: the phrase is the one it always was.
+    func testAnUnfilteredSegmentReadsAsBefore() {
+        let two = [piece("a"), piece("b")]
+        XCTAssertEqual(LibraryModel.countPhrase(segment: .setlists, rows: two,
+                                                existing: two),
+                       "2 set lists")
+        XCTAssertEqual(LibraryModel.countPhrase(segment: .setlists, rows: [],
+                                                existing: []),
+                       "No set lists yet")
+    }
 }

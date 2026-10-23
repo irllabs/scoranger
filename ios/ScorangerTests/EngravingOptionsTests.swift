@@ -32,6 +32,28 @@ final class EngravingOptionsTests: XCTestCase {
         }
     }
 
+    /// The MEI-only load (`VerovioRenderer.engrave`) differs from the full set
+    /// in `breaks` alone, so the options the reload sets afterwards are the
+    /// options the pages have always been drawn with.
+    func testTheUnlaidLoadDiffersOnlyInBreaks() {
+        for continuous in [false, true] {
+            for paginated in [false, true] {
+                let full = EngravingOptions.json(lyricSize: 4.5, continuous: continuous,
+                                                 readerPaginated: paginated)
+                let unlaid = EngravingOptions.json(lyricSize: 4.5, continuous: continuous,
+                                                   readerPaginated: paginated, layOut: false)
+                XCTAssertEqual(value("breaks", in: unlaid), "none")
+                guard let a = try? JSONSerialization.jsonObject(with: Data(full.utf8)) as? [String: Any],
+                      let b = try? JSONSerialization.jsonObject(with: Data(unlaid.utf8)) as? [String: Any]
+                else { return XCTFail("not JSON") }
+                XCTAssertEqual(Set(a.keys), Set(b.keys))
+                for key in a.keys where key != "breaks" {
+                    XCTAssertEqual(String(describing: a[key]!), String(describing: b[key]!), key)
+                }
+            }
+        }
+    }
+
     func testBothSetsAreValidJSON() {
         for continuous in [false, true] {
             let json = EngravingOptions.json(lyricSize: 4.5, continuous: continuous)

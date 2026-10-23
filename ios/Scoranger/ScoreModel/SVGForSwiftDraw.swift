@@ -30,11 +30,25 @@ enum SVGForSwiftDraw {
     static func prepare(_ svg: String) -> String {
         // fingerings become drawn circles before anything else looks at the
         // text: they are shapes from here on, not glyphs
-        var s = TabStaff.draw(in: ChordDiagrams.draw(in: FingeringDiagrams.draw(in: svg)))
-        for (glyph, ascii) in accidentalSubs {
+        // The embedded music font goes first, so none of the passes after it
+        // walks 58 KB of base64 (`EmbeddedFonts`).
+        var s = TabStaff.draw(in: ChordDiagrams.draw(in: FingeringDiagrams.draw(
+            in: EmbeddedFonts.lifted(from: svg))))
+        // UTF-8 in one piece, once, for the byte searches below
+        s.makeContiguousUTF8()
+        // Looked for literally before replacing: Foundation's default search
+        // compares grapheme clusters, a third of a dense score's raster time,
+        // and most pages carry none of these glyphs. None of them has a
+        // canonically equivalent spelling, so a page with no literal
+        // occurrence has none at all, and a page with one is replaced exactly
+        // as before. Looked for in the bytes (`TextSearch`): even a literal
+        // Foundation search of a dense page cost 20 ms.
+        for (glyph, ascii) in accidentalSubs where TextSearch.contains(s, glyph) {
             s = s.replacingOccurrences(of: glyph, with: ascii)
         }
-        s = s.replacingOccurrences(of: "currentColor", with: "black")
+        if TextSearch.contains(s, "currentColor") {
+            s = s.replacingOccurrences(of: "currentColor", with: "black")
+        }
 
         // flatten <svg class="definition-scale" viewBox="..."> into a <g>,
         // hoisting its viewBox onto the root svg (which has only px width/height)
@@ -46,15 +60,20 @@ enum SVGForSwiftDraw {
                 viewBox = String(tag[vb])
             }
             s.replaceSubrange(inner, with: #"<g stroke="black" color="black">"#)
-            if let close = s.range(of: "</svg>") {
+            if let close = TextSearch.range(of: "</svg>", in: s) {
                 s.replaceSubrange(close, with: "</g>")
             }
-            if !viewBox.isEmpty, let root = s.range(of: "<svg ") {
+            if !viewBox.isEmpty, let root = TextSearch.range(of: "<svg ", in: s) {
                 s.replaceSubrange(root, with: "<svg \(viewBox) ")
             }
         }
 
-        return flattenTextElements(applyElementFaces(s))
+        // Both passes build in NSString's UTF-16 and hand back a bridged
+        // string; SwiftDraw is given its UTF-8, which is transcoded here in
+        // one go rather than a scalar at a time by the `Data` it is read into.
+        var prepared = flattenTextElements(applyElementFaces(s))
+        prepared.makeContiguousUTF8()
+        return prepared
     }
 
     // MARK: - The face Verovio asks for
@@ -83,52 +102,59 @@ enum SVGForSwiftDraw {
     /// It is done as a separate pass because the flattener works one `<text>`
     /// block at a time and a block does not know what encloses it.
     static func applyElementFaces(_ svg: String) -> String {
-        guard let tagRe = try? NSRegularExpression(pattern: "<[^>]+>") else { return svg }
+        guard let tagRe = RegexCache.regex(pattern: "<[^>]+>") else { return svg }
         let ns = svg as NSString
-        var out = ""
+        // Appended as NSStrings and asked about as NSStrings: a dense page has
+        // tens of thousands of tags, and turning each into a Swift String to
+        // test its first two characters cost more than the matching.
+        let out = NSMutableString(capacity: ns.length + 1024)
         var cursor = 0
         // one entry per OPEN <g>, so the face lifts again at its </g>
         var stack: [(italic: Bool, bold: Bool)] = []
         var italicDepth = 0
         var boldDepth = 0
         for match in tagRe.matches(in: svg, range: NSRange(location: 0, length: ns.length)) {
-            out += ns.substring(with: NSRange(location: cursor,
-                                              length: match.range.location - cursor))
+            out.append(ns.substring(with: NSRange(location: cursor,
+                                                  length: match.range.location - cursor)))
             cursor = match.range.location + match.range.length
-            let tag = ns.substring(with: match.range)
+            let tag = ns.substring(with: match.range) as NSString
             if tag.hasPrefix("<g"), !tag.hasSuffix("/>") {
-                let classes = Set(classes(of: tag))
+                let classes = Set(classes(of: tag as String))
                 let italic = !classes.isDisjoint(with: italicClasses)
                 let bold = !classes.isDisjoint(with: boldClasses)
                 stack.append((italic, bold))
                 if italic { italicDepth += 1 }
                 if bold { boldDepth += 1 }
-                out += tag
+                out.append(tag as String)
             } else if tag.hasPrefix("</g"), let top = stack.popLast() {
                 if top.italic { italicDepth -= 1 }
                 if top.bold { boldDepth -= 1 }
-                out += tag
+                out.append(tag as String)
             } else if tag.hasPrefix("<text"), italicDepth > 0 || boldDepth > 0 {
-                var stamped = tag
-                if italicDepth > 0, !tag.contains("font-style=") {
+                var stamped = tag as String
+                if italicDepth > 0, !stamped.contains("font-style=") {
                     stamped = insert(#"font-style="italic""#, into: stamped)
                 }
-                if boldDepth > 0, !tag.contains("font-weight=") {
+                if boldDepth > 0, !(tag as String).contains("font-weight=") {
                     stamped = insert(#"font-weight="bold""#, into: stamped)
                 }
-                out += stamped
+                out.append(stamped)
             } else {
-                out += tag
+                out.append(tag as String)
             }
         }
-        out += ns.substring(from: cursor)
-        return out
+        out.append(ns.substring(from: cursor))
+        return out as String
     }
 
     private static func classes(of tag: String) -> [String] {
-        guard let range = tag.range(of: #"class="[^"]*""#, options: .regularExpression)
+        // cached: a `.regularExpression` search compiles its pattern per call,
+        // and this is asked of every <g> on the page
+        guard let re = RegexCache.regex(pattern: #"class="[^"]*""#),
+              let m = re.firstMatch(in: tag, range: NSRange(location: 0,
+                                                            length: (tag as NSString).length))
         else { return [] }
-        return String(tag[range]).dropFirst(7).dropLast()
+        return (tag as NSString).substring(with: m.range).dropFirst(7).dropLast()
             .split(separator: " ").map(String.init)
     }
 
@@ -243,21 +269,24 @@ enum SVGForSwiftDraw {
         //
         // `(?:(?!<text[^>]*>).)*?` is the same non-greedy body that additionally
         // refuses to step over another opening tag.
-        guard let blockRe = try? NSRegularExpression(
+        guard let blockRe = RegexCache.regex(
             pattern: "<text[^>]*[^/]>(?:(?!<text[^>]*>).)*?</text>",
             options: [.dotMatchesLineSeparators]),
-            let tokenRe = try? NSRegularExpression(pattern: "<[^>]+>|[^<]+"),
-            let attrRe = try? NSRegularExpression(pattern: #"([a-zA-Z-]+)="([^"]*)""#),
-            let titleRe = try? NSRegularExpression(
+            let tokenRe = RegexCache.regex(pattern: "<[^>]+>|[^<]+"),
+            let attrRe = RegexCache.regex(pattern: #"([a-zA-Z-]+)="([^"]*)""#),
+            let titleRe = RegexCache.regex(
                 pattern: "<title[^>]*>.*?</title>", options: [.dotMatchesLineSeparators])
         else { return svg }
 
         let ns = svg as NSString
-        var result = ""
+        // one buffer of the page's own UTF-16: the stretches between blocks
+        // are most of the page, and transcoding each onto a Swift String was
+        // the larger half of this pass
+        let result = NSMutableString(capacity: ns.length)
         var cursor = 0
         for match in blockRe.matches(in: svg, range: NSRange(location: 0, length: ns.length)) {
-            result += ns.substring(with: NSRange(location: cursor,
-                                                 length: match.range.location - cursor))
+            result.append(ns.substring(with: NSRange(location: cursor,
+                                                     length: match.range.location - cursor)))
             var block = ns.substring(with: match.range)
             block = titleRe.stringByReplacingMatches(
                 in: block, range: NSRange(location: 0, length: (block as NSString).length),
@@ -357,8 +386,10 @@ enum SVGForSwiftDraw {
 
             // seed from the <text> open tag, so text that never meets a
             // positioned tspan still has somewhere to land
-            if let openTag = block.range(of: "<text[^>]*>", options: .regularExpression) {
-                let a = attrs(of: String(block[openTag]))
+            if let openRe = RegexCache.regex(pattern: "<text[^>]*>"),
+               let openTag = openRe.firstMatch(in: block, range: NSRange(location: 0,
+                                                                         length: blockNS.length)) {
+                let a = attrs(of: blockNS.substring(with: openTag.range))
                 for key in ["font-style", "font-weight"] { blockFace[key] = a[key] }
                 blockFace = blockFace.compactMapValues { $0 }
                 if a["x"] != nil {
@@ -401,11 +432,11 @@ enum SVGForSwiftDraw {
                 }
             }
             closeGroup()
-            result += out
+            result.append(out)
             cursor = match.range.location + match.range.length
         }
-        result += ns.substring(from: cursor)
-        return result
+        result.append(ns.substring(from: cursor))
+        return result as String
     }
 
     /// The fonts Verovio sets NOTATION in. A run in one of them is a glyph

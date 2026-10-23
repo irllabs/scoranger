@@ -17,7 +17,7 @@ import Foundation
 enum RehearsalMarks {
     /// Nil when nothing was dropped, so the caller can skip a reload.
     static func meiWithDedupedMarks(_ mei: String) -> String? {
-        guard let element = try? NSRegularExpression(
+        guard let element = RegexCache.regex(
             pattern: "<reh\\b[^>]*(?:/>|>.*?</reh>)",
             options: [.dotMatchesLineSeparators]) else { return nil }
         let text = mei as NSString

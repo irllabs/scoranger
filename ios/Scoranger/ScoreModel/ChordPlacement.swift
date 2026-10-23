@@ -21,7 +21,7 @@ enum ChordPlacement {
     /// the order the MEI presents them in, which is what lets the two be
     /// matched without inventing an identity scheme.
     static func onStaffFlags(inMusicXML xml: String) -> [Bool] {
-        guard let tagRE = try? NSRegularExpression(pattern: "<harmony\\b[^>]*>") else { return [] }
+        guard let tagRE = RegexCache.regex(pattern: "<harmony\\b[^>]*>") else { return [] }
         let ns = xml as NSString
         return tagRE.matches(in: xml, range: NSRange(location: 0, length: ns.length))
             .map { match in
@@ -43,7 +43,7 @@ enum ChordPlacement {
     /// Returns nil when none asks, so the caller can skip a Verovio reload.
     static func meiWithChartStyling(_ mei: String, onStaff flags: [Bool]) -> String? {
         guard flags.contains(true),
-              let harmRE = try? NSRegularExpression(pattern: "<harm\\b[^>]*>")
+              let harmRE = RegexCache.regex(pattern: "<harm\\b[^>]*>")
         else { return nil }
 
         let beats = beatsPerBar(in: mei)
@@ -74,7 +74,7 @@ enum ChordPlacement {
     /// The bar length, read off whichever meter the MEI carries.
     static func beatsPerBar(in mei: String) -> Int? {
         for pattern in ["<meterSig[^>]*\\bcount=\"(\\d+)\"", "meter\\.count=\"(\\d+)\""] {
-            guard let re = try? NSRegularExpression(pattern: pattern) else { continue }
+            guard let re = RegexCache.regex(pattern: pattern) else { continue }
             let ns = mei as NSString
             if let hit = re.firstMatch(in: mei, range: NSRange(location: 0, length: ns.length)),
                hit.numberOfRanges > 1,
@@ -88,7 +88,7 @@ enum ChordPlacement {
     /// Set an attribute on a tag, replacing any existing value.
     private static func replacing(_ attribute: String, in tag: String,
                                   with value: String) -> String {
-        guard let re = try? NSRegularExpression(pattern: "\\s\(attribute)=\"[^\"]*\"")
+        guard let re = RegexCache.regex(pattern: "\\s\(attribute)=\"[^\"]*\"")
         else { return tag }
         let ns = tag as NSString
         let stripped = re.stringByReplacingMatches(

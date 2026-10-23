@@ -485,7 +485,16 @@ struct ContentView: View {
                      // tray (§3 E-B), until 0.8.4's phone layout.
                      leading: mergedScrubber,
                      dimmed: state.annotation.isOn)
-                    .task(id: state.displayedVersionID) {
+                    // Once the arrangement's pages are on screen, not before:
+                    // loading the sound (the audio session, a sampler and its
+                    // instrument per part) holds the main thread for 170 ms
+                    // on "Espresso" (simulator), and when it landed beside the
+                    // first page that page waited for it. An op keeps the
+                    // previous version's pages up, so after one this starts
+                    // at once, as it always did.
+                    .task(id: PlaybackPreparation(version: state.displayedVersionID,
+                                                  pagesShown: state.showsSelectedArrangement)) {
+                        guard state.showsSelectedArrangement else { return }
                         await state.preparePlayback()
                     }
             }
@@ -610,7 +619,9 @@ struct ContentView: View {
 
     private var pageCounter: String {
         ScorePosition.pageLabel(visible: state.visiblePageIndices,
-                                total: state.pdfDocument?.pageCount ?? 0)
+                                total: state.showingFirstPagesOnly
+                                    ? state.firstPagesTotal
+                                    : state.pdfDocument?.pageCount ?? 0)
     }
 
     /// The bar on screen, from the geometry the selection layer already builds.
@@ -933,6 +944,13 @@ private extension View {
 // (NAVIGATION_SYSTEM.md §8), and with the legacy overlay removed there is
 // nothing left for its library button to open.
 
+
+/// When the transport prepares the version's sound: once per version, and
+/// only when the arrangement's pages are on screen.
+private struct PlaybackPreparation: Equatable {
+    let version: String?
+    let pagesShown: Bool
+}
 
 /// The page and bar counters, wired to the transport's own clock.
 ///

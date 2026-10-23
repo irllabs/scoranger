@@ -9,13 +9,18 @@ import Foundation
 enum ScorePosition {
 
     /// `pp. 3–4 / 12`, or `p. 3 / 12` when one page fills the view.
-    static func pageLabel(visible: [Int], total: Int) -> String {
+    ///
+    /// A nil `total` is a score whose length is not known yet -- its first
+    /// pages are on screen ahead of the rest (`EarlyPages`) -- and reads
+    /// `p. 1`, rather than a count nothing has made.
+    static func pageLabel(visible: [Int], total: Int?) -> String {
         let shown = visible.sorted()
-        guard let first = shown.first, total > 0 else { return "" }
+        guard let first = shown.first, total.map({ $0 > 0 }) ?? true else { return "" }
+        let of = total.map { " / \($0)" } ?? ""
         if shown.count == 1 || first == shown.last {
-            return "p. \(first + 1) / \(total)"
+            return "p. \(first + 1)\(of)"
         }
-        return "pp. \(first + 1)–\((shown.last ?? first) + 1) / \(total)"
+        return "pp. \(first + 1)–\((shown.last ?? first) + 1)\(of)"
     }
 
     /// Which page indices a viewport covers, given each page's vertical band.

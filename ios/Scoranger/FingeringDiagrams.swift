@@ -113,6 +113,10 @@ enum FingeringDiagrams {
         /// width, so an "X" verse and an "O" verse of the SAME note sit at
         /// different x, and a column of mixed holes never grouped.
         let number: Int?
+        /// The verse's text anchor (`verseY`, `verseX`), read once: the
+        /// column pass asks for them several times a verse.
+        let y: CGFloat?
+        let x: CGFloat?
     }
 
     /// Mark fingering verses `place="above"` in MEI, or nil when there are none.
@@ -129,65 +133,77 @@ enum FingeringDiagrams {
     /// is drawn. Six is the layout every build before 0.13.0 drew.
     static func meiWithFingeringsAbove(_ mei: String,
                                        rows: Int = StaffSpacing.defaultRows) -> String? {
-        guard mei.contains("<verse") else { return nil }
-        // chord first: a fingered note inside a chord hangs its verses off the
-        // chord, and matching the inner <note> separately would miss them
-        guard let noteRE = try? NSRegularExpression(
-                pattern: "<(chord|note)\\b[^>]*>.*?</\\1>",
-                options: [.dotMatchesLineSeparators]),
-              let verseRE = try? NSRegularExpression(
-                pattern: "<verse\\b[^>]*>.*?</verse>",
-                options: [.dotMatchesLineSeparators])
-        else { return nil }
+        guard TextSearch.contains(mei, "<verse") else { return nil }
 
-        let ns = mei as NSString
-        var out = ""
+        // Built by ranges into one buffer: the column's verses are matches in
+        // the note's block, so they are cut out by where they are rather than
+        // searched for again as text, which on a fingered tune cost more than
+        // the rest of the pass together (a full-text search per verse).
+        let ns = NSString(string: mei)
+        let out = NSMutableString(capacity: ns.length + ns.length / 8)
         var cursor = 0
         var changed = false
-        for match in noteRE.matches(in: mei, range: NSRange(location: 0, length: ns.length)) {
-            out += ns.substring(with: NSRange(location: cursor,
-                                              length: match.range.location - cursor))
-            let block = ns.substring(with: match.range)
-            let blockNS = block as NSString
-            let verses = verseRE.matches(
-                in: block, range: NSRange(location: 0, length: blockNS.length))
-                .map { blockNS.substring(with: $0.range) }
+        // chord first: a fingered note inside a chord hangs its verses off the
+        // chord, and matching the inner <note> separately would miss them
+        for range in TextSearch.elementRanges(named: ["chord", "note"], in: ns) {
+            out.append(ns.substring(with: NSRange(location: cursor,
+                                                  length: range.location - cursor)))
+            cursor = range.location + range.length
+            let block = ns.substring(with: range)
+            let blockNS = NSString(string: block)
+            let found = TextSearch.elementRanges(named: ["verse"], in: blockNS)
+            let verses = found.map { blockNS.substring(with: $0) }
             // The column is the `wf` verses and only them: a SUNG note carries
             // its words as further verses (0.21.0), which stay below. A column
             // is tagged verses that READ as holes; an untagged column, from
             // before the tag, is the whole note or nothing. Mirrors
             // render.mei_with_fingerings_above.
-            var column = verses.filter { $0.contains("label=\"\(tag)") }
-            if !isFingeringColumn(column) {
-                column = isFingeringColumn(verses) ? verses : []
+            var picked = verses.indices.filter { TextSearch.contains(verses[$0], "label=\"\(tag)") }
+            if !isFingeringColumn(picked.map { verses[$0] }) {
+                picked = isFingeringColumn(verses) ? Array(verses.indices) : []
             }
-            if !column.isEmpty {
-                changed = true
-                // Only a verse without a placement gains one -- the same guard
-                // render.py applies -- so a placed verse is not given two.
-                let above = column.map { verse -> String in
-                    let open = verse.components(separatedBy: ">").first ?? verse
-                    return open.contains("place=") ? verse
-                        : verse.replacingOccurrences(of: "<verse", with: "<verse place=\"above\"",
-                                                     options: [], range: verse.range(of: "<verse"))
-                }
-                let packed = packColumn(above, rows: rows) ?? above
-                // the column's verses out, the column back in where its first was
+            guard !picked.isEmpty else { out.append(block); continue }
+            changed = true
+            let column = picked.map { verses[$0] }
+            // Only a verse without a placement gains one -- the same guard
+            // render.py applies -- so a placed verse is not given two.
+            let above = column.map { verse -> String in
+                let v = verse as NSString
+                let close = v.range(of: ">")
+                let open = close.location == NSNotFound ? verse : v.substring(to: close.location)
+                if TextSearch.contains(open, "place=") { return verse }
+                let at = v.range(of: "<verse")
+                return at.location == NSNotFound ? verse
+                    : v.replacingCharacters(in: at, with: "<verse place=\"above\"")
+            }
+            let packed = packColumn(above, rows: rows) ?? above
+            // The column's verses out, the column back in where its first
+            // was. Each verse carries its own xml:id, so its text occurs once
+            // in the block and its match IS the place a text search would
+            // find; a block where some verse repeats takes the search, which
+            // is what this always did.
+            guard Set(verses).count == verses.count else {
                 var stripped = block
-                let first = (block as NSString).range(of: column[0]).location
+                let first = blockNS.range(of: column[0]).location
                 for verse in column {
                     if let r = stripped.range(of: verse) { stripped.removeSubrange(r) }
                 }
-                let head = (stripped as NSString).substring(to: first)
-                let tail = (stripped as NSString).substring(from: first)
-                out += head + packed.joined() + tail
-            } else {
-                out += block
+                out.append((stripped as NSString).substring(to: first))
+                out.append(packed.joined())
+                out.append((stripped as NSString).substring(from: first))
+                continue
             }
-            cursor = match.range.location + match.range.length
+            var at = 0
+            for (n, index) in picked.enumerated() {
+                let r = found[index]
+                out.append(blockNS.substring(with: NSRange(location: at, length: r.location - at)))
+                if n == 0 { out.append(packed.joined()) }
+                at = r.location + r.length
+            }
+            out.append(blockNS.substring(from: at))
         }
-        out += ns.substring(from: cursor)
-        return changed ? wordsUnderLiftedColumns(out) : nil
+        out.append(ns.substring(from: cursor))
+        return changed ? wordsUnderLiftedColumns(in: out) : nil
     }
 
     /// Where a whistle part's WORDS are numbered from: above the column's
@@ -204,46 +220,54 @@ enum FingeringDiagrams {
     /// whistle's range lines up with its neighbours. Mirrors
     /// render._words_under_lifted_columns.
     static func wordsUnderLiftedColumns(_ mei: String) -> String {
-        guard let staffRE = try? NSRegularExpression(
-                pattern: "<staff\\b[^>]*>.*?</staff>", options: [.dotMatchesLineSeparators]),
-              let numberRE = try? NSRegularExpression(pattern: "^<staff\\b[^>]*?\\bn=\"(\\d+)\""),
-              let verseRE = try? NSRegularExpression(
-                pattern: "<verse\\b[^>]*>.*?</verse>", options: [.dotMatchesLineSeparators]),
-              let verseNRE = try? NSRegularExpression(pattern: "(<verse\\b[^>]*?\\bn=\")(\\d+)\"")
-        else { return mei }
-        let ns = mei as NSString
-        let staves = staffRE.matches(in: mei, range: NSRange(location: 0, length: ns.length))
+        wordsUnderLiftedColumns(in: NSString(string: mei))
+    }
+
+    /// The same, of a document already held as an NSString: the lift builds
+    /// its output as one, and bridging it to a String and copying it back
+    /// cost more than the scan of it (6 ms of 32 on "Espresso", natively).
+    private static func wordsUnderLiftedColumns(in ns: NSString) -> String {
+        guard let numberRE = RegexCache.regex(pattern: "^<staff\\b[^>]*?\\bn=\"(\\d+)\""),
+              let verseNRE = RegexCache.regex(pattern: "(<verse\\b[^>]*?\\bn=\")(\\d+)\"")
+        else { return ns as String }
+        let staves = TextSearch.elementRanges(named: ["staff"], in: ns)
         func number(_ block: String) -> String? {
             let b = block as NSString
             guard let m = numberRE.firstMatch(in: block, range: NSRange(location: 0, length: b.length))
             else { return nil }
             return b.substring(with: m.range(at: 1))
         }
+        // Asked of the document's own NSString, literally, and built into one
+        // buffer: the whole MEI goes through here, and Swift String searches
+        // and appends of bridged pieces were most of this pass.
         var lifted = Set<String>()
         for staff in staves {
-            let block = ns.substring(with: staff.range)
-            if block.contains("label=\"\(tag)"), block.contains("place=\"above\""),
-               let n = number(block) {
+            if ns.range(of: "label=\"\(tag)", options: .literal, range: staff).location
+                != NSNotFound,
+               ns.range(of: "place=\"above\"", options: .literal, range: staff).location
+                != NSNotFound,
+               let n = number(ns.substring(with: staff)) {
                 lifted.insert(n)
             }
         }
-        guard !lifted.isEmpty else { return mei }
-        var out = ""
+        guard !lifted.isEmpty else { return ns as String }
+        let out = NSMutableString(capacity: ns.length)
         var cursor = 0
         for staff in staves {
-            out += ns.substring(with: NSRange(location: cursor, length: staff.range.location - cursor))
-            let block = ns.substring(with: staff.range)
-            cursor = staff.range.location + staff.range.length
-            guard let n = number(block), lifted.contains(n) else { out += block; continue }
-            let b = block as NSString
+            out.append(ns.substring(with: NSRange(location: cursor,
+                                                  length: staff.location - cursor)))
+            let block = ns.substring(with: staff)
+            cursor = staff.location + staff.length
+            guard let n = number(block), lifted.contains(n) else { out.append(block); continue }
+            let b = NSString(string: block)
             var rebuilt = ""
             var at = 0
-            for verse in verseRE.matches(in: block, range: NSRange(location: 0, length: b.length)) {
-                rebuilt += b.substring(with: NSRange(location: at, length: verse.range.location - at))
-                let text = b.substring(with: verse.range)
-                at = verse.range.location + verse.range.length
+            for verse in TextSearch.elementRanges(named: ["verse"], in: b) {
+                rebuilt += b.substring(with: NSRange(location: at, length: verse.location - at))
+                let text = b.substring(with: verse)
+                at = verse.location + verse.length
                 let t = text as NSString
-                guard !text.contains("label=\"\(tag)"),
+                guard !TextSearch.contains(text, "label=\"\(tag)"),
                       let m = verseNRE.firstMatch(in: text, range: NSRange(location: 0, length: t.length)),
                       let value = Int(t.substring(with: m.range(at: 2))),
                       value > wordVersesAfterColumn else { rebuilt += text; continue }
@@ -252,10 +276,10 @@ enum FingeringDiagrams {
                     with: t.substring(with: m.range(at: 1)) + "\(value - wordVersesAfterColumn)\"")
             }
             rebuilt += b.substring(from: at)
-            out += rebuilt
+            out.append(rebuilt)
         }
-        out += ns.substring(from: cursor)
-        return out
+        out.append(ns.substring(from: cursor))
+        return out as String
     }
 
     /// The label a PACKED column carries on its first verse: the tag, a bar,
@@ -276,8 +300,7 @@ enum FingeringDiagrams {
     /// nil when there is nothing to save. Mirrors render._pack_column.
     static func packColumn(_ verses: [String], rows: Int) -> [String]? {
         let texts = verses.map { verse -> String in
-            (value(of: "(?<=<syl[^<>]{0,200}>)[^<]*(?=</syl>)", in: verse)
-                ?? value(of: "(?<=<syl>)[^<]*(?=</syl>)", in: verse) ?? "")
+            (sylText(in: verse) ?? "")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
         }
         let holes = texts.filter { [covered, open, half].contains($0) }
@@ -289,7 +312,10 @@ enum FingeringDiagrams {
         return verses.prefix(keep).enumerated().map { index, verse in
             var v = replacingFirst("\\bn=\"\\d+\"", in: verse, with: "n=\"\(index + 1)\"")
             let label = "label=\"\(packedPrefix)\(index == 0 ? pattern : "")\""
-            if v.range(of: "\\blabel=\"[^\"]*\"", options: .regularExpression) != nil {
+            // the cached expression: a `.regularExpression` search compiles
+            // its pattern on every call, once per verse of every column
+            if let labelRE = RegexCache.regex(pattern: "\\blabel=\"[^\"]*\""),
+               labelRE.firstMatch(in: v, range: NSRange(v.startIndex..., in: v)) != nil {
                 v = replacingFirst("\\blabel=\"[^\"]*\"", in: v, with: label)
             } else if let r = v.range(of: "<verse") {
                 v.replaceSubrange(r, with: "<verse \(label)")
@@ -309,11 +335,11 @@ enum FingeringDiagrams {
     /// at its own tighter pitch, which is how the column fits the smaller band.
     /// Mirrors render._unpack_fingering_columns.
     static func unpackColumns(in svg: String) -> String {
-        guard svg.contains(packedPrefix),
-              let verseRE = try? NSRegularExpression(
+        guard TextSearch.contains(svg, packedPrefix),
+              let verseRE = RegexCache.regex(
                 pattern: "<g[^>]*class=\"verse\">.*?</g>\\s*</g>",
                 options: [.dotMatchesLineSeparators]),
-              let titleRE = try? NSRegularExpression(
+              let titleRE = RegexCache.regex(
                 pattern: "<title class=\"labelAttr\">" +
                     NSRegularExpression.escapedPattern(for: packedPrefix) + "([^<]*)</title>")
         else { return svg }
@@ -348,17 +374,19 @@ enum FingeringDiagrams {
             let holeCount = pattern.count - (hasOctave ? 1 : 0)
             let anchor = ys[column.count - (hasOctave ? 2 : 1)]
             var rows = ""
+            // the same for every row, so made once per column
+            let plain = headBlock.replacingOccurrences(
+                of: head.whole, with: "<title class=\"labelAttr\">\(tag)</title>")
             for (index, glyph) in pattern.enumerated() {
                 let y = glyph == octave ? anchor + pitch
                     : anchor - CGFloat(holeCount - 1 - index) * pitch
-                var row = headBlock.replacingOccurrences(
-                    of: head.whole, with: "<title class=\"labelAttr\">\(tag)</title>")
+                var row = plain
                 row = replacingFirst("(<tspan font-size=\"[\\d.]+px\">)[^<]*(</tspan>)",
                                      in: row, with: "$1\(glyph)$2")
                 row = replacingFirst("(<text\\b[^>]*\\by=\")-?[\\d.]+(\")",
                                      in: row, with: "$1\(svgNumber(y))$2")
                 // ids stay unique: the rows are copies of one block
-                row = (try? NSRegularExpression(pattern: "\\bid=\"([^\"]+)\""))
+                row = (RegexCache.regex(pattern: "\\bid=\"([^\"]+)\""))
                     .map { $0.stringByReplacingMatches(
                         in: row, range: NSRange(row.startIndex..., in: row),
                         withTemplate: "id=\"$1-r\(index)\"") } ?? row
@@ -367,10 +395,19 @@ enum FingeringDiagrams {
             edits.append((column[0].range, rows))
             for block in column.dropFirst() { edits.append((block.range, "")) }
         }
-        var out = svg as NSString
-        for edit in edits.sorted(by: { $0.range.location > $1.range.location }) {
-            out = out.replacingCharacters(in: edit.range, with: edit.text) as NSString
+        // One pass from the front. The edits are distinct matches of one
+        // regex, so they never overlap, and splicing them in order is the
+        // same text as replacing them one by one from the back -- which copied
+        // the whole page once per edit, 157 ms of a dense score's raster.
+        let out = NSMutableString(capacity: ns.length)
+        var cursor = 0
+        for edit in edits.sorted(by: { $0.range.location < $1.range.location }) {
+            out.append(ns.substring(with: NSRange(location: cursor,
+                                                  length: edit.range.location - cursor)))
+            out.append(edit.text)
+            cursor = edit.range.location + edit.range.length
         }
+        out.append(ns.substring(from: cursor))
         return out as String
     }
 
@@ -387,7 +424,7 @@ enum FingeringDiagrams {
     /// The first match of `pattern` replaced by `template` ($1-style groups).
     private static func replacingFirst(_ pattern: String, in text: String,
                                        with template: String) -> String {
-        guard let re = try? NSRegularExpression(pattern: pattern),
+        guard let re = RegexCache.regex(pattern: pattern),
               let m = re.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
               let range = Range(m.range, in: text) else { return text }
         let replacement = re.replacementString(for: m, in: text, offset: 0, template: template)
@@ -396,12 +433,29 @@ enum FingeringDiagrams {
         return out
     }
 
+    /// The text of a verse's first `<syl>`, or nil.
+    ///
+    /// The same text the lookbehind `(?<=<syl[^<>]{0,200}>)[^<]*(?=</syl>)`
+    /// finds, found forwards. A position can only satisfy that lookbehind
+    /// right after the `>` of a `<syl` tag, so its matches are exactly the
+    /// tags the forward pattern starts on, in the same order -- and ICU tried
+    /// the lookbehind at every character of every verse, up to 200 back,
+    /// which made it the costliest line of the fingering pass. (The plain
+    /// `<syl>` form that used to follow it as a fallback is a case of the
+    /// first, so it could never find what the first had not.)
+    private static func sylText(in verse: String) -> String? {
+        let ns = verse as NSString
+        guard let re = RegexCache.regex(pattern: "<syl[^<>]{0,200}>([^<]*)</syl>"),
+              let m = re.firstMatch(in: verse, range: NSRange(location: 0, length: ns.length))
+        else { return nil }
+        return ns.substring(with: m.range(at: 1))
+    }
+
     /// Five or six single holes on one note, with the octave "+" allowed.
     private static func isFingeringColumn(_ verses: [String]) -> Bool {
         var holes = 0
         for verse in verses {
-            guard let syl = value(of: "(?<=<syl[^<>]{0,200}>)[^<]*(?=</syl>)", in: verse)
-                    ?? value(of: "(?<=<syl>)[^<]*(?=</syl>)", in: verse) else { return false }
+            guard let syl = sylText(in: verse) else { return false }
             let text = syl.trimmingCharacters(in: .whitespacesAndNewlines)
             if [covered, open, half].contains(text) { holes += 1 }
             else if text != octave { return false }
@@ -414,8 +468,8 @@ enum FingeringDiagrams {
         // a packed column (see packColumn) back into one block per row FIRST,
         // so everything below sees the column it was written for
         let svg = unpackColumns(in: input)
-        guard svg.contains("class=\"verse\"") else { return svg }
-        guard let verseRE = try? NSRegularExpression(
+        guard TextSearch.contains(svg, "class=\"verse\"") else { return svg }
+        guard let verseRE = RegexCache.regex(
                 pattern: "<g[^>]*class=\"verse\">.*?</g>\\s*</g>",
                 options: [.dotMatchesLineSeparators]) else { return svg }
 
@@ -423,14 +477,14 @@ enum FingeringDiagrams {
         let verses = verseRE.matches(in: svg, range: NSRange(location: 0, length: ns.length))
             .map { match -> Verse in
                 let block = ns.substring(with: match.range)
-                let label = value(of: "(?<=<title class=\"labelAttr\">)[^<]*(?=</title>)",
-                                  in: block)
+                let label = captured(by: "<title class=\"labelAttr\">([^<]*)</title>", in: block)
                 return Verse(range: match.range,
                              block: block,
                              tagged: label == tag,
                              symbol: fingeringSymbol(in: block),
-                             text: value(of: "(?<=>)[^<>]{1,3}(?=</tspan>)", in: block),
-                             number: label.flatMap { Int($0) })
+                             text: captured(by: ">([^<>]{1,3})</tspan>", in: block),
+                             number: label.flatMap { Int($0) },
+                             y: verseY(block), x: verseX(block))
             }
         guard !verses.isEmpty else { return svg }
 
@@ -451,7 +505,7 @@ enum FingeringDiagrams {
         // takes the reclaimed space off the top, which is the safe direction --
         // the column only ever gets shorter, so it cannot reach the system
         // above.
-        let allYs = verses.compactMap { verseY($0.block) }
+        let allYs = verses.compactMap(\.y)
         let typicalPitch = rowPitch(of: allYs.enumerated()
             .filter { $0.offset == 0 || allYs[$0.offset] > allYs[$0.offset - 1] }
             .map(\.element))
@@ -471,7 +525,7 @@ enum FingeringDiagrams {
         var column: [Int] = []
 
         func settle() {
-            let ys = column.compactMap { verseY(verses[$0].block) }
+            let ys = column.compactMap { verses[$0].y }
             guard ys.count == column.count, ys.count >= 2 else { return }
             let pitch = rowPitch(of: ys)
             guard pitch > 0 else { return }
@@ -493,7 +547,7 @@ enum FingeringDiagrams {
             }
             let holeXs = column
                 .filter { convertible[$0] }
-                .compactMap { verseX(verses[$0].block) }
+                .compactMap { verses[$0].x }
                 .sorted()
             if !holeXs.isEmpty {
                 let axis = holeXs[holeXs.count / 2]
@@ -503,42 +557,42 @@ enum FingeringDiagrams {
 
         for (index, verse) in verses.enumerated() {
             let isColumnRow = convertible[index] || (verse.tagged && verse.text == octave)
-            guard isColumnRow, let y = verseY(verse.block) else {
+            guard isColumnRow, let y = verse.y else {
                 settle(); column = []; continue
             }
             _ = y
             if let last = column.last,
-               !sameColumn(verses[last].block, verse.block, tolerance: xTolerance) {
+               !sameColumn(verses[last], verse, tolerance: xTolerance) {
                 settle(); column = []
             }
             column.append(index)
         }
         settle()
 
-        var out = ""
+        let out = NSMutableString(capacity: ns.length + ns.length / 4)
         var cursor = 0
         for (index, verse) in verses.enumerated() {
-            out += ns.substring(with: NSRange(location: cursor,
-                                              length: verse.range.location - cursor))
+            out.append(ns.substring(with: NSRange(location: cursor,
+                                                  length: verse.range.location - cursor)))
             if convertible[index],
                let drawn = rewrite(verse.block, y: placement[index],
                                    radius: radii[index],
                                    anchorX: anchors[index]) {
-                out += drawn
+                out.append(drawn)
             } else if verse.tagged, verse.text == octave {
                 // it belongs to the column, so it moves and shrinks with it --
                 // left alone it stands twice as tall as its own holes, in the
                 // place the old spacing put it
-                out += scaleText(verse.block, y: placement[index],
-                                 radius: radii[index],
-                                 anchorX: anchors[index]) ?? verse.block
+                out.append(scaleText(verse.block, y: placement[index],
+                                     radius: radii[index],
+                                     anchorX: anchors[index]) ?? verse.block)
             } else {
-                out += verse.block
+                out.append(verse.block)
             }
             cursor = verse.range.location + verse.range.length
         }
-        out += ns.substring(from: cursor)
-        return out
+        out.append(ns.substring(from: cursor))
+        return out as String
     }
 
     /// Which verses belong to a fingering: tagged ones, and untagged ones that
@@ -573,7 +627,7 @@ enum FingeringDiagrams {
 
     /// The hole this verse draws, if it is one.
     private static func fingeringSymbol(in block: String) -> String? {
-        guard let symbol = value(of: "(?<=>)[XO/](?=</tspan>)", in: block),
+        guard let symbol = captured(by: ">([XO/])</tspan>", in: block),
               [covered, open, half].contains(symbol) else { return nil }
         return symbol
     }
@@ -601,10 +655,10 @@ enum FingeringDiagrams {
     /// and an "O" row of the same note can be ten units apart. Not generous
     /// either: consecutive notes are a whole note-spacing apart. A quarter of
     /// the row pitch sits between the two and scales with the staff.
-    private static func sameColumn(_ a: String, _ b: String,
+    private static func sameColumn(_ a: Verse, _ b: Verse,
                                    tolerance: CGFloat) -> Bool {
-        guard let ya = verseY(a), let yb = verseY(b),
-              let xa = verseX(a), let xb = verseX(b) else { return false }
+        guard let ya = a.y, let yb = b.y,
+              let xa = a.x, let xb = b.x else { return false }
         return yb > ya && abs(xb - xa) <= tolerance
     }
 
@@ -671,7 +725,7 @@ enum FingeringDiagrams {
     private static func scaleText(_ block: String, y: CGFloat? = nil,
                                   radius: CGFloat? = nil,
                                   anchorX: CGFloat? = nil) -> String? {
-        guard let re = try? NSRegularExpression(pattern: "<tspan font-size=\"([0-9.]+)px\">"),
+        guard let re = RegexCache.regex(pattern: "<tspan font-size=\"([0-9.]+)px\">"),
               let m = re.firstMatch(in: block,
                                     range: NSRange(location: 0, length: (block as NSString).length)),
               m.numberOfRanges > 1
@@ -682,7 +736,7 @@ enum FingeringDiagrams {
         let wanted = radius.map { $0 * 2 * octaveMarkVsDiameter } ?? (size * diagramScale)
         var moved = ns.replacingCharacters(
             in: m.range, with: "<tspan font-size=\"\(wanted)px\">") as String
-        if let y, let yre = try? NSRegularExpression(pattern: "(<text[^>]*y=\")[-0-9.]+(\")"),
+        if let y, let yre = RegexCache.regex(pattern: "(<text[^>]*y=\")[-0-9.]+(\")"),
            let ym = yre.firstMatch(in: moved,
                                    range: NSRange(location: 0, length: (moved as NSString).length)) {
             let mns = moved as NSString
@@ -693,7 +747,7 @@ enum FingeringDiagrams {
         }
         if let radius, let own = number(of: "<text x=\"([-0-9.]+)\"", in: moved) {
             let centre = (anchorX ?? own) + centreXVsRadius * radius
-            if let xre = try? NSRegularExpression(pattern: "<text x=\"[-0-9.]+\""),
+            if let xre = RegexCache.regex(pattern: "<text x=\"[-0-9.]+\""),
                let xm = xre.firstMatch(
                    in: moved,
                    range: NSRange(location: 0, length: (moved as NSString).length)) {
@@ -713,7 +767,7 @@ enum FingeringDiagrams {
 
     /// Swap the `<text>…</text>` for the shape, leaving the rest of the group.
     private static func replacingText(in block: String, with shape: String) -> String? {
-        guard let re = try? NSRegularExpression(pattern: "<text.*?</text>",
+        guard let re = RegexCache.regex(pattern: "<text.*?</text>",
                                                 options: [.dotMatchesLineSeparators])
         else { return nil }
         let ns = block as NSString
@@ -723,16 +777,23 @@ enum FingeringDiagrams {
                                            withTemplate: shape)
     }
 
-    private static func value(of pattern: String, in text: String) -> String? {
-        guard let re = try? NSRegularExpression(pattern: pattern),
+    /// The first capture group of `pattern`'s first match.
+    ///
+    /// The patterns this reads used to be lookbehinds, `(?<=>)X(?=</tspan>)`,
+    /// which ICU tries at every character of the block; written forwards with
+    /// the context matched and the value captured, the first match is the
+    /// same text and the search starts only where the context does.
+    private static func captured(by pattern: String, in text: String) -> String? {
+        guard let re = RegexCache.regex(pattern: pattern),
               let m = re.firstMatch(in: text,
-                                    range: NSRange(location: 0, length: (text as NSString).length))
+                                    range: NSRange(location: 0, length: (text as NSString).length)),
+              m.numberOfRanges > 1
         else { return nil }
-        return (text as NSString).substring(with: m.range)
+        return (text as NSString).substring(with: m.range(at: 1))
     }
 
     private static func number(of pattern: String, in text: String) -> CGFloat? {
-        guard let re = try? NSRegularExpression(pattern: pattern),
+        guard let re = RegexCache.regex(pattern: pattern),
               let m = re.firstMatch(in: text,
                                     range: NSRange(location: 0, length: (text as NSString).length)),
               m.numberOfRanges > 1

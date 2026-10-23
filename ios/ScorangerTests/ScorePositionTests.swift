@@ -33,6 +33,14 @@ final class ScorePositionTests: XCTestCase {
         XCTAssertEqual(ScorePosition.pageLabel(visible: [0], total: 0), "")
     }
 
+    /// First pages laid out ahead of the rest: the length is not known, and
+    /// the counter does not make one up.
+    func testAnUnknownLengthIsNotCounted() {
+        XCTAssertEqual(ScorePosition.pageLabel(visible: [0], total: nil), "p. 1")
+        XCTAssertEqual(ScorePosition.pageLabel(visible: [0, 1], total: nil), "pp. 1–2")
+        XCTAssertEqual(ScorePosition.pageLabel(visible: [], total: nil), "")
+    }
+
     // MARK: - Which pages are on screen
 
     private let bands: [(index: Int, span: ClosedRange<CGFloat>)] = [

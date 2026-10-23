@@ -354,4 +354,25 @@ final class PagedCanvasTests: XCTestCase {
             }
         }
     }
+
+    /// 0.23.3: a swipe made while only page 1 exists is carried out when the
+    /// rest arrive, not thrown away.
+    func testTurnsHeldBeforeThePagesExistLandWhenTheyArrive() {
+        XCTAssertEqual(PagedCanvas.landing(afterHeldTurns: 1, from: 0,
+                                           pageCount: 6, spread: false), 1)
+        XCTAssertEqual(PagedCanvas.landing(afterHeldTurns: 3, from: 0,
+                                           pageCount: 6, spread: false), 3)
+        // a spread turns a whole unit at a time
+        XCTAssertEqual(PagedCanvas.landing(afterHeldTurns: 2, from: 0,
+                                           pageCount: 9, spread: true), 4)
+        // more turns than pages stop at the last page
+        XCTAssertEqual(PagedCanvas.landing(afterHeldTurns: 10, from: 0,
+                                           pageCount: 3, spread: false), 2)
+        // a turn forward then back again lands where it started
+        XCTAssertEqual(PagedCanvas.landing(afterHeldTurns: 0, from: 0,
+                                           pageCount: 6, spread: false), 0)
+        // a one-page score has nowhere to go
+        XCTAssertEqual(PagedCanvas.landing(afterHeldTurns: 2, from: 0,
+                                           pageCount: 1, spread: false), 0)
+    }
 }

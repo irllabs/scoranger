@@ -689,7 +689,12 @@ struct ScorePagesView: View {
     private func step(by direction: Int) {
         guard let next = PagedCanvas.step(from: state.pageIndex, by: direction,
                                           pageCount: document.pageCount,
-                                          spread: state.twoPageSpread) else { return }
+                                          spread: state.twoPageSpread) else {
+            // Only the first pages are engraved yet: the turn is kept and
+            // made when the rest arrive, rather than lost.
+            state.holdTurn(direction)
+            return
+        }
         // A page turned BY THE READER hands following over to them. The music
         // is not stopped and the page is not taken back: a Sync chip appears
         // and waits to be asked.
@@ -1080,18 +1085,9 @@ struct ScorePagesView: View {
     }
 
     private func select(path: [CGPoint], onPage index: Int, adding: Bool) {
-        guard let page = state.geometry?.page(index) else {
-            state.selectionPaths = [index: path]
-            return
-        }
-        // Unit coordinates -> page (SVG user) coordinates, by the page's OWN
-        // size. In continuous mode that page is the whole strip, and this is
-        // the only place the two spaces meet: the surface is in PDF points and
-        // the geometry in SVG viewBox units, twenty-two times apart, and
-        // neither number appears here.
-        let caught = page.elements(
-            caughtBy: LassoPath.onPage(unit: path, pageSize: page.size))
-        state.commitSelection(caught, path: path, page: index, adding: adding)
+        // AppState, so a lasso drawn before the model arrives can be caught
+        // when it does (`AppState.lasso`)
+        state.lasso(path: path, onPage: index, adding: adding)
     }
 
 }
@@ -1672,7 +1668,11 @@ private struct PDFPageImage: View {
         .frame(width: size.width, height: size.height)
         .task(id: key) {
             let wanted = key
-            if let held = CanvasRasters.shared.held(wanted) { image = held; return }
+            if let held = CanvasRasters.shared.held(wanted) {
+                image = held
+                OpenTiming.shared.pagePictureSet(document: document)
+                return
+            }
             let page = self.page, size = self.size, scale = self.scale
             let make: @Sendable () -> UIImage = {
                 PerfMetrics.shared.measure(PerfMetrics.Name.canvasPage) {
@@ -1689,10 +1689,15 @@ private struct PDFPageImage: View {
             // behind the one already showing.
             if image == nil {
                 image = CanvasRasters.shared.value(for: wanted, cost: CanvasRasters.bytes, make: make)
+                // a timed open ends with the frame carrying this (`OpenTiming`)
+                OpenTiming.shared.pagePictureSet(document: document)
                 return
             }
             let made = await RasterWork.image(for: wanted, make: make)
-            if !Task.isCancelled { image = made }
+            if !Task.isCancelled {
+                image = made
+                OpenTiming.shared.pagePictureSet(document: document)
+            }
         }
     }
 
@@ -1762,9 +1767,16 @@ private struct ContinuousTileView: View {
         .frame(width: tile.width, height: tile.height)
         .task(id: key) {
             let wanted = key
-            if let held = CanvasRasters.shared.held(wanted) { image = held; return }
+            if let held = CanvasRasters.shared.held(wanted) {
+                image = held
+                OpenTiming.shared.pagePictureSet(document: document)
+                return
+            }
             // Whatever is held at the other depth is better than paper.
-            if image == nil, let other = CanvasRasters.shared.held(key(atDepth: !atDepth)) { image = other }
+            if image == nil, let other = CanvasRasters.shared.held(key(atDepth: !atDepth)) {
+                image = other
+                OpenTiming.shared.pagePictureSet(document: document)
+            }
             let page = self.page, tile = self.tile, scale = self.scale, atDepth = self.atDepth
             let make: @Sendable () -> UIImage = {
                 ContinuousTiles.raster(page: page, tile: tile, scale: scale, atDepth: atDepth)
@@ -1776,10 +1788,14 @@ private struct ContinuousTileView: View {
             // probe measured at 3 fps.
             if image == nil {
                 image = CanvasRasters.shared.value(for: wanted, cost: CanvasRasters.bytes, make: make)
+                OpenTiming.shared.pagePictureSet(document: document)
                 return
             }
             let made = await RasterWork.image(for: wanted, make: make)
-            if !Task.isCancelled { image = made }
+            if !Task.isCancelled {
+                image = made
+                OpenTiming.shared.pagePictureSet(document: document)
+            }
         }
     }
 

@@ -49,8 +49,11 @@ enum StaffSpacing {
     /// Lenient: an unreadable or out-of-range value falls back to its default
     /// rather than stopping a page from drawing. The op is the strict side.
     static func values(inMusicXML xml: String) -> Values {
+        // the field's name, looked for in the bytes first: most scores carry
+        // none, and the pattern is otherwise tried at every tag of the file
+        guard TextSearch.contains(xml, "name=\"\(field)\"") else { return defaults }
         let pattern = "<miscellaneous-field[^>]*name=\"\(field)\"[^>]*>([^<]*)</miscellaneous-field>"
-        guard let re = try? NSRegularExpression(pattern: pattern),
+        guard let re = RegexCache.regex(pattern: pattern),
               let match = re.firstMatch(in: xml, range: NSRange(xml.startIndex..., in: xml)),
               let range = Range(match.range(at: 1), in: xml) else {
             return defaults
