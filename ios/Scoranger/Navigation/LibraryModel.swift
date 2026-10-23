@@ -494,7 +494,22 @@ extension LibraryModel {
     /// purpose -- arrangements inside a piece are visible when you open it,
     /// and a number in the header that does not match the rows under it is
     /// the whole of what went wrong here.
-    static func countPhrase(segment: LibrarySegment, rows: [LibraryRow]) -> String {
+    ///
+    /// `existing` is the segment's rows BEFORE any filter or search. When the
+    /// rows on screen are fewer, the header counts what exists and says how
+    /// many are shown: "3 set lists · 0 shown". Counting only the rows left
+    /// after a filter told Ali his library had "No set lists yet" while it
+    /// held three -- a Pieces filter had followed him onto the Set lists tab
+    /// and matched none of them (2026-10-22).
+    static func countPhrase(segment: LibrarySegment, rows: [LibraryRow],
+                            existing: [LibraryRow]? = nil) -> String {
+        guard let existing, existing.count != rows.count else {
+            return rowsPhrase(segment: segment, rows: rows)
+        }
+        return "\(rowsPhrase(segment: segment, rows: existing)) · \(rows.count) shown"
+    }
+
+    private static func rowsPhrase(segment: LibrarySegment, rows: [LibraryRow]) -> String {
         switch segment {
         case .pieces:
             guard !rows.isEmpty else { return "No pieces yet" }
