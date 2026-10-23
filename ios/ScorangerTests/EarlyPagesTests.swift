@@ -143,6 +143,82 @@ final class EarlyPagesTests: XCTestCase {
         XCTAssertNotNil(EarlyPages.reachPastCut(cut, throughMeasure: "nowhere"))
     }
 
+    // MARK: - A cut rewritten
+
+    /// The renderer rewrites a cut of the exported MEI on its own; the cut it
+    /// lays out is then that text, holding the same bars.
+    func testACutRewrittenKeepsItsBars() throws {
+        let cut = try XCTUnwrap(EarlyPages.cut(mei: mei(bars: 200), pages: 1))
+        let moved = cut.mei.replacingOccurrences(of: "oct=\"4\"", with: "oct=\"5\"")
+        let rewritten = try XCTUnwrap(EarlyPages.rewritten(cut, as: moved))
+        XCTAssertEqual(rewritten.mei, moved)
+        XCTAssertEqual(rewritten.keptMeasures, cut.keptMeasures)
+        XCTAssertNil(EarlyPages.reachPastCut(rewritten, throughBar: cut.keptMeasures - 1))
+        // a text holding other bars is not that cut
+        let shorter = cut.mei.replacingOccurrences(of: "<measure xml:id=\"m2\" n=\"2\">",
+                                                   with: "<other xml:id=\"m2\" n=\"2\">")
+        XCTAssertNil(EarlyPages.rewritten(cut, as: shorter))
+    }
+
+    // MARK: - Marks made to end inside the cut
+
+    /// The quartet's two OMR marks, a tie from bar 15 to bar 90 and a hairpin
+    /// from bar 6 to the end: both end in the cut's last bar afterwards, on
+    /// the staff the tie starts on, and nothing reaches past the cut.
+    func testWhatEndsPastTheCutEndsInItsLastBar() throws {
+        let source = mei(bars: 200) { bar in
+            switch bar {
+            case 6: return "<hairpin xml:id=\"h6\" tstamp=\"2\" tstamp2=\"98m+2\" form=\"dim\" />"
+            case 15: return "<tie xml:id=\"t15\" startid=\"#n15_8\" endid=\"#n90_1\" />"
+            default: return ""
+            }
+        }
+        let cut = try XCTUnwrap(EarlyPages.cut(mei: source, pages: 1))
+        XCTAssertNotNil(EarlyPages.reachPastCut(cut, throughBar: 15))
+        let inside = EarlyPages.endingInside(cut)
+        XCTAssertEqual(inside.moved, 2)
+        let kept = cut.keptMeasures
+        XCTAssertTrue(inside.cut.mei.contains(
+            "<tie xml:id=\"t15\" startid=\"#n15_8\" endid=\"#n\(kept)_8\" />"),
+            "the tie ends on the last note of its staff in the last bar")
+        XCTAssertTrue(inside.cut.mei.contains("tstamp2=\"\(kept - 6)m+2\""),
+                      "the hairpin ends in the last bar")
+        XCTAssertNil(EarlyPages.reachPastCut(inside.cut, throughBar: kept))
+        XCTAssertEqual(inside.cut.keptMeasures, kept)
+        XCTAssertTrue(parses(inside.cut.mei))
+    }
+
+    func testACutWithNothingReachingPastIsLeftAsItIs() throws {
+        let source = mei(bars: 200) { bar in
+            "<slur xml:id=\"sl\(bar)\" startid=\"#n\(bar)_1\" endid=\"#n\(bar)_2\" />"
+        }
+        let cut = try XCTUnwrap(EarlyPages.cut(mei: source, pages: 1))
+        let inside = EarlyPages.endingInside(cut)
+        XCTAssertEqual(inside.moved, 0)
+        XCTAssertEqual(inside.cut.mei, cut.mei)
+    }
+
+    /// Only an END is moved: a list of references is not something whose
+    /// drawing on the shown page is known not to depend on what it names.
+    func testAPlistPastTheCutStillRefuses() throws {
+        let source = mei(bars: 200) { bar in
+            bar == 2 ? "<beamSpan xml:id=\"b2\" plist=\"#n2_1 #n2_2 #n180_1\" />" : ""
+        }
+        let cut = try XCTUnwrap(EarlyPages.cut(mei: source, pages: 1))
+        let inside = EarlyPages.endingInside(cut)
+        XCTAssertEqual(inside.moved, 0)
+        XCTAssertEqual(EarlyPages.reachPastCut(inside.cut, throughBar: 2), "#n180_1 from bar 2")
+    }
+
+    /// An end whose start cannot be found is left, and refused.
+    func testAnEndWithNoStartToReadIsLeft() throws {
+        let source = mei(bars: 200) { bar in
+            bar == 3 ? "<tie xml:id=\"t3\" startid=\"#gone\" endid=\"#n150_1\" />" : ""
+        }
+        let cut = try XCTUnwrap(EarlyPages.cut(mei: source, pages: 1))
+        XCTAssertEqual(EarlyPages.endingInside(cut).moved, 0)
+    }
+
     // MARK: - Systems on a page
 
     func testTheBarsOfEachSystemAreReadOffThePage() {

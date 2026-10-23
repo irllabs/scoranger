@@ -30,7 +30,10 @@ enum SVGForSwiftDraw {
     static func prepare(_ svg: String) -> String {
         // fingerings become drawn circles before anything else looks at the
         // text: they are shapes from here on, not glyphs
-        var s = TabStaff.draw(in: ChordDiagrams.draw(in: FingeringDiagrams.draw(in: svg)))
+        // The embedded music font goes first, so none of the passes after it
+        // walks 58 KB of base64 (`EmbeddedFonts`).
+        var s = TabStaff.draw(in: ChordDiagrams.draw(in: FingeringDiagrams.draw(
+            in: EmbeddedFonts.lifted(from: svg))))
         // UTF-8 in one piece, once, for the byte searches below
         s.makeContiguousUTF8()
         // Looked for literally before replacing: Foundation's default search

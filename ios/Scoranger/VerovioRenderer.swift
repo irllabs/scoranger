@@ -192,59 +192,56 @@ actor VerovioRenderer {
                                       readerPaginated: paginated,
                                       measureNumbers: numbering))
 
+        let rewrites = Rewrites(rows: spacing.rows, chordsOnStaff: chordsOnStaff, byKind: byKind,
+                                diagrams: diagramAdjustments, numbering: numbering)
+        // A reader opening a score sees its first pages laid out from the bars
+        // they need, while the whole score is laid out after them. The cut is
+        // taken from the MEI as exported and rewritten on its own, while the
+        // whole score is rewritten beside it: the rewrites cost in proportion
+        // to the bars ("Espresso", natively: 46 ms whole, 17 ms for its first
+        // 24 of 62 bars), and only the cut's rewrites stand between the reader
+        // and page 1. The cut rewritten alone is held to the same cut of the
+        // rewritten whole, byte for byte, before its page is shown (equal on
+        // all six open-speed scores).
+        let shownCount = layout.pagesPerUnit
+        let rawCut = (skipFirstLayout && firstPages != nil)
+            ? EarlyPages.cut(mei: mei, pages: shownCount) : nil
         var reload = false
-        if let above = FingeringDiagrams.meiWithFingeringsAbove(mei, rows: spacing.rows) {
-            mei = above
-            reload = true
+        var early: (rasters: PageRasteriser.Pipeline, gate: PageRasteriser.FirstPages)?
+        if let rawCut, let firstPages {
+            let whole = Rewrites.Running(rewrites, of: mei)
+            let cutMEI = rewrites.applied(to: rawCut.mei) ?? rawCut.mei
+            rewriteSpan?.end()
+            early = EarlyPages.rewritten(rawCut, as: cutMEI).flatMap { cut in
+                earlyPages(t, cut: cut, count: shownCount, byKind: byKind, handler: firstPages,
+                           matchesWhole: {
+                               // only a score whose rewritten MEI is what is drawn
+                               guard let rewritten = whole.result() else { return false }
+                               return EarlyPages.cut(mei: rewritten, pages: shownCount)?.mei == cutMEI
+                           })
+            }
+            if let rewritten = whole.result() {
+                mei = rewritten
+                reload = true
+            }
+        } else {
+            if let rewritten = rewrites.applied(to: mei) {
+                mei = rewritten
+                reload = true
+            }
+            rewriteSpan?.end()
         }
-        // Real Book placement, for the symbols whose notation asks for it. The
-        // PDF renderer used to apply this to EVERY score with a chord symbol
-        // and this one to none, so the same file drew its names on the staff in
-        // an export and above it here -- and a nudge would have meant two
-        // different things. Both read the notation now.
-        if let styled = ChordPlacement.meiWithChartStyling(mei, onStaff: chordsOnStaff) {
-            mei = styled
-            reload = true
-        }
-        if let placed = ChordAdjustments.meiWithAdjustments(mei, byKind: byKind) {
-            mei = placed
-            reload = true
-        }
-        // Chord diagrams: the marker each one rides in reserves one line of
-        // text, and a diagram is seven lines tall, so the block is opened up
-        // here and the document reloaded around it. render.py does the same on
-        // the export side.
-        if let diagrams = ChordDiagrams.meiWithDiagrams(mei, adjustments: diagramAdjustments) {
-            mei = diagrams
-            reload = true
-        }
-        // A mark is written to every part so the parts keep it; the combined
-        // score would otherwise draw the letter once per staff, on top of
-        // itself. render.py does the same on the export side.
-        if let deduped = RehearsalMarks.meiWithDedupedMarks(mei) {
-            mei = deduped
-            reload = true
-        }
-        // "No measure numbers": Verovio has no option for it, only MEI's own
-        // attribute on the score definition. render.py does the same.
-        if numbering == .none, let hidden = MeasureNumbers.meiHidingNumbers(mei) {
-            mei = hidden
-            reload = true
-        }
-        rewriteSpan?.end()
         // The hit-test model's two parses, run beside everything after this
         // as their inputs arrive: the MEI is final now, and each page as it
         // is written. The same MEI the pages are drawn from, so addresses
         // line up.
         let model = ScoreModelBuilder.Concurrent()
         model.start(mei: mei)
-        // A reader opening a score sees its first pages laid out from the bars
-        // they need, while the whole score is laid out after them.
-        let shownCount = layout.pagesPerUnit
-        let early = (reload && !continuous)
-            ? firstPages.flatMap { earlyPages(t, mei: mei, count: shownCount, byKind: byKind,
-                                              handler: $0) }
-            : nil
+        if early == nil, rawCut == nil, reload, !continuous, let firstPages {
+            early = EarlyPages.cut(mei: mei, pages: shownCount).flatMap {
+                earlyPages(t, cut: $0, count: shownCount, byKind: byKind, handler: firstPages)
+            }
+        }
         let reloadSpan = PerfMetrics.shared.begin(PerfMetrics.Name.engraveReload)
         if reload {
             guard t.loadData(mei) else { throw RenderError.loadFailed(musicXMLPath) }
@@ -353,7 +350,7 @@ actor VerovioRenderer {
         }
     }
 
-    /// The first `count` pages, laid out from a cut of the score and handed
+    /// The first `count` pages, laid out from `cut` and handed
     /// to `handler` once drawn -- if what was cut away cannot have changed
     /// them (`EarlyPages`). Leaves the CUT document in the toolkit; the caller
     /// loads the whole one next.
@@ -367,13 +364,24 @@ actor VerovioRenderer {
     ///
     /// Returns the drawing of the pages and their gate, or nil when the score
     /// gets no early pages.
-    private func earlyPages(_ t: VerovioToolkit, mei: String, count: Int,
+    ///
+    /// `matchesWhole`, when given, is asked last, before anything is shown:
+    /// whether the cut laid out is the cut of the score as it will be drawn.
+    private func earlyPages(_ t: VerovioToolkit, cut whole: EarlyPages.Cut, count: Int,
                             byKind: [ChordAdjustments.Kind: [ChordAdjustments.Adjustment]],
-                            handler: @escaping FirstPages)
+                            handler: @escaping FirstPages,
+                            matchesWhole: (() -> Bool)? = nil)
         -> (rasters: PageRasteriser.Pipeline, gate: PageRasteriser.FirstPages)? {
         let span = PerfMetrics.shared.begin(PerfMetrics.Name.engraveEarly)
         defer { span?.end() }
-        guard let cut = EarlyPages.cut(mei: mei, pages: count) else { return nil }
+        var cut = whole
+        if count == 1 {
+            let inside = EarlyPages.endingInside(cut)
+            cut = inside.cut
+            if inside.moved > 0 {
+                Self.log.info("early pages: \(inside.moved) marks made to end in the cut")
+            }
+        }
         if let reach = EarlyPages.reachPastCut(cut, throughBar: max(cut.keptMeasures / 2, 1)) {
             Self.log.info("no early pages: \(reach, privacy: .public)")
             return nil
@@ -403,8 +411,98 @@ actor VerovioRenderer {
             gate.withdraw()
             return nil
         }
+        if let matchesWhole, !matchesWhole() {
+            Self.log.error("no early pages: the cut rewritten alone is not the rewritten score's cut")
+            gate.withdraw()
+            return nil
+        }
         gate.vouch()
         return (rasters, gate)
+    }
+
+    /// Every rewrite an engrave makes of the MEI Verovio exports, before the
+    /// document it draws is loaded. Pure string work over the MEI with what was
+    /// read from the MusicXML, so it runs on any thread (`Running`).
+    struct Rewrites {
+        let rows: Int
+        let chordsOnStaff: [Bool]
+        let byKind: [ChordAdjustments.Kind: [ChordAdjustments.Adjustment]]
+        let diagrams: [ChordDiagrams.Adjustment]
+        let numbering: MeasureNumbers.Mode
+
+        /// `mei` rewritten, or nil when no rewrite applies to it.
+        func applied(to mei: String) -> String? {
+            var mei = mei
+            var changed = false
+            if let above = FingeringDiagrams.meiWithFingeringsAbove(mei, rows: rows) {
+                mei = above
+                changed = true
+            }
+            // Real Book placement, for the symbols whose notation asks for it. The
+            // PDF renderer used to apply this to EVERY score with a chord symbol
+            // and this one to none, so the same file drew its names on the staff in
+            // an export and above it here -- and a nudge would have meant two
+            // different things. Both read the notation now.
+            if let styled = ChordPlacement.meiWithChartStyling(mei, onStaff: chordsOnStaff) {
+                mei = styled
+                changed = true
+            }
+            if let placed = ChordAdjustments.meiWithAdjustments(mei, byKind: byKind) {
+                mei = placed
+                changed = true
+            }
+            // Chord diagrams: the marker each one rides in reserves one line of
+            // text, and a diagram is seven lines tall, so the block is opened up
+            // here and the document reloaded around it. render.py does the same on
+            // the export side.
+            if let opened = ChordDiagrams.meiWithDiagrams(mei, adjustments: diagrams) {
+                mei = opened
+                changed = true
+            }
+            // A mark is written to every part so the parts keep it; the combined
+            // score would otherwise draw the letter once per staff, on top of
+            // itself. render.py does the same on the export side.
+            if let deduped = RehearsalMarks.meiWithDedupedMarks(mei) {
+                mei = deduped
+                changed = true
+            }
+            // "No measure numbers": Verovio has no option for it, only MEI's own
+            // attribute on the score definition. render.py does the same.
+            if numbering == .none, let hidden = MeasureNumbers.meiHidingNumbers(mei) {
+                mei = hidden
+                changed = true
+            }
+            return changed ? mei : nil
+        }
+
+        /// The rewrites of one document, made on another thread from the
+        /// moment this is created. Never touches the toolkit.
+        final class Running: @unchecked Sendable {
+            private let done = DispatchSemaphore(value: 0)
+            private let lock = NSLock()
+            private var rewritten: String?
+
+            init(_ rewrites: Rewrites, of mei: String) {
+                DispatchQueue.global(qos: .userInitiated).async { [self] in
+                    let out = rewrites.applied(to: mei)
+                    lock.lock()
+                    rewritten = out
+                    lock.unlock()
+                    done.signal()
+                }
+            }
+
+            /// The rewritten document, or nil when no rewrite applied; waits
+            /// for it until it is made.
+            func result() -> String? {
+                // passed on, so every later ask finds it signalled
+                done.wait()
+                done.signal()
+                lock.lock()
+                defer { lock.unlock() }
+                return rewritten
+            }
+        }
     }
 
     /// Pair each added mark's stored adjustment with its address.

@@ -84,6 +84,103 @@ enum EarlyPages {
         }
     }
 
+    /// `cut` as `mei`: the same bars of the same score after the renderer's
+    /// rewrites, which move verses and marks and never add or remove a bar.
+    /// Nil when `mei` does not hold the bars the cut kept.
+    static func rewritten(_ cut: Cut, as mei: String) -> Cut? {
+        let bytes = Array(mei.utf8)
+        let measures = bytes.withUnsafeBufferPointer { measureRanges(in: $0) }
+        guard measures.count == cut.keptMeasures else { return nil }
+        return Cut(mei: mei, keptMeasures: cut.keptMeasures, totalMeasures: cut.totalMeasures,
+                   bytes: bytes, measures: measures)
+    }
+
+    /// The cut with every slur, tie, hairpin and the like that starts in it
+    /// and ends past it made to end in its last bar instead, and how many were;
+    /// the cut itself when none does.
+    ///
+    /// For the quartet, and OMR scores generally: a misread tie or hairpin
+    /// running from an early bar to bar 90, or to the end (`98m+2`), used to
+    /// keep the score from any early first page, and it waited 1.4 s on the
+    /// simulator for the whole layout. On the shown page such a mark is drawn
+    /// as its START segment -- from where it begins to the end of its system
+    /// -- wherever in a later system it ends, and so it is in the cut, once
+    /// it ends in the cut's last bar: a system after the one that follows the
+    /// shown page, which the renderer requires to be complete. Measured with
+    /// Verovio 6.2.1 on the six open-speed scores, every first page laid out
+    /// from a cut made this way at sixteen cut sizes matched the whole score's
+    /// (ids aside).
+    ///
+    /// ONE shown page only. On a spread the second page's running header was
+    /// placed 9 units lower from such a cut (the quartet), so a spread is cut
+    /// as it was and a mark reaching past still refuses it.
+    ///
+    /// A reference to anything but an end (`plist`, ...), and an end whose
+    /// start or staff cannot be read, or whose staff has no note in the last
+    /// bar, are left as they are, and `reachPastCut` refuses them as before.
+    static func endingInside(_ cut: Cut) -> (cut: Cut, moved: Int) {
+        guard let lastBar = cut.measures.last else { return (cut, 0) }
+        var edits: [(range: Range<Int>, bytes: [UInt8])] = []
+        cut.bytes.withUnsafeBufferPointer { b in
+            let defined = definedIDs(in: b)
+            var lastEvents: [ArraySlice<UInt8>: ArraySlice<UInt8>?] = [:]
+            let endMark = Array("endid=\"#".utf8)
+            let startMark = Array("startid=\"#".utf8)
+            let stampMark = Array("tstamp2=\"".utf8)
+            for (bar, range) in cut.measures.enumerated() {
+                var scan = range.lowerBound
+                while let found = find(endMark, in: b, from: scan), found < range.upperBound {
+                    let start = found + endMark.count
+                    guard let close = index(of: UInt8(ascii: "\""), in: b, from: start) else { break }
+                    scan = close
+                    guard defined[ArraySlice(b[start..<close])] == nil,
+                          let tagStart = lastIndex(of: UInt8(ascii: "<"), in: b, before: found),
+                          let tagEnd = index(of: UInt8(ascii: ">"), in: b, from: found),
+                          let from = find(startMark, in: b, from: tagStart), from < tagEnd,
+                          let fromClose = index(of: UInt8(ascii: "\""), in: b,
+                                                from: from + startMark.count),
+                          let startAt = defined[ArraySlice(b[(from + startMark.count)..<fromClose])],
+                          let staff = staffNumber(in: b, at: startAt)
+                    else { continue }
+                    if lastEvents[staff] == nil {
+                        lastEvents[staff] = lastEvent(in: b, bar: lastBar, staff: staff)
+                    }
+                    guard let target = lastEvents[staff] ?? nil else { continue }
+                    edits.append((start..<close, Array(target)))
+                }
+                scan = range.lowerBound
+                while let found = find(stampMark, in: b, from: scan), found < range.upperBound {
+                    let start = found + stampMark.count
+                    var i = start
+                    var ahead = 0
+                    while i < b.count, b[i] >= UInt8(ascii: "0"), b[i] <= UInt8(ascii: "9") {
+                        ahead = ahead * 10 + Int(b[i] - UInt8(ascii: "0"))
+                        i += 1
+                    }
+                    scan = i
+                    guard i > start, i < b.count, b[i] == UInt8(ascii: "m"),
+                          bar + 1 + ahead > cut.keptMeasures else { continue }
+                    edits.append((start..<i, Array(String(cut.keptMeasures - bar - 1).utf8)))
+                }
+            }
+        }
+        guard !edits.isEmpty else { return (cut, 0) }
+        var bytes: [UInt8] = []
+        bytes.reserveCapacity(cut.bytes.count)
+        var at = 0
+        for edit in edits.sorted(by: { $0.range.lowerBound < $1.range.lowerBound }) {
+            bytes.append(contentsOf: cut.bytes[at..<edit.range.lowerBound])
+            bytes.append(contentsOf: edit.bytes)
+            at = edit.range.upperBound
+        }
+        bytes.append(contentsOf: cut.bytes[at...])
+        let measures = bytes.withUnsafeBufferPointer { measureRanges(in: $0) }
+        guard measures.count == cut.measures.count else { return (cut, 0) }
+        return (Cut(mei: String(decoding: bytes, as: UTF8.self), keptMeasures: cut.keptMeasures,
+                    totalMeasures: cut.totalMeasures, bytes: bytes, measures: measures),
+                edits.count)
+    }
+
     /// The ids of the bars on one page of Verovio's SVG, system by system.
     ///
     /// Verovio writes a bar as `<g id="ID" class="measure">` inside its
@@ -144,15 +241,8 @@ enum EarlyPages {
         let last = min(bars, cut.measures.count) - 1
         guard last >= 0 else { return nil }
         return cut.bytes.withUnsafeBufferPointer { b -> String? in
-            let idMark = Array("xml:id=\"".utf8)
-            var defined = Set<ArraySlice<UInt8>>()
+            let defined = definedIDs(in: b)
             var scan = 0
-            while let found = find(idMark, in: b, from: scan) {
-                let start = found + idMark.count
-                guard let close = index(of: UInt8(ascii: "\""), in: b, from: start) else { break }
-                defined.insert(ArraySlice(b[start..<close]))
-                scan = close
-            }
             let refMark = Array("=\"#".utf8)
             let stampMark = Array("tstamp2=\"".utf8)
             for (bar, range) in cut.measures[0...last].enumerated() {
@@ -164,7 +254,7 @@ enum EarlyPages {
                     for token in b[start..<close].split(separator: UInt8(ascii: " "))
                     where token.first == UInt8(ascii: "#") {
                         let id = token.dropFirst()
-                        if !defined.contains(ArraySlice(id)) {
+                        if defined[ArraySlice(id)] == nil {
                             return "#\(String(decoding: id, as: UTF8.self)) from bar \(bar + 1)"
                         }
                     }
@@ -189,6 +279,81 @@ enum EarlyPages {
     }
 
     // MARK: - Bytes
+
+    /// Every `xml:id` in the document, and where its value starts.
+    private static func definedIDs(in b: UnsafeBufferPointer<UInt8>) -> [ArraySlice<UInt8>: Int] {
+        let idMark = Array("xml:id=\"".utf8)
+        var defined: [ArraySlice<UInt8>: Int] = [:]
+        var scan = 0
+        while let found = find(idMark, in: b, from: scan) {
+            let start = found + idMark.count
+            guard let close = index(of: UInt8(ascii: "\""), in: b, from: start) else { break }
+            defined[ArraySlice(b[start..<close])] = start
+            scan = close
+        }
+        return defined
+    }
+
+    /// The `n` of the `<staff>` holding the byte at `at`.
+    private static func staffNumber(in b: UnsafeBufferPointer<UInt8>, at: Int) -> ArraySlice<UInt8>? {
+        let staffMark = Array("<staff ".utf8)
+        var i = at
+        while i > 0 {
+            guard let open = lastIndex(of: UInt8(ascii: "<"), in: b, before: i) else { return nil }
+            i = open
+            if matches(Array("<measure".utf8), in: b, at: open) { return nil }
+            guard matches(staffMark, in: b, at: open) else { continue }
+            return attribute(" n=\"", in: b, tagAt: open)
+        }
+        return nil
+    }
+
+    /// The id of the last note or chord on staff `staff` in `bar`.
+    private static func lastEvent(in b: UnsafeBufferPointer<UInt8>, bar: Range<Int>,
+                                  staff: ArraySlice<UInt8>) -> ArraySlice<UInt8>? {
+        let staffMark = Array("<staff ".utf8)
+        let staffClose = Array("</staff>".utf8)
+        var scan = bar.lowerBound
+        while let open = find(staffMark, in: b, from: scan), open < bar.upperBound {
+            guard let close = find(staffClose, in: b, from: open), close <= bar.upperBound
+            else { return nil }
+            scan = close
+            guard attribute(" n=\"", in: b, tagAt: open) == staff else { continue }
+            var last: ArraySlice<UInt8>?
+            var at = open
+            while let lt = index(of: UInt8(ascii: "<"), in: b, from: at + 1), lt < close {
+                at = lt
+                for name in ["<note", "<chord"].map({ Array($0.utf8) })
+                where matches(name, in: b, at: lt) && isNameEnd(b[lt + name.count]) {
+                    if let id = attribute("xml:id=\"", in: b, tagAt: lt) { last = id }
+                }
+            }
+            return last
+        }
+        return nil
+    }
+
+    /// The value of `mark` (`name="`) in the tag opening at `tagAt`.
+    private static func attribute(_ mark: String, in b: UnsafeBufferPointer<UInt8>,
+                                  tagAt: Int) -> ArraySlice<UInt8>? {
+        guard let tagEnd = index(of: UInt8(ascii: ">"), in: b, from: tagAt),
+              let found = find(Array(mark.utf8), in: b, from: tagAt), found < tagEnd
+        else { return nil }
+        let start = found + mark.utf8.count
+        guard let close = index(of: UInt8(ascii: "\""), in: b, from: start), close < tagEnd
+        else { return nil }
+        return ArraySlice(b[start..<close])
+    }
+
+    private static func lastIndex(of byte: UInt8, in b: UnsafeBufferPointer<UInt8>,
+                                  before end: Int) -> Int? {
+        var i = min(end, b.count) - 1
+        while i >= 0 {
+            if b[i] == byte { return i }
+            i -= 1
+        }
+        return nil
+    }
 
     /// Every `<measure ...>...</measure>` (or self-closed `<measure .../>`),
     /// in document order. MEI bars do not nest.
