@@ -110,6 +110,59 @@ enum PageRasteriser {
         return (0..<pages.count).compactMap { done[$0] }
     }
 
+    // MARK: - Pages as they are engraved
+
+    /// Draws each page the moment Verovio hands it over.
+    ///
+    /// `rasterise(pages:)` starts only once every page's SVG exists, and
+    /// Verovio makes them one at a time on the renderer actor: on "Espresso"
+    /// that was 220 ms of SVG with every core but one idle, then 340 ms of
+    /// drawing. Here page 1 is drawing while Verovio writes page 2, and the
+    /// actor can build the hit-test model while the last pages finish.
+    ///
+    /// Each page is the same `rasterise(number:svg:)` the other paths run, on
+    /// its own input, so what is drawn does not depend on the order or the
+    /// overlap -- the property `PageRasteriserTests` holds the concurrent path
+    /// to, and holds this one to as well.
+    final class Pipeline: @unchecked Sendable {
+        private let group = DispatchGroup()
+        private let lock = NSLock()
+        private var done: [Int: Page] = [:]
+        private var started: [Int] = []
+        private var firstStart: TimeInterval?
+
+        init() {}
+
+        /// Start drawing one page. Returns at once.
+        func start(number: Int, svg: String) {
+            lock.lock()
+            started.append(number)
+            if firstStart == nil { firstStart = PerfClock.now }
+            lock.unlock()
+            DispatchQueue.global(qos: .userInitiated).async(group: group) { [self] in
+                let span = PerfMetrics.shared.begin(PerfMetrics.Name.engravePDF)
+                let page = PageRasteriser.rasterise(number: number, svg: svg)
+                span?.end()
+                lock.lock()
+                done[number] = page
+                lock.unlock()
+            }
+        }
+
+        /// Every started page, in the order they were started, once all are
+        /// drawn. `engravePDFAll` covers the first start to the last finish.
+        func finish() -> [Page] {
+            group.wait()
+            lock.lock()
+            defer { lock.unlock() }
+            if let firstStart {
+                PerfMetrics.shared.record(PerfMetrics.Name.engravePDFAll, start: firstStart,
+                                          duration: PerfClock.now - firstStart)
+            }
+            return started.compactMap { done[$0] }
+        }
+    }
+
     /// The same work, one page after another. Kept because it is what the
     /// concurrent path is checked AGAINST: a test that only ran the concurrent
     /// path could tell you it did not crash, not that it drew the same score.

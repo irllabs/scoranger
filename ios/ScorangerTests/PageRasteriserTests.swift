@@ -148,6 +148,35 @@ final class PageRasteriserTests: XCTestCase {
         assertSamePages(concurrent, serial, "concurrent vs serial")
     }
 
+    /// The pipeline the engrave uses -- each page started as its SVG arrives,
+    /// while the caller goes on making the next -- draws the same pages, in
+    /// the same order, as the serial path. Started with a pause between pages
+    /// and in a burst, run after run, so both a late page and a pile-up are
+    /// covered.
+    func testPipelinedRasterisationDrawsTheSamePagesAsSerial() throws {
+        let pages = try distinctPages(9)
+        let reference = PageRasteriser.rasteriseSerially(pages: pages)
+        for run in 0..<6 {
+            let pipeline = PageRasteriser.Pipeline()
+            for (i, svg) in pages.enumerated() {
+                pipeline.start(number: i + 1, svg: svg)
+                if run.isMultiple(of: 2) { Thread.sleep(forTimeInterval: 0.002) }
+            }
+            let drawn = pipeline.finish()
+            XCTAssertEqual(drawn.map(\.number), Array(1...9))
+            assertSamePages(drawn, reference, "pipelined run \(run)")
+        }
+    }
+
+    func testAPipelineWithOnePageOrNoneFinishes() throws {
+        let one = PageRasteriser.Pipeline()
+        let page = try distinctPages(1)[0]
+        one.start(number: 1, svg: page)
+        assertSamePages(one.finish(), PageRasteriser.rasteriseSerially(pages: [page]),
+                        "one page")
+        XCTAssertTrue(PageRasteriser.Pipeline().finish().isEmpty)
+    }
+
     /// Run it again and again. A race that shows up one time in ten would pass
     /// a single comparison; the drawing is deterministic, so every run must
     /// agree with the same reference.

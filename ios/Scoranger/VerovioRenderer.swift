@@ -219,13 +219,18 @@ actor VerovioRenderer {
             guard t.loadFile(musicXMLPath) else { throw RenderError.loadFailed(musicXMLPath) }
         }
         meiSpan?.end()
-        // Verovio draws every page FIRST, and alone.
+        // Verovio writes every page's SVG alone, and each page starts drawing
+        // the moment its SVG exists.
         //
         // The toolkit holds one document and is not thread-safe, so this loop
-        // stays exactly as serial as it was. It is also the last thing in this
-        // method that touches `t` -- which is what lets the drawing below run
-        // on several cores at once.
+        // stays exactly as serial as it was; only the drawing, which never
+        // touches `t`, runs beside it. Half the wait for a score to open was
+        // that drawing, 95 ms a page in a RELEASE build, and it used to wait
+        // for the last page's SVG before the first page began. See
+        // PageRasteriser.Pipeline for what makes the overlap safe and
+        // PageRasteriserTests for the proof.
         var rawPages: [String] = []
+        let rasters = PageRasteriser.Pipeline()
         for page in 1...max(t.getPageCount(), 1) {
             // size is applied to the drawn glyph, because Verovio has no
             // per-element text size to ask for
@@ -235,18 +240,18 @@ actor VerovioRenderer {
                                                                  byKind: byKind))
             }
             rawPages.append(svg)
+            rasters.start(number: page, svg: svg)
         }
-
-        // ...and then every page is drawn at once. Half the wait for a score to
-        // open was this loop: 95 ms a page in a RELEASE build, one after
-        // another, against 1609 ms of Verovio C++ nobody here can shorten.
-        // Nothing in it depends on anything else in it. See PageRasteriser for
-        // what makes that safe and PageRasteriserTests for the proof.
         // the fidelity dump of a timed open (`OpenTiming`); nothing otherwise
         OpenTiming.shared.dumpRasteriserInput(pages: rawPages, musicXMLPath: musicXMLPath)
-        let drawn = PerfMetrics.shared.measure(PerfMetrics.Name.engravePDFAll) {
-            PageRasteriser.rasterise(pages: rawPages)
+
+        // The model reads Verovio's own SVG and the MEI, not the drawing, so
+        // it is built here while the last pages are still being drawn.
+        // The same MEI the pages were drawn from, so addresses line up.
+        let geometry = PerfMetrics.shared.measure(PerfMetrics.Name.engraveModel) {
+            try? ScoreModelBuilder.build(svgPages: rawPages, mei: mei)
         }
+        let drawn = rasters.finish()
 
         // Assembling the document stays here, serial and on the actor. PDFKit
         // promises nothing about concurrent use and this costs nothing: what
@@ -276,10 +281,6 @@ actor VerovioRenderer {
         // Only a score with NO drawable page at all is a failure.
         guard document.pageCount > 0, let data = document.dataRepresentation() else {
             throw failures.first ?? RenderError.nothingDrawn
-        }
-        // the same MEI the pages were drawn from, so addresses line up
-        let geometry = PerfMetrics.shared.measure(PerfMetrics.Name.engraveModel) {
-            try? ScoreModelBuilder.build(svgPages: rawPages, mei: mei)
         }
         var marks = Self.byAddress(byKind, in: geometry)
         // a WORD's size is in its verse name, which the MEI holds by id

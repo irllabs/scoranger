@@ -2158,6 +2158,87 @@ final class AppState: ObservableObject {
     /// it, and the one replaced finishes on the renderer and is dropped.
     private var engraveStarted: (key: String, task: Task<VerovioRenderer.Engraving, Error>)?
 
+    /// One engrave of `path`, read back from `EngravingStore` when this build
+    /// has made it before, and kept there when it has not.
+    ///
+    /// Off the main actor: the file is read and hashed, and the archive
+    /// decoded, wherever the caller is. A timed open that dumps what it drew
+    /// (`OpenTiming.dumpsFidelity`) always engraves, because the dump is of
+    /// the engrave's own SVG.
+    nonisolated static func engraveRemembering(path: String, layout: ScoreLayout) async throws
+        -> VerovioRenderer.Engraving {
+        let store = EngravingStore.shared
+        let key = (try? Data(contentsOf: URL(fileURLWithPath: path)))
+            .map { store.key(musicXML: $0, engraving: layout.engraving.rawValue) }
+        if let key, !OpenTiming.dumpsFidelity,
+           let kept = PerfMetrics.shared.measure(PerfMetrics.Name.engraveRecall, {
+               store.recall(key)
+           }) {
+            return VerovioRenderer.Engraving(pdf: kept.pdf, failedPages: kept.failedPages,
+                                             geometry: kept.geometry, markAdjustments: kept.marks)
+        }
+        let made = try await VerovioRenderer.shared.engrave(musicXMLPath: path, layout: layout)
+        if let key {
+            store.keep(EngravingArchive.Contents(pdf: made.pdf, failedPages: made.failedPages,
+                                                 geometry: made.geometry,
+                                                 marks: made.markAdjustments),
+                       under: key)
+        }
+        return made
+    }
+
+    /// Show the selected version at once when its engraving is already made:
+    /// held in memory, or kept on disk by `EngravingStore`. True when it was.
+    ///
+    /// The render Task `select` starts runs only once the main actor is free,
+    /// after the score screen it opens has been built -- 170 ms after the tap
+    /// on the simulator, which for an engraving that is already made was the
+    /// whole of the wait. Published here, in the same turn as the selection,
+    /// the screen's first build already has its pages. Reading an archive is
+    /// a few milliseconds ("Espresso": 5 ms on the simulator), which is why
+    /// this is done on the main actor; making one is not, and is left to
+    /// `startEngraveEarly` and `renderIfNeeded`.
+    private func showMadeEngravingNow() -> Bool {
+        guard useLocalEngine, let score = selectedScore, let vid = displayedVersionID
+        else { return false }
+        let engravedWith = layoutChoice
+        let key = "\(score.slug)/\(vid)/\(engravedWith.engraving.rawValue)"
+        guard key != renderedKey else { return false }
+        let held: HeldEngraving
+        if let inMemory = Self.engravings.held(key) {
+            held = inMemory
+        } else if !OpenTiming.dumpsFidelity,
+                  let path = versionFileOnDisk(score: score, version: vid),
+                  ScoreArtifact.kind(ofFile: path).isNotation,
+                  let kept = PerfMetrics.shared.measure(PerfMetrics.Name.engraveRecall, {
+                      (try? Data(contentsOf: URL(fileURLWithPath: path))).flatMap {
+                          EngravingStore.shared.recall(EngravingStore.shared.key(
+                              musicXML: $0, engraving: engravedWith.engraving.rawValue))
+                      }
+                  }) {
+            engravingCount += 1
+            held = HeldEngraving(
+                engraving: VerovioRenderer.Engraving(pdf: kept.pdf, failedPages: kept.failedPages,
+                                                     geometry: kept.geometry,
+                                                     markAdjustments: kept.marks),
+                stamp: engravingCount)
+            Self.engravings.store(held, for: key, bytes: Self.engravingBytes(held))
+        } else {
+            return false
+        }
+        // what renderIfNeeded does before a publish, for the transitions an
+        // open can make; the publish replaces everything else it clears
+        if RenderTransition.between(previous: renderedKey, next: key).blanksTheCanvas {
+            pageIndex = 0
+            clearSelection()
+        }
+        renderedKey = key
+        show(held.engraving.pdf, model: held.engraving.geometry,
+             adjustments: held.engraving.markAdjustments, stamp: held.stamp,
+             key: key, engravedWith: engravedWith, slug: score.slug)
+        return true
+    }
+
     /// Start the selected version's engrave now, off the main actor.
     ///
     /// `select` hands the render to a Task, which runs only once the main
@@ -2174,8 +2255,50 @@ final class AppState: ObservableObject {
               ScoreArtifact.kind(ofFile: path).isNotation else { return }
         let layout = layoutChoice
         engraveStarted = (key, Task.detached(priority: .userInitiated) {
-            try await VerovioRenderer.shared.engrave(musicXMLPath: path, layout: layout)
+            try await Self.engraveRemembering(path: path, layout: layout)
         })
+    }
+
+    /// Put an engraving on the canvas, with everything that must change in
+    /// the same publish as its pages.
+    private func show(_ data: Data, model: ScoreGeometry?,
+                      adjustments: [ScoreAddress: ChordAdjustments.Adjustment],
+                      stamp: Int, key: String, engravedWith: ScoreLayout, slug: String) {
+        // Before the document, so the canvas the publish rebuilds
+        // reads the key belonging to the pages it is handed.
+        engravingKey = "\(key)#\(stamp)"
+        pdfDocument = PDFDocument(data: data)
+        // In the SAME publish as the document, or the canvas draws
+        // one of them a frame before the other -- which is the flash
+        // this pair exists to close.
+        // The layout these pages were ENGRAVED with, captured with
+        // `key` before the await -- not `layoutChoice`, which the
+        // reader may have moved during a 3-second engrave, and which
+        // would then record a continuous engraving as a paged one.
+        renderedLayout = engravedWith
+        // The reader's page is kept across an op, and an op can make
+        // the score shorter -- an index past the end renders as no
+        // pages at all, which is the blank canvas this was avoiding.
+        pageIndex = PagedCanvas.clampedIndex(pageIndex,
+                                             pageCount: pdfDocument?.pageCount ?? 0)
+        geometry = model
+        markAdjustments = adjustments
+        let previousKey = geometryKey
+        geometryKey = key
+        carrySelection(from: previousKey, to: key, into: model)
+        // the addresses survived the re-render, so the session follows
+        // them: nudge, commit, nudge again on the same symbol
+        retargetAdjustment()
+        // The sound is NOT carried over. A selection survives an op
+        // because it still points at the same music; a performance
+        // does not -- the op changed the notes. Rebuilding it is the
+        // reader's next press of play, not this render's business.
+        invalidatePlaybackIfStale()
+        lastError = nil
+        // the end of a timed open's render pass (`OpenTiming`)
+        if OpenTiming.isRequested {
+            OpenTiming.shared.renderFinished(slug: slug, error: nil, document: pdfDocument)
+        }
     }
 
     /// Re-fetch the PDF when the displayed (score, version) changes.
@@ -2296,8 +2419,8 @@ final class AppState: ObservableObject {
                                 engraveStarted = nil
                                 made = try await started.task.value
                             } else {
-                                made = try await VerovioRenderer.shared.engrave(
-                                    musicXMLPath: path, layout: layoutChoice)
+                                made = try await Self.engraveRemembering(
+                                    path: path, layout: layoutChoice)
                             }
                             engravingCount += 1
                             return HeldEngraving(engraving: made,
@@ -2313,43 +2436,9 @@ final class AppState: ObservableObject {
             }
             if renderedKey == key {  // selection may have moved while fetching
                 rendered = true
-                // Before the document, so the canvas the publish rebuilds
-                // reads the key belonging to the pages it is handed.
                 if stamp == 0 { engravingCount += 1; stamp = engravingCount }
-                engravingKey = "\(key)#\(stamp)"
-                pdfDocument = PDFDocument(data: data)
-                // In the SAME publish as the document, or the canvas draws
-                // one of them a frame before the other -- which is the flash
-                // this pair exists to close.
-                // The layout these pages were ENGRAVED with, captured with
-                // `key` before the await -- not `layoutChoice`, which the
-                // reader may have moved during a 3-second engrave, and which
-                // would then record a continuous engraving as a paged one.
-                renderedLayout = engravedWith
-                // The reader's page is kept across an op, and an op can make
-                // the score shorter -- an index past the end renders as no
-                // pages at all, which is the blank canvas this was avoiding.
-                pageIndex = PagedCanvas.clampedIndex(pageIndex,
-                                                     pageCount: pdfDocument?.pageCount ?? 0)
-                geometry = model
-                markAdjustments = engravedAdjustments
-                let previousKey = geometryKey
-                geometryKey = key
-                carrySelection(from: previousKey, to: key, into: model)
-                // the addresses survived the re-render, so the session follows
-                // them: nudge, commit, nudge again on the same symbol
-                retargetAdjustment()
-                // The sound is NOT carried over. A selection survives an op
-                // because it still points at the same music; a performance
-                // does not -- the op changed the notes. Rebuilding it is the
-                // reader's next press of play, not this render's business.
-                invalidatePlaybackIfStale()
-                lastError = nil
-                // the end of a timed open's render pass (`OpenTiming`)
-                if OpenTiming.isRequested {
-                    OpenTiming.shared.renderFinished(slug: score.slug, error: nil,
-                                                     document: pdfDocument)
-                }
+                show(data, model: model, adjustments: engravedAdjustments, stamp: stamp,
+                     key: key, engravedWith: engravedWith, slug: score.slug)
             }
         } catch let e as EngineError {
             lastError = e.error
@@ -3472,6 +3561,7 @@ final class AppState: ObservableObject {
         selectedSlug = slug
         previewedSlug = slug
         pinnedVersion = version
+        if showMadeEngravingNow() { return }
         startEngraveEarly()
         Task { await renderIfNeeded() }
     }

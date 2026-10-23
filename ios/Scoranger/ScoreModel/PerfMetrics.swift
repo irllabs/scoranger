@@ -227,6 +227,9 @@ final class PerfMetrics: @unchecked Sendable {
         /// compared before and after honestly.
         static let engravePDFAll = "engrave: SVG -> PDF (all pages)"
         static let engraveModel = "engrave: geometry model"
+        /// An engraving read back from disk (`EngravingStore`) instead of made:
+        /// reading the file, its hash and the archive.
+        static let engraveRecall = "engrave: recalled from disk"
         /// One manifest fetch and the library rebuild it triggers.
         static let manifest = "manifest refresh"
         /// Process start to the first frame with library rows (`LaunchTiming`).
