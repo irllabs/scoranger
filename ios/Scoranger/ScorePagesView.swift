@@ -689,7 +689,12 @@ struct ScorePagesView: View {
     private func step(by direction: Int) {
         guard let next = PagedCanvas.step(from: state.pageIndex, by: direction,
                                           pageCount: document.pageCount,
-                                          spread: state.twoPageSpread) else { return }
+                                          spread: state.twoPageSpread) else {
+            // Only the first pages are engraved yet: the turn is kept and
+            // made when the rest arrive, rather than lost.
+            state.holdTurn(direction)
+            return
+        }
         // A page turned BY THE READER hands following over to them. The music
         // is not stopped and the page is not taken back: a Sync chip appears
         // and waits to be asked.

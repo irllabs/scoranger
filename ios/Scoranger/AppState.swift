@@ -2200,6 +2200,20 @@ final class AppState: ObservableObject {
     }
     private var awaitingModel: (key: String, gesture: GestureAwaitingModel)?
 
+    /// Page turns made on first pages that had nowhere to go: the next page
+    /// is not engraved yet. Kept by the key of the engraving they were made
+    /// on, as a net count, and carried out when the whole engraving arrives
+    /// (`show`), so a swipe in that window is not silently lost.
+    private var heldTurns: (key: String, turns: Int)?
+
+    /// A turn the canvas could not make because only the first pages exist.
+    /// Ignored unless first pages are what is on screen.
+    func holdTurn(_ direction: Int) {
+        guard showingFirstPagesOnly, let renderedKey else { return }
+        let earlier = heldTurns?.key == renderedKey ? heldTurns?.turns ?? 0 : 0
+        heldTurns = (renderedKey, earlier + direction)
+    }
+
     /// Where the renderer's first pages go: to the main actor, and on screen
     /// if they are still wanted (`showFirstPages`). Nil when they cannot be:
     /// the canvas is keeping the pages it has (an op, a layout switch), and
@@ -2399,6 +2413,12 @@ final class AppState: ObservableObject {
         // pages at all, which is the blank canvas this was avoiding.
         pageIndex = PagedCanvas.clampedIndex(pageIndex,
                                              pageCount: pdfDocument?.pageCount ?? 0)
+        if let held = heldTurns, held.key == key {
+            pageIndex = PagedCanvas.landing(afterHeldTurns: held.turns, from: pageIndex,
+                                            pageCount: pdfDocument?.pageCount ?? 0,
+                                            spread: twoPageSpread)
+        }
+        heldTurns = nil
         geometry = model
         markAdjustments = adjustments
         let previousKey = geometryKey
@@ -2477,6 +2497,7 @@ final class AppState: ObservableObject {
             showingFirstPagesOnly = false
             firstPagesTotal = nil
             awaitingModel = nil
+            heldTurns = nil
             pdfDocument = nil
             renderedLayout = nil
             geometry = nil
