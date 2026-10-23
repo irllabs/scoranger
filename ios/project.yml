@@ -247,6 +247,29 @@ targets:
         #          asked for as one build: "build all of these necessary
         #          features for sharing playlists into the first 7.0 build."
         #          §11.9 records the difference, including what was left out.
+        #   0.23.3 A DENSE SCORE OPENS FAST; FOUR FIXES FROM ALI (2026-10-22).
+        #          Scope written before the work. Fixes only, so the patch
+        #          bumps. Tracked in Springboard, EPIC-20261023-023203.
+        #
+        #          In this build:
+        #            1. OPENING A SCORE. Ali: Espresso "takes more than a
+        #               second ... I'd like to see no more than something like
+        #               200 ms". Measured cold, Release, on six scores from his
+        #               library (scripts/measure_open.sh); every page and the
+        #               geometry stay as they were drawn before.
+        #            2. The OMR upload bar no longer sits at 100% while the
+        #               service has not answered.
+        #            3. Switching a one-page score between page and scroll
+        #               draws each view once, not four flashes.
+        #            4. A scan with no words says nothing about words.
+        #          NOT in this build, and said before it starts:
+        #            - placing words a scan could not line up, by guess or
+        #              below the music: a feature, 0.24.0 at the earliest;
+        #            - the Pieces filter hiding set lists, until Ali says it
+        #              belongs here;
+        #            - the gate on iOS 27 and the pool flakes;
+        #            - a 200 ms open confirmed on a device: the simulator
+        #              number is what this build measures.
         #   0.23.2 THE LIBRARY WITH THE FIRST FRAME; THE ICON'S NOTE
         #          (2026-10-21). Scope written before the release. No feature:
         #          the library appears sooner and the icon is redrawn, so the
@@ -1579,7 +1602,7 @@ targets:
         # has no Firebase configuration". deploy_testflight.sh now refuses such
         # an archive outright.
         CURRENT_PROJECT_VERSION: 218
-        MARKETING_VERSION: 0.23.2
+        MARKETING_VERSION: 0.23.3
         SWIFT_VERSION: 5.10
         SWIFT_OBJC_BRIDGING_HEADER: Scoranger/PythonBridge/PythonBridge.h
         # BeeWare's install_python copies lib-$ARCHS, which requires single-arch builds
