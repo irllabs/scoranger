@@ -32,9 +32,6 @@ final class RasterCacheTests: XCTestCase {
         XCTAssertEqual(cache.misses, 1)
     }
 
-    /// Every field of the key names something that changes the picture, so
-    /// each on its own has to miss. A key that ignored `scale` would answer a
-    /// zoomed-in canvas with the zoomed-out raster.
     /// Asking whether something is held is not a use of it: no hit, no miss,
     /// and its place in the eviction order is unchanged.
     func testContainsIsNotAUse() {
@@ -50,6 +47,9 @@ final class RasterCacheTests: XCTestCase {
         XCTAssertTrue(cache.contains("new"))
     }
 
+    /// Every field of the key names something that changes the picture, so
+    /// each on its own has to miss. A key that ignored `scale` would answer a
+    /// zoomed-in canvas with the zoomed-out raster.
     func testEveryPartOfTheKeyIdentifiesADifferentPicture() {
         let cache = RasterCache<Int>()
         var draws = 0
