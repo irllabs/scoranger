@@ -22,9 +22,12 @@ lasso selects against, which no picture shows.
 Verovio's element ids are NOT stable: it generates them afresh on every
 load (`admw887`, `E050-admw887` for the glyph that element uses), so two
 launches of the same build write SVGs whose bytes differ (measured,
-2026-10-22). Every word-like token that some `id="..."` in the page defines
-is therefore renamed to `idN`, N counted in order of first definition, before
-comparing; references to it (`#id`, `xlink:href`) are renamed with it. What
+2026-10-22). Every word-like token that some `id="..."` in ANY page of the
+score defines is therefore renamed to `ID{n}`, n counted in order of first
+definition, before comparing; references to it are renamed with it -- `#id`,
+`xlink:href`, and the `id-<id>` and bare-id class names by which a tie, slur
+or hairpin crossing a page turn, or a system milestone, names an element on
+another page (which is why the mapping spans the score, not the page). What
 is compared is the structure, every coordinate, path and attribute, and
 which element refers to which -- only the names are taken out. The geometry
 carries no ids at all (the session id is left out of it on purpose).
@@ -49,20 +52,31 @@ ID_DEF = re.compile(r'\bid="([^"]+)"')
 TOKEN = re.compile(r"[A-Za-z_][\w\-]*")
 
 
-def canonical_svg(text: str) -> str:
+def canonical_pages(texts: list[str]) -> list[str]:
+    """The pages of one score with Verovio's ids replaced by `ID{n}`.
+
+    One mapping for the whole score, n counted in order of first definition
+    page by page: a spanning element (a tie or slur across a page turn) and a
+    system milestone name, in their class, an element defined on another
+    page. A class names an element as `id-<id>`; that prefix is kept.
+    """
     names: dict[str, str] = {}
-    for m in ID_DEF.finditer(text):
-        names.setdefault(m.group(1), f"id{len(names)}")
-    if not names:
-        return text
+    for text in texts:
+        for m in ID_DEF.finditer(text):
+            names.setdefault(m.group(1), f"ID{{{len(names)}}}")
 
     def rename(m: re.Match) -> str:
-        return names.get(m.group(0), m.group(0))
+        token = m.group(0)
+        if token in names:
+            return names[token]
+        if token.startswith("id-") and token[3:] in names:
+            return "id-" + names[token[3:]]
+        return token
 
     # one pass over every word-like token, looked up whole, so a rename never
     # sees the output of another and a token that merely CONTAINS an id is
     # left alone
-    return TOKEN.sub(rename, text)
+    return [TOKEN.sub(rename, text) for text in texts]
 
 
 def first_difference(a: str, b: str) -> str:
@@ -105,16 +119,19 @@ def compare_score(base: Path, cand: Path) -> list[str]:
             out.append(f"baseline has no {kind} pages")
         if bp != cp:
             out.append(f"{kind} pages: baseline {len(bp)}, candidate {len(cp)}")
+        if kind == "svg":
+            # canonicalised together: ids are named across pages
+            if bp == cp:
+                a_pages = canonical_pages([(base / rel).read_text() for rel in bp])
+                b_pages = canonical_pages([(cand / rel).read_text() for rel in cp])
+                for rel, a, b in zip(bp, a_pages, b_pages):
+                    if a != b:
+                        out.append(f"{rel}: {first_difference(a, b)}")
+            continue
         for rel in sorted(set(bp) & set(cp)):
-            if kind == "svg":
-                a = canonical_svg((base / rel).read_text())
-                b = canonical_svg((cand / rel).read_text())
-                if a != b:
-                    out.append(f"{rel}: {first_difference(a, b)}")
-            else:
-                why = compare_png(base / rel, cand / rel)
-                if why:
-                    out.append(f"{rel}: {why}")
+            why = compare_png(base / rel, cand / rel)
+            if why:
+                out.append(f"{rel}: {why}")
     bg, cg = base / "geometry.json", cand / "geometry.json"
     if not bg.exists():
         out.append("baseline has no geometry.json")
