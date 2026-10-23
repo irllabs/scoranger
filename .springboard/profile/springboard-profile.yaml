@@ -1,0 +1,46 @@
+schema_version: 1
+name: local-profile
+version: 0.1.0
+namespace: local
+extends:
+  - springboard.core
+
+policy:
+  family_materialization:
+    families:
+      - family: workitem
+        materialization: starter
+        authoring: visible
+        validation: required
+      - family: workflow
+        materialization: lazy
+        authoring: visible
+        validation: optional
+      - family: requirement
+        materialization: lazy
+        authoring: visible
+        validation: optional
+      - family: architecture
+        materialization: lazy
+        authoring: visible
+        validation: optional
+      - family: decision
+        materialization: lazy
+        authoring: visible
+        validation: optional
+      - family: finding
+        materialization: lazy
+        authoring: visible
+        validation: optional
+      - family: review
+        materialization: lazy
+        authoring: visible
+        validation: optional
+      - family: evidence
+        materialization: lazy
+        authoring: visible
+        validation: optional
+      - family: approval
+        materialization: opt_in
+        authoring: hidden
+        validation: optional

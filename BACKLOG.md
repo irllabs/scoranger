@@ -1,5 +1,34 @@
 # Backlog
 
+## Next build (0.23.3) -- collecting
+
+Tracked in Springboard under EPIC-20261023-023203-ali-momeni (.springboard/, committed).
+
+- **OMR upload status starts at 100% and then waits** (Ali, 2026-10-22).
+  The bar counts bytes handed to the network stack, which a PDF fills at
+  once; the wait after it is the service's answer, still labelled
+  "uploading…". TASK-20261023-023203 has the diagnosis and what done means.
+- **Switching a one-page score between page and scroll flickers** (Ali,
+  2026-10-22): in both directions the canvas flashes between the two views
+  about four times before it settles. Not reproduced yet; the hypothesis is
+  that the displayed layout passes through each intermediate state the
+  engraving handover goes through, and a one-page score can draw all of them.
+  TASK-20261023-023453.
+- **A scan with no words says its words did not line up** (Ali, 2026-10-22,
+  Cat's Meow). The notice fires on any PDF with a text layer whose pages did
+  not line up, though this page prints no lyrics and the scanner read none.
+  Reproduced on this Mac. TASK-20261023-023707.
+- **Words a scan could not line up should still reach the page** (Ali): by
+  best guess as movable words, or written below the music; ask the reader
+  which when unsure. A feature, so it makes the build 0.24.0 if taken.
+  TASK-20261023-023708.
+- **A Pieces filter hides every set list** (found 2026-10-22, approved
+  for this build by Ali the same day). The library's filter is shared by all three tabs
+  and is not cleared on switching; on Set lists it can match nothing, and the
+  page then says "No set lists yet" over "No matches". Relaunching clears it.
+  Reproduced on build 217's code with Ali's iPhone library
+  (ios/build/setlists-hidden-by-pieces-filter.png). TASK-20261023-045100.
+
 ## 0.23.0: library rows swipe, a dragged row scrolls its page, iOS 26.5 -- what it does not do
 
 Each of these is said in the ios/project.yml scope block too.
