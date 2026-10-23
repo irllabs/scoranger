@@ -55,3 +55,65 @@ enum TextSearch {
         return start..<end
     }
 }
+
+extension TextSearch {
+    /// Every `<name ...>...</name>` element named in `names`, in document
+    /// order: the ranges `<(a|b)\b[^>]*>.*?</\1>` matches with `.` across
+    /// lines, found by literal search instead.
+    ///
+    /// ICU runs that lazy pattern a character at a time over the whole
+    /// document; on "Espresso"'s MEI (780 KB) the note and staff passes of
+    /// the fingering lift spent 25 ms in it, natively. Same rules: the name
+    /// ends at a word boundary, the start tag runs to its first `>`, and the
+    /// element to the first closing tag of its name after that -- matches do
+    /// not overlap, and an opening with no closing tag is passed over.
+    ///
+    /// `text` should be a real NSString (`NSString(string:)`): a Swift string
+    /// bridged as one answers each search through a UTF-16 view of its UTF-8.
+    static func elementRanges(named names: [String], in text: NSString,
+                              within range: NSRange? = nil) -> [NSRange] {
+        let whole = range ?? NSRange(location: 0, length: text.length)
+        let end = whole.location + whole.length
+        func find(_ needle: String, from: Int) -> Int {
+            guard from < end else { return NSNotFound }
+            return text.range(of: needle, options: .literal,
+                              range: NSRange(location: from, length: end - from)).location
+        }
+        func isWordCharacter(_ c: unichar) -> Bool {
+            // a tag name in MEI is ASCII; anything else after one is treated
+            // as a letter, which is what ICU's \b makes of a letter
+            c >= 0x80 || (c >= 0x30 && c <= 0x39) || (c >= 0x41 && c <= 0x5A)
+                || (c >= 0x61 && c <= 0x7A) || c == 0x5F
+        }
+        let opens = names.map { "<" + $0 }
+        // the next opening of each name at or after the cursor, kept so a
+        // rare name is not searched for again on every element
+        var next = [Int](repeating: -1, count: names.count)
+        var out: [NSRange] = []
+        var cursor = whole.location
+        while cursor < end {
+            var best = NSNotFound
+            var which = -1
+            for i in names.indices {
+                if next[i] != NSNotFound, next[i] < cursor { next[i] = find(opens[i], from: cursor) }
+                if next[i] != NSNotFound, next[i] < best { best = next[i]; which = i }
+            }
+            guard which >= 0 else { break }
+            let afterName = best + opens[which].utf16.count
+            if afterName < end, isWordCharacter(text.character(at: afterName)) {
+                cursor = best + 1
+                continue
+            }
+            let tagEnd = find(">", from: afterName)
+            let close = tagEnd == NSNotFound ? NSNotFound : find("</\(names[which])>", from: tagEnd + 1)
+            guard close != NSNotFound else {
+                cursor = best + 1
+                continue
+            }
+            let stop = close + names[which].utf16.count + 3
+            out.append(NSRange(location: best, length: stop - best))
+            cursor = stop
+        }
+        return out
+    }
+}

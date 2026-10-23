@@ -134,39 +134,31 @@ enum FingeringDiagrams {
     static func meiWithFingeringsAbove(_ mei: String,
                                        rows: Int = StaffSpacing.defaultRows) -> String? {
         guard TextSearch.contains(mei, "<verse") else { return nil }
-        // chord first: a fingered note inside a chord hangs its verses off the
-        // chord, and matching the inner <note> separately would miss them
-        guard let noteRE = RegexCache.regex(
-                pattern: "<(chord|note)\\b[^>]*>.*?</\\1>",
-                options: [.dotMatchesLineSeparators]),
-              let verseRE = RegexCache.regex(
-                pattern: "<verse\\b[^>]*>.*?</verse>",
-                options: [.dotMatchesLineSeparators])
-        else { return nil }
 
         // Built by ranges into one buffer: the column's verses are matches in
         // the note's block, so they are cut out by where they are rather than
         // searched for again as text, which on a fingered tune cost more than
         // the rest of the pass together (a full-text search per verse).
-        let ns = mei as NSString
+        let ns = NSString(string: mei)
         let out = NSMutableString(capacity: ns.length + ns.length / 8)
         var cursor = 0
         var changed = false
-        for match in noteRE.matches(in: mei, range: NSRange(location: 0, length: ns.length)) {
+        // chord first: a fingered note inside a chord hangs its verses off the
+        // chord, and matching the inner <note> separately would miss them
+        for range in TextSearch.elementRanges(named: ["chord", "note"], in: ns) {
             out.append(ns.substring(with: NSRange(location: cursor,
-                                                  length: match.range.location - cursor)))
-            cursor = match.range.location + match.range.length
-            let block = ns.substring(with: match.range)
-            let blockNS = block as NSString
-            let found = verseRE.matches(
-                in: block, range: NSRange(location: 0, length: blockNS.length))
-            let verses = found.map { blockNS.substring(with: $0.range) }
+                                                  length: range.location - cursor)))
+            cursor = range.location + range.length
+            let block = ns.substring(with: range)
+            let blockNS = NSString(string: block)
+            let found = TextSearch.elementRanges(named: ["verse"], in: blockNS)
+            let verses = found.map { blockNS.substring(with: $0) }
             // The column is the `wf` verses and only them: a SUNG note carries
             // its words as further verses (0.21.0), which stay below. A column
             // is tagged verses that READ as holes; an untagged column, from
             // before the tag, is the whole note or nothing. Mirrors
             // render.mei_with_fingerings_above.
-            var picked = verses.indices.filter { verses[$0].contains("label=\"\(tag)") }
+            var picked = verses.indices.filter { TextSearch.contains(verses[$0], "label=\"\(tag)") }
             if !isFingeringColumn(picked.map { verses[$0] }) {
                 picked = isFingeringColumn(verses) ? Array(verses.indices) : []
             }
@@ -179,7 +171,7 @@ enum FingeringDiagrams {
                 let v = verse as NSString
                 let close = v.range(of: ">")
                 let open = close.location == NSNotFound ? verse : v.substring(to: close.location)
-                if open.contains("place=") { return verse }
+                if TextSearch.contains(open, "place=") { return verse }
                 let at = v.range(of: "<verse")
                 return at.location == NSNotFound ? verse
                     : v.replacingCharacters(in: at, with: "<verse place=\"above\"")
@@ -203,7 +195,7 @@ enum FingeringDiagrams {
             }
             var at = 0
             for (n, index) in picked.enumerated() {
-                let r = found[index].range
+                let r = found[index]
                 out.append(blockNS.substring(with: NSRange(location: at, length: r.location - at)))
                 if n == 0 { out.append(packed.joined()) }
                 at = r.location + r.length
@@ -211,7 +203,7 @@ enum FingeringDiagrams {
             out.append(blockNS.substring(from: at))
         }
         out.append(ns.substring(from: cursor))
-        return changed ? wordsUnderLiftedColumns(out as String) : nil
+        return changed ? wordsUnderLiftedColumns(in: out) : nil
     }
 
     /// Where a whistle part's WORDS are numbered from: above the column's
@@ -228,15 +220,17 @@ enum FingeringDiagrams {
     /// whistle's range lines up with its neighbours. Mirrors
     /// render._words_under_lifted_columns.
     static func wordsUnderLiftedColumns(_ mei: String) -> String {
-        guard let staffRE = RegexCache.regex(
-                pattern: "<staff\\b[^>]*>.*?</staff>", options: [.dotMatchesLineSeparators]),
-              let numberRE = RegexCache.regex(pattern: "^<staff\\b[^>]*?\\bn=\"(\\d+)\""),
-              let verseRE = RegexCache.regex(
-                pattern: "<verse\\b[^>]*>.*?</verse>", options: [.dotMatchesLineSeparators]),
+        wordsUnderLiftedColumns(in: NSString(string: mei))
+    }
+
+    /// The same, of a document already held as an NSString: the lift builds
+    /// its output as one, and bridging it to a String and copying it back
+    /// cost more than the scan of it (6 ms of 32 on "Espresso", natively).
+    private static func wordsUnderLiftedColumns(in ns: NSString) -> String {
+        guard let numberRE = RegexCache.regex(pattern: "^<staff\\b[^>]*?\\bn=\"(\\d+)\""),
               let verseNRE = RegexCache.regex(pattern: "(<verse\\b[^>]*?\\bn=\")(\\d+)\"")
-        else { return mei }
-        let ns = mei as NSString
-        let staves = staffRE.matches(in: mei, range: NSRange(location: 0, length: ns.length))
+        else { return ns as String }
+        let staves = TextSearch.elementRanges(named: ["staff"], in: ns)
         func number(_ block: String) -> String? {
             let b = block as NSString
             guard let m = numberRE.firstMatch(in: block, range: NSRange(location: 0, length: b.length))
@@ -248,32 +242,32 @@ enum FingeringDiagrams {
         // and appends of bridged pieces were most of this pass.
         var lifted = Set<String>()
         for staff in staves {
-            if ns.range(of: "label=\"\(tag)", options: .literal, range: staff.range).location
+            if ns.range(of: "label=\"\(tag)", options: .literal, range: staff).location
                 != NSNotFound,
-               ns.range(of: "place=\"above\"", options: .literal, range: staff.range).location
+               ns.range(of: "place=\"above\"", options: .literal, range: staff).location
                 != NSNotFound,
-               let n = number(ns.substring(with: staff.range)) {
+               let n = number(ns.substring(with: staff)) {
                 lifted.insert(n)
             }
         }
-        guard !lifted.isEmpty else { return mei }
+        guard !lifted.isEmpty else { return ns as String }
         let out = NSMutableString(capacity: ns.length)
         var cursor = 0
         for staff in staves {
             out.append(ns.substring(with: NSRange(location: cursor,
-                                                  length: staff.range.location - cursor)))
-            let block = ns.substring(with: staff.range)
-            cursor = staff.range.location + staff.range.length
+                                                  length: staff.location - cursor)))
+            let block = ns.substring(with: staff)
+            cursor = staff.location + staff.length
             guard let n = number(block), lifted.contains(n) else { out.append(block); continue }
-            let b = block as NSString
+            let b = NSString(string: block)
             var rebuilt = ""
             var at = 0
-            for verse in verseRE.matches(in: block, range: NSRange(location: 0, length: b.length)) {
-                rebuilt += b.substring(with: NSRange(location: at, length: verse.range.location - at))
-                let text = b.substring(with: verse.range)
-                at = verse.range.location + verse.range.length
+            for verse in TextSearch.elementRanges(named: ["verse"], in: b) {
+                rebuilt += b.substring(with: NSRange(location: at, length: verse.location - at))
+                let text = b.substring(with: verse)
+                at = verse.location + verse.length
                 let t = text as NSString
-                guard !text.contains("label=\"\(tag)"),
+                guard !TextSearch.contains(text, "label=\"\(tag)"),
                       let m = verseNRE.firstMatch(in: text, range: NSRange(location: 0, length: t.length)),
                       let value = Int(t.substring(with: m.range(at: 2))),
                       value > wordVersesAfterColumn else { rebuilt += text; continue }

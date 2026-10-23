@@ -56,4 +56,42 @@ final class TextSearchTests: XCTestCase {
         XCTAssertFalse(TextSearch.contains(page, ""))
         XCTAssertFalse(TextSearch.contains("", "a"))
     }
+
+    // MARK: - Elements, found as the lazy pattern finds them
+
+    private func regexRanges(_ pattern: String, _ text: String) -> [NSRange] {
+        let re = try! NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators])
+        return re.matches(in: text, range: NSRange(location: 0, length: (text as NSString).length))
+            .map(\.range)
+    }
+
+    /// The fingering lift's passes found their blocks with
+    /// `<(chord|note)\b[^>]*>.*?</\1>` and `<staff\b[^>]*>.*?</staff>`; the
+    /// literal scan that replaced them must find exactly the same ranges,
+    /// including where the pattern's own rules are surprising.
+    func testElementRangesAreThePatternsMatches() {
+        let texts = [
+            // a chord holding notes, then a lone note, across lines
+            "<chord xml:id=\"c\">\n<note a=\"1\"><verse n=\"1\"/></note>\n<note/></chord><note b=\"2\">x</note>",
+            // a self-closed note runs on to the next </note>, as the pattern does
+            "<note id=\"a\"/><rest/><note>y</note><note>z</note>",
+            // a name that only starts like one is not it
+            "<notes>q</notes><noteX>r</noteX><note>s</note><chordal/>",
+            // an opening with no closing tag is passed over
+            "<note><verse/>never closed <chord>k</chord>",
+            // text in other scripts before, inside and between
+            "é♩<note>Ban–bridge ♩</note>ü<chord>ö<note>ñ</note></chord>\u{E260}",
+            "", "<note", "<note>", "<chord></note></chord>",
+        ]
+        for text in texts {
+            let ns = NSString(string: text)
+            XCTAssertEqual(TextSearch.elementRanges(named: ["chord", "note"], in: ns),
+                           regexRanges("<(chord|note)\\b[^>]*>.*?</\\1>", text), text)
+            XCTAssertEqual(TextSearch.elementRanges(named: ["note"], in: ns),
+                           regexRanges("<note\\b[^>]*>.*?</note>", text), text)
+        }
+        let staves = "<staffDef n=\"1\"/><staff n=\"1\"><layer/></staff><staff n=\"2\">\n</staff>"
+        XCTAssertEqual(TextSearch.elementRanges(named: ["staff"], in: NSString(string: staves)),
+                       regexRanges("<staff\\b[^>]*>.*?</staff>", staves))
+    }
 }
