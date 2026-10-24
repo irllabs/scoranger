@@ -367,9 +367,10 @@ done
 # counted in `expected`, still able to fail the gate. Spelled with the
 # trailing "()" for the same reason.
 #
-# Measured cost, iPhone 17 Pro, one simulator, this machine: see the note in
-# the report for 0.8.2 -- the lane is five tests and runs after the pool, so
-# it is added wall clock rather than hidden inside it.
+# It starts when the FIRST iPad worker finishes, on its own iPhone, while the
+# rest of the pool is still running, and the serial phase waits for it. Run
+# after everything it added its whole length to the wall clock: 3.7 min of
+# the 0.23.3 gate, which ended 6.5 min after its first worker did.
 PHONE_LANE=(
   "ScorangerUITests/PhoneTransport/testStopIsOnScreenWhilePlaying()"
   "ScorangerUITests/PhoneSharedRow/testASharedRowFitsAndSyncIsInItsActions()"
@@ -655,7 +656,9 @@ for n in $(seq 1 "$WORKERS"); do
     [[ -n "$t" ]] || continue
     if [[ "$t" == "ScorangerTests" ]]; then unit_args+=("-only-testing:$t"); else args+=("-only-testing:$t"); fi
   done < "$OUT/shard-$n.txt"
-  if (( ${#args[@]} == 0 && ${#unit_args[@]} == 0 )); then pids+=(0); continue; fi
+  if (( ${#args[@]} == 0 && ${#unit_args[@]} == 0 )); then
+    touch "$OUT/worker-$n.done"; pids+=(0); continue
+  fi
   # The serial list's UNIT tests, kept out of the unit lump (see unit-skip.txt).
   if (( ${#unit_args[@]} > 0 )) && [[ -s "$OUT/unit-skip.txt" ]]; then
     while read -r t; do [[ -n "$t" ]] && unit_args+=("-skip-testing:$t"); done < "$OUT/unit-skip.txt"
@@ -692,9 +695,35 @@ for n in $(seq 1 "$WORKERS"); do
         -resultBundlePath "$OUT/worker-$n.xcresult" \
         "${args[@]}" "${SKIP[@]}" ${EXTRA+"${EXTRA[@]}"} > "$OUT/worker-$n.log" 2>&1 || ok=1
     fi
+    touch "$OUT/worker-$n.done"
     exit $ok ) &
   pids+=($!)
 done
+
+# THE PHONE LANE. One iPhone, started when the first iPad worker is done (each
+# worker leaves worker-N.done), so it overlaps the pool's tail rather than
+# adding its length after it. A marker file rather than `kill -0` on a sibling
+# pid, which says nothing reliable about a process this subshell did not start.
+PHONE_TESTS=()
+while read -r t; do [[ -n "$t" ]] && PHONE_TESTS+=("$t"); done < "$OUT/phone.txt"
+phone_pid=0
+if (( ${#PHONE_TESTS[@]} > 0 )); then
+  ( until compgen -G "$OUT/worker-*.done" >/dev/null; do /bin/sleep 5; done
+    echo "==> ${#PHONE_TESTS[@]} tests on a phone (compact width; see PHONE_LANE)"
+    PHONE_START=$(date +%s)
+    PHONE_SIM=$(sim_for phone "$PHONE_DEVTYPE")
+    phone_args=()
+    for t in "${PHONE_TESTS[@]}"; do phone_args+=("-only-testing:$t"); done
+    ok=0
+    xcodebuild test-without-building -xctestrun "$XCTESTRUN" \
+      -destination "platform=iOS Simulator,id=$PHONE_SIM" \
+      -resultBundlePath "$OUT/phone.xcresult" \
+      "${phone_args[@]}" ${EXTRA+"${EXTRA[@]}"} > "$OUT/phone.log" 2>&1 || ok=1
+    echo "    phone lane took $(( $(date +%s) - PHONE_START ))s"
+    xcrun simctl shutdown "$PHONE_SIM" >/dev/null 2>&1 || true
+    exit $ok ) &
+  phone_pid=$!
+fi
 
 fail=0
 for n in $(seq 1 "$WORKERS"); do
@@ -702,6 +731,12 @@ for n in $(seq 1 "$WORKERS"); do
   [[ "$pid" == 0 ]] && continue
   if ! wait "$pid"; then echo "    worker $n FAILED"; fail=1; fi
 done
+# The phone lane finishes before the serial phase starts: that phase's failures
+# are unexplained (below) and nothing new should run beside it.
+if (( phone_pid != 0 )) && ! wait "$phone_pid"; then
+  echo "    phone lane FAILED"; fail=1
+fi
+
 # THE ENGINE-SERIAL PHASE. One simulator, one test at a time, after the pool has
 # finished -- so the engine is not being called by anything else.
 SERIAL_TESTS=()
@@ -748,28 +783,10 @@ if (( ${#SERIAL_TESTS[@]} > 0 )); then
   fi
 fi
 
-# THE PHONE LANE. One iPhone, after everything else, so the pool's devices are
-# down and nothing is competing with it -- and so the added wall clock is a
-# number somebody can read off the run rather than a cost hidden inside it.
-PHONE_TESTS=()
-while read -r t; do [[ -n "$t" ]] && PHONE_TESTS+=("$t"); done < "$OUT/phone.txt"
-if (( ${#PHONE_TESTS[@]} > 0 )); then
-  echo "==> ${#PHONE_TESTS[@]} tests on a phone (compact width; see PHONE_LANE)"
-  for ((i = 0; i < ${#udids[@]}; i++)); do
-    xcrun simctl shutdown "${udids[i]}" >/dev/null 2>&1 || true
-  done
-  PHONE_START=$(date +%s)
-  PHONE_SIM=$(sim_for phone "$PHONE_DEVTYPE")
-  phone_args=()
-  for t in "${PHONE_TESTS[@]}"; do phone_args+=("-only-testing:$t"); done
-  if ! xcodebuild test-without-building -xctestrun "$XCTESTRUN" \
-        -destination "platform=iOS Simulator,id=$PHONE_SIM" \
-        -resultBundlePath "$OUT/phone.xcresult" \
-        "${phone_args[@]}" ${EXTRA+"${EXTRA[@]}"} > "$OUT/phone.log" 2>&1; then
-    echo "    phone lane FAILED"; fail=1
-  fi
-  echo "    phone lane took $(( $(date +%s) - PHONE_START ))s"
-fi
+# Nothing needs the pool again; the phone lane used to be what shut it down.
+for ((i = 0; i < ${#udids[@]}; i++)); do
+  xcrun simctl shutdown "${udids[i]}" >/dev/null 2>&1 || true
+done
 
 ELAPSED=$(( $(date +%s) - START ))
 
