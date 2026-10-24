@@ -247,6 +247,48 @@ targets:
         #          asked for as one build: "build all of these necessary
         #          features for sharing playlists into the first 7.0 build."
         #          §11.9 records the difference, including what was left out.
+        #   0.23.4 WHAT ALI MARKED UP ON BUILD 219; THE FASTER GATE
+        #          (2026-10-23). Scope written before the release. Fixes only,
+        #          so the patch bumps: the Delete restored to a row and the
+        #          title offer both reach things the app could already do.
+        #          Built on test/gate-cost (790ee13), the gate cut from 47 to
+        #          34.5 minutes, and this build's gate is its first full run.
+        #
+        #          In this build:
+        #            1. Page / continuous / two pages switch in one step. The
+        #               choice was published a frame before the new engraving
+        #               was claimed, so the old pages were drawn under the new
+        #               layout's rules first: the page without its rail going
+        #               to continuous, the strip squeezed into a page coming
+        #               back ("the canvas flips back and forth very fast").
+        #            2. A swipe back slides the old page out to the right.
+        #               The leaving page kept the forward direction it was
+        #               last drawn with (Espresso, "wrong for ->").
+        #            3. A score that prints a file name as its title
+        #               ("v001.mxl", The Star of County Down) offers to fix it
+        #               on the score screen, with the same set-metadata the
+        #               Settings repair runs.
+        #            4. Delete is back in an arrangement row's actions on the
+        #               piece screen, asking in place; the swipe stays. Found
+        #               while checking it, and fixed with it: the question
+        #               opened past the edge of a narrow row; deleting a
+        #               piece's last arrangement left a blank white page; and
+        #               Undo then restored the arrangement into a piece already
+        #               dropped, so it was in no list (the swipe did all three).
+        #            5. A scan whose PDF prints none of the words or chords
+        #               the scanner read says nothing about words not lining
+        #               up (The Cat's Meow).
+        #            6. The OMR upload shows a spinner and "sending to the
+        #               converter…" once the bytes are handed over, instead of
+        #               a full bar that waits.
+        #          NOT in this build, and said before it ships:
+        #            - "more right" on the piece screen's rows: not yet
+        #              understood, asked;
+        #            - Delete in the LIBRARY's row actions (it is still the
+        #              swipe and Edit there);
+        #            - the OMR wait measured against the live service, which
+        #              the Springboard task asks for;
+        #            - placing words a scan could not line up: a feature.
         #   0.23.3 A DENSE SCORE OPENS FAST; A FILTER BELONGS TO ITS TAB
         #          (2026-10-22). Scope written before the work and narrowed
         #          before the release, when Ali asked for the speed on
@@ -1614,7 +1656,7 @@ targets:
         # has no Firebase configuration". deploy_testflight.sh now refuses such
         # an archive outright.
         CURRENT_PROJECT_VERSION: 219
-        MARKETING_VERSION: 0.23.3
+        MARKETING_VERSION: 0.23.4
         SWIFT_VERSION: 5.10
         SWIFT_OBJC_BRIDGING_HEADER: Scoranger/PythonBridge/PythonBridge.h
         # BeeWare's install_python copies lib-$ARCHS, which requires single-arch builds

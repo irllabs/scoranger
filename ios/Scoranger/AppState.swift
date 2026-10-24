@@ -929,6 +929,39 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// The reader picks a layout, from the top bar or Settings.
+    ///
+    /// Everything the canvas reads changes in THIS turn, before SwiftUI
+    /// draws. Setting the choice and leaving the engrave to a Task left one
+    /// draw in between with the choice made and no engrave yet claimed --
+    /// which `displayed` reads as a handover that failed, so the choice won
+    /// and the old pages were drawn under the new layout: the page without
+    /// its rail for a third of a second going to continuous, the strip
+    /// squeezed into a page frame coming back, and then the real thing. Ali's
+    /// "the canvas flips back and forth very fast" (0.23.3, Drowsy Maggie).
+    ///
+    /// So an engraving already made is shown now, in the same publish as the
+    /// choice; otherwise the engrave is claimed now, and the canvas keeps the
+    /// pages it has until the new ones arrive.
+    func chooseLayout(_ option: ScoreLayout) {
+        guard option != layoutChoice else { return }
+        layoutChoice = option
+        // continuous has no pages to be on, and coming back from it the reader
+        // should be at the top of the score rather than at an index the strip
+        // never had
+        pageIndex = 0
+        if let held = renderedLayout, held.engraving != option.engraving,
+           !showMadeEngravingNow() {
+            engravingInFlight = option.engraving
+        }
+        Task {
+            await renderIfNeeded()
+            // renderIfNeeded releases the claim it makes; this releases the
+            // one made above when it returned without making one
+            if engravingInFlight == option.engraving, !loadingPDF { engravingInFlight = nil }
+        }
+    }
+
     /// The layout the score on screen is DRAWN with, which is the choice
     /// except while the canvas is still holding pages made for the other kind
     /// of engraving (`ScoreLayout.displayed`). Everything that draws reads
@@ -2445,7 +2478,6 @@ final class AppState: ObservableObject {
         // does not -- the op changed the notes. Rebuilding it is the
         // reader's next press of play, not this render's business.
         invalidatePlaybackIfStale()
-        lastError = nil
         // the end of a timed open's render pass (`OpenTiming`)
         if OpenTiming.isRequested {
             OpenTiming.shared.renderFinished(slug: slug, error: nil, document: pdfDocument)
@@ -2607,6 +2639,10 @@ final class AppState: ObservableObject {
             if renderedKey == key {  // selection may have moved while fetching
                 rendered = true
                 if stamp == 0 { engravingCount += 1; stamp = engravingCount }
+                // here and not in show(): lastError is the render path's to
+                // write (check_error_reporting), and a page on the canvas
+                // hides the placeholder that reads it anyway
+                lastError = nil
                 show(data, model: model, adjustments: engravedAdjustments, stamp: stamp,
                      key: key, engravedWith: engravedWith, slug: score.slug)
             }
@@ -3505,8 +3541,9 @@ final class AppState: ObservableObject {
                 }
 
                 let progressDelegate = UploadProgressDelegate { [weak self] sent in
+                    let shown = OMRUpload.stage(sent: sent)
                     Task { @MainActor in
-                        self?.updatePending(work.id, stage: "uploading…", fraction: sent)
+                        self?.updatePending(work.id, stage: shown.stage, fraction: shown.fraction)
                     }
                 }
 
@@ -3803,6 +3840,27 @@ final class AppState: ObservableObject {
     /// TitleRepair for why a flag would be the wrong shape.
     var titleRepairsNeeded: [String] {
         TitleRepair.affected(manifest?.scores ?? [])
+    }
+
+    /// The open arrangements whose title offer the reader dismissed. For this
+    /// session only: the offer is derived from the library (`TitleRepair`),
+    /// and a remembered "no" would be the per-device flag it avoids.
+    @Published var titleOfferDismissed: Set<String> = []
+
+    /// The open arrangement's title offer (`TitleRepair.offerOnScore`).
+    var titleOfferForOpenScore: (slug: String, printed: String, proposed: String)? {
+        guard let score = selectedScore, !titleOfferDismissed.contains(score.slug),
+              let offer = TitleRepair.offerOnScore(title: score.title, name: score.name,
+                                                   slug: score.slug,
+                                                   latestFile: score.versions.last?.file)
+        else { return nil }
+        return (score.slug, offer.printed, offer.proposed)
+    }
+
+    /// Fix one arrangement's title: the same `set-metadata` the Settings
+    /// repair runs for each arrangement it finds.
+    func fixTitle(slug: String, to title: String) async {
+        if await setScoreMetadata(slug: slug, title: title) { pinnedVersion = nil }
     }
 
     /// Fix them, the legitimate way: the engine adds a corrected version to

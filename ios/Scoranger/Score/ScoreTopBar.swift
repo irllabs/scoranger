@@ -305,13 +305,7 @@ struct ScoreTopBar: View {
         let active = state.layoutChoice == option
         let available = isAvailable(option)
         return Button {
-            guard state.layoutChoice != option else { return }
-            state.layoutChoice = option
-            // continuous has no pages to be on, and coming back from it the
-            // reader should be at the top of the score rather than at an index
-            // the strip never had
-            state.pageIndex = 0
-            Task { await state.renderIfNeeded() }
+            state.chooseLayout(option)
         } label: {
             // ONE shape for the active cell: the segment itself, tinted, with
             // the glyph in clayStrong. A pill stroke used to be drawn inside

@@ -22,7 +22,10 @@ enum TextPassReport {
             sentences.append("Words and chord names are as the PDF prints them: "
                              + "\(count(words, "syllable")) and \(count(chords, "chord"))."
             )
-        } else if (pass["text_layer"] as? Bool) == true {
+        } else if (pass["pages_misaligned"] as? Int ?? 0) > 0 {
+            // Only when the PDF prints the words the scanner read and they did
+            // not line up. A text layer holding nothing but a header is not
+            // "printed words" (The Cat's Meow, 0.23.2), and says nothing.
             sentences.append("The PDF's printed words did not line up with the music, "
                              + "so the words are as the scanner read them.")
         }

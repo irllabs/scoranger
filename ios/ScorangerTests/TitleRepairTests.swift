@@ -74,4 +74,23 @@ final class TitleRepairTests: XCTestCase {
         XCTAssertEqual(TitleRepair.outcome(repaired: 39, failed: 1),
                        "Fixed 39 arrangements. 1 could not be read and was left alone.")
     }
+
+    /// Ali, 0.23.3: "v001.mxl" over The Star of County Down, with the fix in
+    /// Settings where he never looked. The open score offers it, with the
+    /// arrangement's own name -- and offers nothing for a sound title or for a
+    /// scan with no notation to write into.
+    func testTheOpenScoreOffersItsOwnName() {
+        let offer = TitleRepair.offerOnScore(title: "v001.mxl", name: "The Star of Country Down",
+                                             slug: "the-star-of-country-down",
+                                             latestFile: "v002.musicxml")
+        XCTAssertEqual(offer?.printed, "v001.mxl")
+        XCTAssertEqual(offer?.proposed, "The Star of Country Down")
+        XCTAssertNil(TitleRepair.offerOnScore(title: "Drowsy Maggie", name: "Drowsy Maggie",
+                                              slug: "drowsy-maggie", latestFile: "v001.musicxml"))
+        XCTAssertNil(TitleRepair.offerOnScore(title: "v001.mxl", name: "A scan",
+                                              slug: "a-scan", latestFile: "v001.pdf"))
+        let words = TitleRepair.scoreOffer(printed: "v001.mxl", proposed: "The Star of Country Down")
+        XCTAssertTrue(words.summary.contains("v001.mxl"), words.summary)
+        XCTAssertTrue(words.detail.contains("adds a version"), words.detail)
+    }
 }

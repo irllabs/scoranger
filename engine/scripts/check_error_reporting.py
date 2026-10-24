@@ -109,7 +109,12 @@ def main() -> int:
     published = re.findall(r"@Published\s+(?:private\(set\)\s+)?var\s+(\w+)", app)
     check("AppState still publishes something", len(published) > 10, str(len(published)))
 
-    unread = [p for p in published if not re.search(r"\." + p + r"\b", view_text)]
+    # A READ is a member reached through a value -- `state.selection` -- so a
+    # word character comes before the dot. A bare `.selection` is an implicit
+    # member of some other type: `.sensoryFeedback(.selection, ...)` is a
+    # haptic, and it read as AppState's selection and failed the INTERNAL
+    # list from 0.23.0 on.
+    unread = [p for p in published if not re.search(r"\w\." + p + r"\b", view_text)]
     dead = [p for p in unread if p not in INTERNAL]
     check("every published property is read by a view, or declared internal",
           not dead,

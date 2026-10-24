@@ -1,27 +1,47 @@
 # Backlog
 
-## Next build (0.23.4) -- collecting
+## Next build -- collecting
 
-Tracked in Springboard under EPIC-20261023-023203-ali-momeni (.springboard/, committed).
+Nothing collected yet. Word placement for a scan (TASK-20261023-023708) is
+listed under 0.23.4 below and makes its build 0.24.0 when taken.
 
-- **OMR upload status starts at 100% and then waits** (Ali, 2026-10-22).
-  The bar counts bytes handed to the network stack, which a PDF fills at
-  once; the wait after it is the service's answer, still labelled
-  "uploading…". TASK-20261023-023203 has the diagnosis and what done means.
-- **Switching a one-page score between page and scroll flickers** (Ali,
-  2026-10-22): in both directions the canvas flashes between the two views
-  about four times before it settles. Not reproduced yet; the hypothesis is
-  that the displayed layout passes through each intermediate state the
-  engraving handover goes through, and a one-page score can draw all of them.
-  0.23.3 changed how a score opens, so reproduce it on 0.23.3 first.
-  TASK-20261023-023453.
-- **A scan with no words says its words did not line up** (Ali, 2026-10-22,
-  Cat's Meow). The notice fires on any PDF with a text layer whose pages did
-  not line up, though this page prints no lyrics and the scanner read none.
-  Reproduced on this Mac. TASK-20261023-023707.
+## 0.23.4: what Ali marked up on build 219 -- what it does not do
+
+Each of these is in the ios/project.yml scope block. Tracked in Springboard
+under EPIC-20261023-023203-ali-momeni.
+
+- **"more right" on the piece screen is not done.** Ali circled the
+  arrangement rows' columns and wrote "more right" (2026-10-23); which part
+  moves where is not clear from the drawing, and it was asked rather than
+  guessed.
+- **Delete is back in the piece screen's row actions only.** The library's
+  rows still delete by the swipe and by Edit (0.23.0's comment in
+  LibraryView.rowActions).
+- **The OMR wait is not measured against the live service.** The bar no
+  longer reads 100% while the service has not answered; how much of the wait
+  is transfer, and how much a Cloud Run cold start on a one-instance service,
+  is still unmeasured (TASK-20261023-023203). It belongs beside the OMR
+  gateway work.
+- **The title offer appears one arrangement at a time.** Settings still
+  repairs every such arrangement at once ("Fix 6 titles" on Ali's library on
+  2026-10-23: The Star of County Down, Morrison's jig twice, Brale brale,
+  Jovano Jovanke twice).
+- **A scan's header text is engraved as credits.** The Cat's Meow carries
+  "Click any tune title to play the tune / TheCat'sMeow / Jig" at the top of
+  its page, read off the PDF by the scanner. Not addressed.
+- **A tap or press that selects is dropped in the early window.** While
+  only a score's first pages exist, `handleTap` keeps a tap for the model
+  only when it would ADD to a selection; a plain tap or press that selects a
+  bar does nothing. Found by the 0.23.4 gate (PhoneTapSelection, phone lane),
+  whose test now waits for the whole engraving as its sibling does. Part of
+  0.23.3's "early window".
+- **No UI test watches a slide's direction or a layout switch frame by
+  frame.** Both were checked by recording the simulator and reading the
+  frames; the rules are unit-tested (PageTurn.nextCanvasStep) and the layout
+  claim is in AppState.chooseLayout.
 - **Words a scan could not line up should still reach the page** (Ali): by
   best guess as movable words, or written below the music; ask the reader
-  which when unsure. A feature, so it makes the build 0.24.0 if taken.
+  which when unsure. A feature, so it makes its build 0.24.0.
   TASK-20261023-023708.
 
 ## 0.23.3: a dense score opens fast; a filter belongs to its tab -- what it does not do

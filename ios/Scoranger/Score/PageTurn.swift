@@ -98,6 +98,26 @@ extension PageTurn {
                     removal: .move(edge: forward ? .leading : .trailing))
     }
 
+    /// What the canvas does when the page index moves from the unit it is
+    /// drawing to `index`.
+    enum CanvasStep: Equatable {
+        /// Nothing: the canvas already draws that unit.
+        case none
+        /// Draw `index` now: the turn goes the way the last one did, so the
+        /// unit on screen was built with the direction it leaves by.
+        case show(Int)
+        /// Change the direction first, and draw the index in the next update.
+        /// The unit being removed slides with the transition it was last built
+        /// with, so it must be rebuilt with the new direction before it goes.
+        case reverse(forward: Bool)
+    }
+
+    static func nextCanvasStep(drawing: Int, to index: Int, lastForward: Bool) -> CanvasStep {
+        guard index != drawing else { return .none }
+        let forward = index > drawing
+        return forward == lastForward ? .show(index) : .reverse(forward: forward)
+    }
+
     /// The edges, stated as values a test can read: (enters from, leaves by).
     static func slideEdges(forward: Bool) -> (enters: Edge, leaves: Edge) {
         forward ? (.trailing, .leading) : (.leading, .trailing)

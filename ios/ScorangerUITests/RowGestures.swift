@@ -80,9 +80,11 @@ final class RowGestures: XCTestCase {
         shot("drag-after-reopen")
     }
 
-    /// A plain tap on the ☰ is still the row's actions, and they no longer
-    /// carry Up, Down or Delete: the drag and the swipe replaced all three.
-    func testATapOnTheHamburgerStillOpensTheActionsWithoutUpDownOrDelete() {
+    /// A plain tap on the ☰ is still the row's actions. They carry no Up or
+    /// Down -- the drag replaced both -- and DO carry Delete again (0.23.4,
+    /// Ali: "add Delete"): the swipe is there too, but nobody finds a swipe.
+    /// Delete asks in place, where it can be seen, and Keep keeps.
+    func testATapOnTheHamburgerOpensTheActionsWithDeleteAndNoUpOrDown() {
         openPieceScreen()
         let menu = app.buttons["row-menu-\(solo)"]
         XCTAssertTrue(menu.waitForExistence(timeout: 20))
@@ -90,12 +92,23 @@ final class RowGestures: XCTestCase {
         XCTAssertTrue(app.buttons["arrangement-duplicate-\(solo)"].waitForExistence(timeout: 10),
                       "a tap on the ☰ no longer opens the row's actions")
         XCTAssertTrue(app.buttons["arrangement-manage-\(solo)"].exists)
-        for gone in ["arr-up-\(solo)", "arr-down-\(solo)", "edit-delete-\(solo)"] {
+        for gone in ["arr-up-\(solo)", "arr-down-\(solo)"] {
             XCTAssertFalse(app.buttons[gone].exists, "\(gone) is still among the row's actions")
         }
         XCTAssertTrue(choice(solo).label.contains("Arrangement number 2"),
                       "a tap moved the row: \(choice(solo).label)")
         shot("hamburger-tap-actions")
+
+        let delete = app.buttons["arrangement-delete-\(solo)"]
+        XCTAssertTrue(delete.exists, "the row's actions carry no Delete")
+        delete.tap()
+        let confirm = app.buttons["arrangement-delete-\(solo)-confirm"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5), "Delete did not ask first")
+        XCTAssertTrue(waitFor(5) { confirm.isHittable },
+                      "the question opened where it cannot be seen or pressed")
+        shot("hamburger-delete-asks")
+        app.buttons["arrangement-delete-\(solo)-keep"].tap()
+        XCTAssertTrue(choice(solo).waitForExistence(timeout: 5), "Keep did not keep the arrangement")
     }
 
     /// The running order: the second member dragged above the first, kept by

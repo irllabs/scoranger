@@ -394,24 +394,30 @@ struct NoticeBar: View {
 struct BundleOfferBar: View {
     let summary: String
     let detail: String
+    /// The same bar offers to fix an open arrangement's title (0.23.4), with
+    /// its own glyph, action and identifiers; the defaults are the bundle's.
+    var glyph = "shippingbox"
+    var actionTitle = "Add to my library"
+    var identifier = "bundle"
+    var actionIdentifier = "bundle-import"
     var onImport: () -> Void
     var onDismiss: () -> Void
 
     var body: some View {
         HStack(spacing: Theme.Metric.s8) {
-            Image(systemName: "shippingbox")
+            Image(systemName: glyph)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Theme.Ink.ink2)
             VStack(alignment: .leading, spacing: 2) {
                 Text(summary).typeRole(.row).foregroundStyle(Theme.Ink.ink)
-                    .accessibilityIdentifier("bundle-offer-summary")
+                    .accessibilityIdentifier("\(identifier)-offer-summary")
                 Text(detail).typeRole(.data).foregroundStyle(Theme.Ink.ink3)
-                    .accessibilityIdentifier("bundle-offer-detail")
+                    .accessibilityIdentifier("\(identifier)-offer-detail")
             }
             .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: Theme.Metric.s8)
-            PanelButton(title: "Add to my library", kind: .primary, action: onImport)
-                .accessibilityIdentifier("bundle-import")
+            PanelButton(title: actionTitle, kind: .primary, action: onImport)
+                .accessibilityIdentifier(actionIdentifier)
             Button(action: onDismiss) {
                 Image(systemName: "xmark").font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(Theme.Ink.ink2)
@@ -420,7 +426,7 @@ struct BundleOfferBar: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Dismiss")
-            .accessibilityIdentifier("bundle-dismiss")
+            .accessibilityIdentifier("\(identifier)-dismiss")
         }
         .padding(.horizontal, Theme.Metric.s16)
         .padding(.vertical, Theme.Metric.s8)
@@ -428,7 +434,7 @@ struct BundleOfferBar: View {
         .background(Theme.Surface.panel)
         .overlay(alignment: .top) { Theme.Rule() }
         .shadow(color: Color(hex: 0x1A1917).opacity(0.07), radius: 18, y: -6)
-        .accessibilityIdentifier("bundle-offer-bar")
+        .accessibilityIdentifier("\(identifier)-offer-bar")
     }
 }
 

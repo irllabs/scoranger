@@ -678,6 +678,12 @@ class PagePlan:
     unplaced_chords: list[str] = field(default_factory=list)
 
 
+#: Why a page kept the scanner's reading (`plan_page`). Only the first is
+#: something the reader is told about (`pages_misaligned`).
+MISALIGNED = "its printed words could not be lined up with the scanner's"
+PRINTS_NONE = "it prints none of the words or chord names the scanner read"
+
+
 def plan_page(layout: Layout, page: int, spans: list[Span], lines: list[Line],
               strokes: list[Stroke] = ()) -> tuple[PagePlan | None, str | None]:
     """What the text layer says this page's words and chords are. Writes nothing."""
@@ -692,7 +698,16 @@ def plan_page(layout: Layout, page: int, spans: list[Span], lines: list[Line],
     chord_anchors = [(e.harmony[0], e.x, e.harmony[1], "left") for e in elements if e.harmony]
     fit = fit_page(anchors + chord_anchors, spans)
     if fit is None:
-        return None, "its printed words could not be lined up with the scanner's"
+        # Two different pages. One prints the words the scanner read and they
+        # would not line up, which the reader is told. The other prints none
+        # of them as text -- a tunebook whose only text is its header, its
+        # music drawn as paths -- and has nothing to line up; telling that
+        # reader their PDF's "printed words did not line up" describes words
+        # that are not there (Ali, The Cat's Meow, 0.23.2).
+        read = {text for text, *_ in anchors + chord_anchors}
+        if read & {s.text for s in spans}:
+            return None, MISALIGNED
+        return None, PRINTS_NONE
 
     plan = PagePlan(fit=fit)
     # which font the words are printed in: the one the anchors are printed in
@@ -930,7 +945,7 @@ def correct(score, notation_path, pdf_path) -> dict:
 
     far = distant_verses(layout)
     report: dict = {"text_layer": any(page[0] for page in spans_by_page), "pages_lined_up": 0,
-                    "pages_not_lined_up": [], "syllables": 0,
+                    "pages_not_lined_up": [], "pages_misaligned": 0, "syllables": 0,
                     "syllables_scanner_read": 0, "syllables_as_scanned": 0,
                     "lines_not_verses": sum(len(v) for v in far.values()),
                     "chords": 0, "chords_scanner_read": 0,
@@ -950,6 +965,7 @@ def correct(score, notation_path, pdf_path) -> dict:
                 report["pages_lined_up"] += 1
                 continue
             report["pages_not_lined_up"].append({"page": page + 1, "reason": why})
+            report["pages_misaligned"] += why == MISALIGNED
 
     for (part, system), measure_list in layout.measures.items():
         page = next((e.page for e in layout.elements if (e.part, e.system) == (part, system)), None)

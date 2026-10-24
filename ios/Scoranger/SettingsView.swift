@@ -97,9 +97,7 @@ struct SettingsView: View {
                                 isOn: Binding(get: { state.layoutChoice == option },
                                               set: { on in
                                                   guard on else { return }
-                                                  state.layoutChoice = option
-                                                  state.pageIndex = 0
-                                                  Task { await state.renderIfNeeded() }
+                                                  state.chooseLayout(option)
                                               }))
                 }
                 PanelNote(text: "One page is largest. Two pages sit the way a score does "

@@ -212,8 +212,11 @@ struct PieceScreen: View {
         return bits.joined(separator: " · ")
     }
 
-    /// P2: Duplicate, Move to piece, Details. Reordering is the ☰ dragged and
-    /// deleting is the row swiped left (`ReorderableRows`).
+    /// P2: Duplicate, Move to piece, Details, Delete. Reordering is the ☰
+    /// dragged. Deleting is also the row swiped left (`ReorderableRows`), but
+    /// a swipe is found by nobody who has not been told of it: Ali, 0.23.3,
+    /// on this screen, "add Delete". It asks in place, and the delete can be
+    /// undone like the swipe's.
     private func arrangementActions(_ score: ScoreDoc) -> [RowActionItem] {
         [
             RowActionItem(id: "arrangement-duplicate-\(score.slug)", title: "Duplicate") {
@@ -226,6 +229,12 @@ struct PieceScreen: View {
             RowActionItem(id: "arrangement-manage-\(score.slug)", title: "Details",
                           lit: panel.isShowing(.arrangement(score.slug))) {
                 panel.toggle(.arrangement(score.slug))
+            },
+            RowActionItem(id: "arrangement-delete-\(score.slug)", title: "Delete",
+                          destructive: true, confirm: "Delete it?") {
+                openArrangement = nil
+                panel.done()
+                state.deleteScore(slug: score.slug)
             },
         ]
     }

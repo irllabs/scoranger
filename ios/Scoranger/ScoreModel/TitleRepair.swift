@@ -50,6 +50,28 @@ enum TitleRepair {
         }.map(\.slug)
     }
 
+    /// The offer on the SCORE SCREEN, for the arrangement that is open: what
+    /// the page prints now, and what fixing it would print. Nil when it needs
+    /// nothing.
+    ///
+    /// Settings has offered the repair since 0.12, and it reaches nobody who
+    /// is not looking for it: Ali photographed "v001.mxl" over The Star of
+    /// County Down on 0.23.3 with "fix title" written beside it, six such
+    /// arrangements in his library and the button in Settings the whole time.
+    /// The page that prints the file name is where the reader sees it.
+    static func offerOnScore(title: String?, name: String, slug: String,
+                             latestFile: String?) -> (printed: String, proposed: String)? {
+        guard needsRepair(title: title, name: name, slug: slug, latestFile: latestFile),
+              let title else { return nil }
+        return (title, ScoreTitle.arrangementName(title: title, name: name, slug: slug))
+    }
+
+    /// What the score screen's offer says.
+    static func scoreOffer(printed: String, proposed: String) -> (summary: String, detail: String) {
+        ("This page prints \u{201C}\(printed)\u{201D} as its title.",
+         "Fixing it prints \u{201C}\(proposed)\u{201D} and adds a version you can step back from.")
+    }
+
     /// What the offer says, or nil when there is nothing to offer.
     static func offer(count: Int) -> String? {
         guard count > 0 else { return nil }

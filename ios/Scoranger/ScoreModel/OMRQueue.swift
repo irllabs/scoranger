@@ -93,6 +93,24 @@ enum OMRQueue {
     }
 }
 
+/// What the upload stage says, from the bytes URLSession has SENT.
+///
+/// `didSendBodyData` counts bytes handed to the network stack, not bytes the
+/// service has received, and a scan of a few MB is handed over almost at
+/// once: the bar read 100% straight away and then sat there while the
+/// transfer finished and the service started, with "uploading…" under it
+/// (Ali, 0.23.2). Once every byte is handed over there is no fraction left
+/// to show, so the stage says what the wait is and the bar becomes a
+/// spinner until the service accepts the job.
+enum OMRUpload {
+    static let sending = "uploading…"
+    static let waitingForService = "sending to the converter…"
+
+    static func stage(sent fraction: Double) -> (stage: String, fraction: Double?) {
+        fraction < 1 ? (sending, fraction) : (waitingForService, nil)
+    }
+}
+
 /// What a transcription is doing, from the point of view of the arrangement it
 /// belongs to. Nil — no case at all — is "this score is not being
 /// transcribed", which is what every surface needs to agree on.

@@ -201,6 +201,24 @@ struct RootView: View {
                 .zIndex(3)
             }
 
+            if scoreOpen, state.notice == nil, let offer = state.titleOfferForOpenScore {
+                let words = TitleRepair.scoreOffer(printed: offer.printed,
+                                                   proposed: offer.proposed)
+                VStack {
+                    Spacer()
+                    BundleOfferBar(summary: words.summary, detail: words.detail,
+                                   glyph: "textformat", actionTitle: "Fix title",
+                                   identifier: "title", actionIdentifier: "title-fix",
+                                   onImport: {
+                                       Task { await state.fixTitle(slug: offer.slug,
+                                                                   to: offer.proposed) }
+                                   },
+                                   onDismiss: { state.titleOfferDismissed.insert(offer.slug) })
+                        .padding(.bottom, Theme.Metric.s20)
+                }
+                .zIndex(4)
+            }
+
             if let undo = state.undoableDelete, !scoreOpen {
                 VStack {
                     Spacer()
@@ -415,6 +433,12 @@ struct RootView: View {
                     // The panel at rest on this page (P1).
                     .onAppear { panel.setRest(.thisPiece(slug)) }
                     .onDisappear { panel.clearRest(.thisPiece(slug)) }
+            } else if state.manifest != nil {
+                // The piece went with its last arrangement -- deleted from
+                // its own row -- and this page had nothing left to draw: a
+                // blank white screen with a back chevron (0.23.4). Back to the
+                // library, where the undo bar can bring both back.
+                Color.clear.onAppear { pop() }
             }
         case .sort:
             SortPanel(sort: $sort)

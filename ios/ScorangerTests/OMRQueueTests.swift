@@ -163,4 +163,17 @@ final class OMRQueueTests: XCTestCase {
         XCTAssertEqual(OMRQueue.summary([entry("b", arrangement: "b", running: false)]),
                        "1 waiting")
     }
+
+    /// 0.23.2: the bar read 100% at once and then waited. Every byte handed
+    /// to the network stack is not every byte received, so from there the
+    /// stage is a spinner that says what the wait is.
+    func testAnUploadHandedOverWaitsWithASpinner() {
+        XCTAssertEqual(OMRUpload.stage(sent: 0.4).fraction, 0.4)
+        XCTAssertEqual(OMRUpload.stage(sent: 0.4).stage, OMRUpload.sending)
+        let handedOver = OMRUpload.stage(sent: 1)
+        XCTAssertNil(handedOver.fraction, "no full bar while the service has not answered")
+        XCTAssertEqual(handedOver.stage, OMRUpload.waitingForService)
+        XCTAssertTrue(OMRStatus.running(stage: handedOver.stage,
+                                        fraction: handedOver.fraction).showsSpinner)
+    }
 }

@@ -62,10 +62,18 @@ final class TextPassReportTests: XCTestCase {
 
     func testAPageThatDidNotLineUp() {
         XCTAssertEqual(TextPassReport.notice(from: ["text_layer": true, "pages_lined_up": 0,
+                                                    "pages_misaligned": 1,
                                                     "text_below_music": ["one"]]),
                        "The PDF's printed words did not line up with the music, so the words "
                        + "are as the scanner read them. 1 line printed below the music is not "
                        + "a lyric and was left off.")
+    }
+
+    /// The Cat's Meow (0.23.2): the PDF's text layer held its header and no
+    /// words, and the reader was told the printed words did not line up.
+    func testATextLayerWithNoWordsUnderTheMusicSaysNothing() {
+        XCTAssertNil(TextPassReport.notice(from: ["text_layer": true, "pages_lined_up": 0,
+                                                  "pages_misaligned": 0]))
     }
 
     func testOneOfEach() {

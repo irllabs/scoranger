@@ -1020,7 +1020,7 @@ def text_pass(m21_score, notation_path, pdf_path) -> dict:
 
 def summarize_text_pass(report: dict) -> dict:
     """The counts a version's history keeps; the full text stays in the reply."""
-    keep = ("failed", "text_layer", "pages_lined_up", "syllables",
+    keep = ("failed", "text_layer", "pages_lined_up", "pages_misaligned", "syllables",
             "syllables_scanner_read", "lines_not_verses", "chords",
             "chords_scanner_read", "measures_not_matched")
     out = {k: report[k] for k in keep if k in report}
@@ -1529,7 +1529,9 @@ def combine_pieces(names: list, into: str | None = None,
 def tidy_pieces() -> list[str]:
     """Drop pieces left holding nothing by an older build. Returns their names."""
     repo = _repo()
-    held = {d.get("piece") for d in repo.list_scores() if d.get("piece")}
+    # the same rule as `_drop_empty_pieces`, or the report names a piece kept
+    # for an undo as removed
+    held = {d.get("piece") for d in repo.list_scores(include_deleted=True) if d.get("piece")}
     gone = [p["name"] for p in repo.list_pieces() if p["slug"] not in held]
     _drop_empty_pieces()
     if gone:
@@ -1797,9 +1799,16 @@ def _drop_empty_pieces(keep: str | None = None) -> None:
     never on a plain rebuild: a piece is legitimately empty for the instant
     between being created and its first arrangement arriving, which is exactly
     what "new piece, then import into it" does. `keep` protects that piece.
+
+    An arrangement marked for deletion still HOLDS its piece, until the sweep
+    reclaims it. Counting only live ones dropped the piece at the first phase
+    of a delete, and Undo then restored the arrangement into a piece that no
+    longer existed -- filed under nothing, so in no list, which is the same as
+    still deleted (0.23.4, Delete on the piece screen). `rebuild_manifest`
+    hides such a piece meanwhile, so the library never shows it empty.
     """
     repo = _repo()
-    held = {d.get("piece") for d in repo.list_scores() if d.get("piece")}
+    held = {d.get("piece") for d in repo.list_scores(include_deleted=True) if d.get("piece")}
     for piece in repo.list_pieces():
         if piece["slug"] not in held and piece["slug"] != keep:
             repo.delete_piece(piece["slug"])
@@ -1911,8 +1920,14 @@ def rebuild_manifest() -> dict:
             "sharedEntry": doc.get("sharedEntry"),
         })
     pieces = []
+    # pieces held only by arrangements inside their undo window
+    # (`_drop_empty_pieces`): kept for the undo, shown to nobody
+    pending = {d.get("piece") for d in repo.list_scores(include_deleted=True)
+               if d.get("deleted_at") and d.get("piece")}
     for p in sorted(repo.list_pieces(), key=lambda x: x["name"].lower()):
         members = {d["slug"] for d in score_docs if d.get("piece") == p["slug"]}
+        if not members and p["slug"] in pending:
+            continue
         # explicit order first (only slugs that still exist and point back),
         # then any stragglers by creation time
         ordered = [s for s in (p.get("order") or []) if s in members]

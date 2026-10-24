@@ -111,4 +111,22 @@ final class PageTurnTests: XCTestCase {
         XCTAssertEqual(back.leaves, .trailing)
         XCTAssertNotEqual(forward.enters, back.enters, "the two turns must not slide the same way")
     }
+
+    /// 0.23.4 (Ali, Espresso on build 219): a back turn after a forward one
+    /// slid the old page out to the LEFT. The leaving page animates with the
+    /// direction it was last built with, so a reversal changes the direction
+    /// first and draws the new index only after.
+    func testAReversalChangesDirectionBeforeTheIndex() {
+        XCTAssertEqual(PageTurn.nextCanvasStep(drawing: 1, to: 0, lastForward: true),
+                       .reverse(forward: false),
+                       "back after forward: the leaving page must be rebuilt to leave rightwards first")
+        XCTAssertEqual(PageTurn.nextCanvasStep(drawing: 0, to: 1, lastForward: false),
+                       .reverse(forward: true))
+    }
+
+    func testATurnTheSameWayAsTheLastIsDrawnAtOnce() {
+        XCTAssertEqual(PageTurn.nextCanvasStep(drawing: 0, to: 1, lastForward: true), .show(1))
+        XCTAssertEqual(PageTurn.nextCanvasStep(drawing: 3, to: 1, lastForward: false), .show(1))
+        XCTAssertEqual(PageTurn.nextCanvasStep(drawing: 2, to: 2, lastForward: true), .none)
+    }
 }

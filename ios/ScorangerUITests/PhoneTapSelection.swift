@@ -156,6 +156,14 @@ final class PhoneTapSelection: XCTestCase {
         let page = canvas()
         XCTAssertTrue(page.waitForExistence(timeout: 240), "no engraved canvas")
         settle(page, still: 0.8)
+        // The whole engraving, as in the test above: the counter gains its
+        // total when the rest of the pages arrive, and a press made while
+        // only the first pages exist has no model to select from (0.23.4
+        // gate, phone lane: "selected nothing", then "p. 1 / 9" against
+        // "p. 1").
+        expect("the page counter to carry a total", timeout: 120) {
+            counter().exists && counter().label.contains("/")
+        }
 
         let before = counter().label
         page.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45))

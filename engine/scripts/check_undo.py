@@ -63,6 +63,12 @@ def main():
     # --- 1. it comes back, whole -------------------------------------------
     workspace.restore_score(slug)
     check(slug in library(), "undo did not bring the arrangement back")
+    # ...into its piece. The piece was dropped at the first phase of the
+    # delete, and the restored arrangement was filed under nothing -- in no
+    # list at all (0.23.4).
+    pieces = {p["slug"]: p for p in workspace.rebuild_manifest()["pieces"]}
+    check(slug in pieces.get("blue-bossa", {}).get("arrangements", []),
+          "undo brought the arrangement back without its piece")
     restored = workspace.load_meta(slug)
     check(len(restored["versions"]) == versions_before,
           f"it came back with {len(restored['versions'])} versions, "

@@ -45,9 +45,19 @@ struct ScorePagesView: View {
     /// The visible rect, observed by the few views that need it rather than
     /// held here (see `ViewportModel`).
     @StateObject private var viewport = ViewportModel()
-    /// The unit last shown, so a turn knows which way it is going before the
-    /// new unit's slide is chosen (`PageTurn.slide`).
-    @State private var shownIndex = 0
+    /// The index the canvas DRAWS, which is `state.pageIndex` except for the
+    /// one update in which a turn reverses direction (see `turnForward`). Nil
+    /// until the first turn, when the two are the same.
+    @State private var canvasIndex: Int?
+    /// Which way the last turn went, and so which way the unit on screen will
+    /// leave. A view being removed animates with the transition it was LAST
+    /// built with, never the one the update that removes it computes, so a
+    /// direction read in that update reached only the page coming in: going
+    /// back, the new page entered from the left while the old one also left
+    /// by the left (Ali, 0.23.3, Espresso). The direction is changed first,
+    /// so the leaving unit is rebuilt with it, and the index follows in the
+    /// next update (`onChange(of: turnForward)`).
+    @State private var turnForward = true
     /// Continuous mode's tap zones ask the scroll view to move directly, since
     /// there is no page index for them to change. The token makes the same
     /// destination asked for twice still move.
@@ -153,7 +163,8 @@ struct ScorePagesView: View {
             let strip = state.geometry?.page(0)
             let engraved = surface.width / max(strip?.size.width ?? 0, 1)
             let spread = state.twoPageSpread
-            let unit = PagedCanvas.unit(at: state.pageIndex,
+            let shownPage = canvasIndex ?? state.pageIndex
+            let unit = PagedCanvas.unit(at: shownPage,
                                         pageCount: document.pageCount, spread: spread)
             let width = PagedCanvas.fittedPageWidth(
                 viewport: geo.size, pageAspect: aspect(of: unit.first),
@@ -265,15 +276,23 @@ struct ScorePagesView: View {
             .onChange(of: engraved, initial: true) { _, new in
                 engravedScale = new
             }
-            .id(continuous ? -1 : state.pageIndex)
+            .id(continuous ? -1 : shownPage)
             // The slide follows the direction of the turn: forward, the new
             // page comes in from the right; BACK, from the left. Both turns
             // slid the same way until 0.8.0 build 196 (Ali, item E). The
-            // direction is read against the unit last shown, so a turn from
-            // the rail or the scrubber slides the right way too.
-            .transition(PageTurn.slide(forward: state.pageIndex >= shownIndex))
-            .animation(Theme.Motion.overlay(reduced: reduceMotion), value: state.pageIndex)
-            .onChange(of: state.pageIndex) { _, index in shownIndex = index }
+            // direction is read against the unit the canvas is drawing, so a
+            // turn from the rail or the scrubber slides the right way too.
+            .transition(PageTurn.slide(forward: turnForward))
+            .animation(Theme.Motion.overlay(reduced: reduceMotion), value: shownPage)
+            .onChange(of: state.pageIndex) { old, new in
+                switch PageTurn.nextCanvasStep(drawing: canvasIndex ?? old, to: new,
+                                               lastForward: turnForward) {
+                case .none: break
+                case .show(let index): canvasIndex = index
+                case .reverse(let forward): turnForward = forward
+                }
+            }
+            .onChange(of: turnForward) { _, _ in canvasIndex = state.pageIndex }
             .onAppear {
                 viewport.seed(CGRect(origin: .zero, size: geo.size))
             }

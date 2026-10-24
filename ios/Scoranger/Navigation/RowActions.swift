@@ -31,17 +31,26 @@ struct RowActionsBar: View {
     @State private var confirming: String?
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: Theme.Metric.s6) {
-                ForEach(actions) { item in
-                    if confirming == item.id, let question = item.confirm {
-                        confirmInPlace(item, question: question)
-                    } else {
-                        capsule(item)
+        ScrollViewReader { strip in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Metric.s6) {
+                    ForEach(actions) { item in
+                        if confirming == item.id, let question = item.confirm {
+                            confirmInPlace(item, question: question)
+                        } else {
+                            capsule(item)
+                        }
                     }
                 }
+                .padding(.vertical, 2)
             }
-            .padding(.vertical, 2)
+            // The question replaces the capsule and is wider than it, and on a
+            // narrow row it opened past the strip's edge where nobody could
+            // see it (Delete on the piece screen, 0.23.4).
+            .onChange(of: confirming) { _, id in
+                guard let id else { return }
+                withAnimation { strip.scrollTo(id, anchor: .trailing) }
+            }
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("row-actions")

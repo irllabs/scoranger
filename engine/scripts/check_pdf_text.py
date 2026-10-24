@@ -28,6 +28,9 @@ WHAT IS ASSERTED
      only -- and every chord lands.
   4. A PDF that is not the one the scanner read does not line up, is NAMED
      as not lining up, and leaves the scanner's words where they were.
+  4b. A PDF whose only text is a header has no printed words to line up and
+     counts no page as misaligned; one that prints the scanner's words in the
+     wrong places counts its page.
   5. The two ways the app transcribes, through the bridge it ships: a new
      version of a scan arrangement (the scan is the PDF), and a straight
      import handed the PDF. Both write the corrected score to disk and
@@ -168,6 +171,38 @@ def main() -> int:  # noqa: C901 -- a checklist reads better whole
           f"it does not line up, and says so ({report['pages_not_lined_up'][:1]})")
     check({k: v for k, v in after.items()} == {k: v for k, v in before.items() if k[2] <= 2},
           "the scanner's words stay as read, less the lines that are not verses")
+
+    print("\n4b. a PDF whose only text is a header, and one whose words are scattered")
+    # The Cat's Meow (0.23.2): a tunebook page whose text layer holds its
+    # header and nothing under the music. There are no printed words to line
+    # up, so the reader is not told that they did not line up.
+    import random
+
+    import fitz
+
+    def made_pdf(name: str, texts: list[tuple[str, float, float]]) -> Path:
+        doc = fitz.open()
+        page = doc.new_page(width=595, height=842)
+        for text, x, y in texts:
+            page.insert_text((x, y), text, fontsize=10)
+        path = other_dir / name
+        doc.save(str(path))
+        return path
+
+    header = made_pdf("header.pdf", [("Click any tune title to play the tune", 40, 40),
+                                     ("TheCat'sMeow", 40, 52), ("Jig", 40, 64)])
+    report = pdftext.correct(converter.parse(str(SCAN), forceSource=True), SCAN, header)
+    check(report["text_layer"] and report["pages_lined_up"] == 0
+          and report["pages_misaligned"] == 0,
+          f"a header is not printed words: nothing to tell ({report['pages_not_lined_up'][:1]})")
+    # the same syllables the page prints, put anywhere: they are there and do
+    # not line up, which the reader IS told
+    rng = random.Random(7)
+    scattered = made_pdf("scattered.pdf", [(text, rng.uniform(30, 540), rng.uniform(60, 800))
+                                           for text in truth_words.values()])
+    report = pdftext.correct(converter.parse(str(SCAN), forceSource=True), SCAN, scattered)
+    check(report["pages_lined_up"] == 0 and report["pages_misaligned"] == 1,
+          f"printed words that do not line up are counted ({report['pages_not_lined_up'][:1]})")
 
     with tempfile.TemporaryDirectory(prefix="scoranger-pdf-text-") as tmp:
         tmp = Path(tmp)
