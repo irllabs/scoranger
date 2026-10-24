@@ -40,11 +40,10 @@ final class SwipeTurns: XCTestCase {
         app.launch()
         XCUIDevice.shared.orientation = .portrait
         _ = app.descendants(matching: .any)["library-search"].waitForExistence(timeout: 240)
-        let row = app.descendants(matching: .any)["row-sous-le-ciel-de-paris"]
-        XCTAssertTrue(row.waitForExistence(timeout: 180), "no piece")
-        row.tap()
+        waitForTheSeededPiece(app).tap()
         let choice = app.descendants(matching: .any)["arrangement-choice-sous-le-ciel-quartet"]
-        if choice.waitForExistence(timeout: 60) { choice.tap() }
+        XCTAssertTrue(choice.waitForExistence(timeout: 60), "the piece screen offered no quartet")
+        choice.tap()
         XCTAssertTrue(app.buttons["score-title"].waitForExistence(timeout: 300), "the score did not open")
         let canvas = app.scrollViews["score-canvas"]
         XCTAssertTrue(canvas.waitForExistence(timeout: 240), "no canvas")

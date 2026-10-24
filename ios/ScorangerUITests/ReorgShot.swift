@@ -48,7 +48,7 @@ final class ReorgShot: XCTestCase {
 
     func testTheLibraryAndTheScoreSayWhatTheyHold() {
         let app = XCUIApplication()
-        app.launchArguments = ["-seedTestLibrary"]
+        app.launchArguments = ["-resetViewPreferences", "-seedTestLibrary"]
         app.launch()
         _ = app.descendants(matching: .any)["library-search"].waitForExistence(timeout: 90)
         // The library fills in as the seed imports; photograph it once the rows
@@ -65,7 +65,7 @@ final class ReorgShot: XCTestCase {
     /// with the tempo turned up, for the owner to judge the knob by eye.
     func testTheTrayAndItsTempoKnob() {
         let app = XCUIApplication()
-        app.launchArguments = ["-seedTestLibrary"]
+        app.launchArguments = ["-resetViewPreferences", "-seedTestLibrary"]
         app.launch()
         var step = ""
         guard let tray = openTray(app, step: &step) else { return XCTFail(step) }
@@ -91,7 +91,7 @@ final class ReorgShot: XCTestCase {
     /// behaviour is in `testTheMixerChoosesTheSoundAChannelIsPlayedWith`.
     func testTheMixerSoundPicker() {
         let app = XCUIApplication()
-        app.launchArguments = ["-seedTestLibrary"]
+        app.launchArguments = ["-resetViewPreferences", "-seedTestLibrary"]
         app.launch()
         var step = ""
         guard openTray(app, step: &step) != nil else { return XCTFail(step) }
@@ -124,7 +124,7 @@ final class ReorgShot: XCTestCase {
     /// chord symbols one level up.
     func testTheOptionsScreen() {
         let app = XCUIApplication()
-        app.launchArguments = ["-seedTestLibrary"]
+        app.launchArguments = ["-resetViewPreferences", "-seedTestLibrary"]
         app.launch()
         _ = app.descendants(matching: .any)["library-search"].waitForExistence(timeout: 90)
         guard openFirstScore(app) else { return XCTFail("the score never engraved") }
@@ -144,7 +144,7 @@ final class ReorgShot: XCTestCase {
     /// The versions dropdown shows versions and nothing else.
     func testTheVersionsDropdown() {
         let app = XCUIApplication()
-        app.launchArguments = ["-seedTestLibrary"]
+        app.launchArguments = ["-resetViewPreferences", "-seedTestLibrary"]
         app.launch()
         _ = app.descendants(matching: .any)["library-search"].waitForExistence(timeout: 90)
         guard openFirstScore(app) else { return XCTFail("the score never engraved") }

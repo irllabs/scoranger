@@ -28,7 +28,7 @@ final class MixerTwoChannel: XCTestCase {
 
     private func launched() -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-seedTestLibrary",
+        app.launchArguments = ["-resetViewPreferences", "-seedTestLibrary",
                                "-UIPreferredContentSizeCategoryName",
                                "UICTContentSizeCategoryL"]
         app.launch()

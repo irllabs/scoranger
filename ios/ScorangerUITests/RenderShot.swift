@@ -129,17 +129,17 @@ final class RenderShot: XCTestCase {
     }
 
     private func openFirstScore() {
-        let row = app.buttons.matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", "row-")).firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 240), "the seeded library never appeared")
-        row.tap()
-        if !app.buttons["score-title"].waitForExistence(timeout: 5) {
-            let open = app.buttons.matching(
-                NSPredicate(format: "identifier BEGINSWITH %@", "arrangement-")).firstMatch
-            if open.waitForExistence(timeout: 8) { open.tap() }
-        }
-        _ = app.buttons["score-title"].waitForExistence(timeout: 120)
-        _ = engravedPage.waitForExistence(timeout: 180)
+        // The quartet, by name and once the seed has filed both samples: it is
+        // the score PaginationAfterAnOp's control relies on paginating plain.
+        waitForTheSeededPiece(app).tap()
+        let quartet = app.descendants(matching: .any)["arrangement-choice-sous-le-ciel-quartet"]
+        XCTAssertTrue(quartet.waitForExistence(timeout: 60), "the piece screen offered no quartet")
+        settle(quartet)
+        quartet.tap()
+        XCTAssertTrue(app.buttons["score-title"].waitForExistence(timeout: 120),
+                      "the score never opened")
+        XCTAssertTrue(engravedPage.waitForExistence(timeout: 180),
+                      "no engraved page: the score is not in page layout")
     }
 
     /// Page -> continuous -> page, photographed at every step.
@@ -204,7 +204,7 @@ final class RenderShot: XCTestCase {
     /// first.
     func testTheStripKeepsItsSizeWhenTheVersionBandOpens() {
         app = XCUIApplication()
-        app.launchArguments = ["-seedTestLibrary"]
+        app.launchArguments = ["-resetViewPreferences", "-seedTestLibrary"]
         app.launch()
         XCUIDevice.shared.orientation = .landscapeLeft
         _ = app.descendants(matching: .any)["library-search"].waitForExistence(timeout: 240)
@@ -234,7 +234,7 @@ final class RenderShot: XCTestCase {
     /// after a manual scroll -- the rest is in the screenshots.
     func testTheStripScrollsUnderTheLine() {
         app = XCUIApplication()
-        app.launchArguments = ["-seedTestLibrary"]
+        app.launchArguments = ["-resetViewPreferences", "-seedTestLibrary"]
         app.launch()
         _ = app.descendants(matching: .any)["library-search"].waitForExistence(timeout: 240)
         XCUIDevice.shared.orientation = .portrait

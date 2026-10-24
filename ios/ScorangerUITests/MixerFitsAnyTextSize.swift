@@ -36,7 +36,7 @@ final class MixerFitsAnyTextSize: XCTestCase {
     func testTheTrayFitsAndKeepsItsControlsAtEveryTextSize() {
         for (label, category) in Self.sizes {
             let app = XCUIApplication()
-            app.launchArguments = ["-seedTestLibrary",
+            app.launchArguments = ["-resetViewPreferences", "-seedTestLibrary",
                                    "-UIPreferredContentSizeCategoryName", category]
             app.launch()
             defer { app.terminate() }
@@ -57,7 +57,7 @@ final class MixerFitsAnyTextSize: XCTestCase {
             // The controls a reader needs: play, one knob's mute and sound,
             // the tempo knob and the all-on/off glyph.
             for id in ["transport-play", "strip-mute-0", "strip-fader-0",
-                       "strip-sound-0", "transport-tempo"] {
+                       "strip-sound-0", "transport-tempo", "transport-bar"] {
                 let control = app.descendants(matching: .any)[id].firstMatch
                 XCTAssertTrue(control.exists && control.isHittable,
                               "[\(label)] \(id) is not reachable")

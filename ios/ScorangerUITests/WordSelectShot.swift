@@ -27,13 +27,10 @@ final class WordSelectShot: XCTestCase {
 
     private func openTheScore() -> Bool {
         _ = app.descendants(matching: .any)["library-search"].waitForExistence(timeout: 240)
-        let row = app.descendants(matching: .any)["row-sous-le-ciel-de-paris"]
-        guard row.waitForExistence(timeout: 300) else { return false }
+        let row = waitForTheSeededPiece(app, timeout: 300)
+        guard row.exists else { return false }
         row.tap()
-        let choice = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "identifier BEGINSWITH %@",
-                                  "arrangement-choice-")).firstMatch
-        if choice.waitForExistence(timeout: 60) { choice.tap() }
+        openWhicheverArrives(app)
         return app.buttons["score-title"].waitForExistence(timeout: 300)
     }
 

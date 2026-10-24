@@ -10,7 +10,10 @@ final class ScreenStaysLit: XCTestCase {
 
     func testOpeningAScoreLightsTheScreenAndLeavingGivesItBack() {
         let app = XCUIApplication()
-        app.launchArguments += ["-ScorangerUITest", "1"]
+        // -seedTestLibrary: without it this opened whatever library the
+        // simulator's previous test left, and a fresh simulator has none.
+        app.launchArguments += ["-resetViewPreferences", "-seedTestLibrary",
+                                "-ScorangerUITest", "1"]
         app.launch()
 
         let row = app.descendants(matching: .any)
@@ -19,12 +22,7 @@ final class ScreenStaysLit: XCTestCase {
         row.tap()
 
         // a piece with several arrangements asks which one first
-        if app.buttons["score-title"].waitForExistence(timeout: 5) == false {
-            let choice = app.descendants(matching: .any)
-                .matching(NSPredicate(format: "identifier BEGINSWITH %@",
-                                      "arrangement-choice-")).firstMatch
-            if choice.waitForExistence(timeout: 60) { choice.tap() }
-        }
+        openWhicheverArrives(app)
         XCTAssertTrue(app.buttons["score-title"].waitForExistence(timeout: 240),
                       "score never opened")
 

@@ -31,33 +31,9 @@ final class TrayBehaviour: XCTestCase {
         return app
     }
 
-    /// 1. A KNOB TURNS, AND THE TRAY DOES NOT MOVE.
-    ///
-    /// §7.8: a vertical drag on the dial changes the level, 14pt per unit.
-    /// The window's body drag competed with every control and lost, which is
-    /// why it felt dead; the tray has no drag of its own, so the whole of a
-    /// finger's travel goes to the knob. Both halves asserted: the level
-    /// changed, and the tray is where it was.
-    func testAKnobDragChangesTheLevelAndLeavesTheTrayWhereItIs() {
-        let app = launch(["-resetLibrary", "-seedTestLibrary"])
-        guard let tray = openTray(app, step: &step) else { return XCTFail(step) }
-        let knob = app.descendants(matching: .any)["strip-fader-0"].firstMatch
-        XCTAssertTrue(knob.exists, "no knob on the first strip")
-        let trayBefore = tray.frame
-        let levelBefore = knob.value as? String ?? ""
-        let from = knob.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-        from.press(forDuration: 0.2,
-                   thenDragTo: from.withOffset(CGVector(dx: 0, dy: -60)),
-                   withVelocity: .slow, thenHoldForDuration: 0.4)
-        settle(tray, still: 0.5)
-        let levelAfter = knob.value as? String ?? ""
-        snap("knob-turned")
-        print("knob \(levelBefore) -> \(levelAfter); tray \(trayBefore.origin) -> \(tray.frame.origin)")
-        XCTAssertNotEqual(levelAfter, levelBefore, "dragging the knob did not change its level")
-        XCTAssertEqual(tray.frame.origin, trayBefore.origin,
-                       "dragging a knob moved the tray from \(trayBefore.origin) "
-                       + "to \(tray.frame.origin)")
-    }
+    // 1. A knob turns and the tray does not move: that is
+    // MixerOnAlisCase.testTheKnobTurnsAndTheTrayDoesNot, which also drags the
+    // readout and shoves the tray at the screen's corner.
 
     /// 2. THE KNOB SLOT FOLLOWS THE PARTS.
     ///

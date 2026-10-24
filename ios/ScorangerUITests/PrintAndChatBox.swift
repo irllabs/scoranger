@@ -25,11 +25,7 @@ final class PrintAndChatBox: XCTestCase {
             NSPredicate(format: "identifier BEGINSWITH %@", "row-")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 240), "the seeded library never appeared")
         row.tap()
-        if !app.buttons["score-title"].waitForExistence(timeout: 5) {
-            let open = app.buttons.matching(
-                NSPredicate(format: "identifier BEGINSWITH %@", "arrangement-")).firstMatch
-            if open.waitForExistence(timeout: 8) { open.tap() }
-        }
+        openWhicheverArrives(app)
         XCTAssertTrue(app.buttons["score-title"].waitForExistence(timeout: 120))
         _ = app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier BEGINSWITH %@", "canvas-"))

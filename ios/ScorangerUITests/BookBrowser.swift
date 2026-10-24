@@ -66,16 +66,53 @@ final class BookBrowser: XCTestCase {
         app.descendants(matching: .any)["book-page-label"].firstMatch.label
     }
 
-    /// A hard flick through the strip of a 512-page book, and then a tap.
+    /// One launch for the whole browser: the 512-page book costs a seed and
+    /// an open, and the four checks below read it in an order where none
+    /// depends on a page another left behind.
     ///
-    /// The deadline is deliberately generous: see the note on the class. This
-    /// says the browser works on a book of that size, not how fast.
-    func testTheBrowserStillAnswersAfterFlickingThroughABigBook() {
+    /// 1. The score's three views, on a book, and the reader keeps its page
+    ///    through them.
+    /// 2. A hard flick through the strip, and then a tap.
+    /// 3. The scrub bar flies the book four hundred pages in one drag.
+    /// 4. Tunes and Extract on the bar (0.19.0). Extract is last because it
+    ///    leaves the browser for the extract mode.
+    func testTheBrowserOnABigBook() {
         launch()
         guard openTheBook() else { return }
 
+        // -- 1. The score's three views, and the page kept through them.
+        for cell in ["book-layout-page", "book-layout-spread", "book-layout-continuous",
+                     "book-tunes", "book-extract"] {
+            XCTAssertTrue(app.buttons[cell].exists, "\(cell) is not on the book's bar")
+        }
+        app.descendants(matching: .any)["book-thumb-5"].firstMatch.tap()
+        let five = NSPredicate(format: "label == %@", "5 / 512")
+        expectation(for: five, evaluatedWith: app.descendants(matching: .any)["book-page-label"].firstMatch)
+        waitForExpectations(timeout: 20)
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shot.name = "book-one-page"; shot.lifetime = .keepAlways; add(shot)
+        app.buttons["book-layout-spread"].tap()
+        let spread = NSPredicate(format: "label BEGINSWITH %@", "5–6")
+        expectation(for: spread, evaluatedWith: app.descendants(matching: .any)["book-page-label"].firstMatch)
+        waitForExpectations(timeout: 20)
+        XCTAssertTrue(app.buttons["book-layout-spread"].isSelected)
+        sleep(2)
+        let two = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        two.name = "book-two-pages"; two.lifetime = .keepAlways; add(two)
+        app.buttons["book-layout-continuous"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["book-view"].waitForExistence(timeout: 20))
+        sleep(2)
+        let continuous = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        continuous.name = "book-continuous"; continuous.lifetime = .keepAlways; add(continuous)
+        app.buttons["book-layout-page"].tap()
+
+        // -- 2. Flicking through a 512-page book, and then a tap.
+        //
+        // The deadline is deliberately generous: see the note on the class.
+        // This says the browser works on a book of that size, not how fast.
         let strip = app.descendants(matching: .any)["book-thumbnails"].firstMatch
-        XCTAssertTrue(strip.exists)
+        XCTAssertTrue(strip.waitForExistence(timeout: 20),
+                      "the strip did not come back with the page view")
         XCTAssertTrue(label().hasSuffix("/ 512"),
                       "the seeded book is not 512 pages: \(label())")
 
@@ -104,13 +141,11 @@ final class BookBrowser: XCTestCase {
             XCTAssertNil(error, "the browser stopped answering after a flick "
                          + "through a 512-page book")
         }
-    }
 
-    /// The scrub bar flies the book four hundred pages in one drag -- what a
-    /// reader looking for one tune does (0.19.0: it replaced typing a page).
-    func testTheScrubBarFliesAcrossTheBook() {
-        launch()
-        guard openTheBook() else { return }
+        // -- 3. The scrub bar flies the book four hundred pages in one drag --
+        // what a reader looking for one tune does (0.19.0: it replaced typing
+        // a page). The drag ends at 0.85 of the bar, which is past page 380
+        // wherever the flicks above left the reader.
         let scrub = app.descendants(matching: .any)["book-scrub"].firstMatch
         XCTAssertTrue(scrub.waitForExistence(timeout: 30))
         let from = scrub.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
@@ -122,37 +157,8 @@ final class BookBrowser: XCTestCase {
         let page = Int(label().split(separator: "/").first?
             .trimmingCharacters(in: .whitespaces) ?? "") ?? 0
         XCTAssertGreaterThan(page, 380, "the scrub bar did not fly the book: \(seen)")
-    }
 
-    /// The score's three views, on a book, and the reader keeps its page
-    /// through them. Extract and Tunes are on the bar (0.19.0).
-    func testTheThreeViewsAndTheBar() {
-        launch()
-        guard openTheBook() else { return }
-        for cell in ["book-layout-page", "book-layout-spread", "book-layout-continuous",
-                     "book-tunes", "book-extract"] {
-            XCTAssertTrue(app.buttons[cell].exists, "\(cell) is not on the book's bar")
-        }
-        app.descendants(matching: .any)["book-thumb-5"].firstMatch.tap()
-        let five = NSPredicate(format: "label == %@", "5 / 512")
-        expectation(for: five, evaluatedWith: app.descendants(matching: .any)["book-page-label"].firstMatch)
-        waitForExpectations(timeout: 20)
-        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        shot.name = "book-one-page"; shot.lifetime = .keepAlways; add(shot)
-        app.buttons["book-layout-spread"].tap()
-        let spread = NSPredicate(format: "label BEGINSWITH %@", "5–6")
-        expectation(for: spread, evaluatedWith: app.descendants(matching: .any)["book-page-label"].firstMatch)
-        waitForExpectations(timeout: 20)
-        XCTAssertTrue(app.buttons["book-layout-spread"].isSelected)
-        sleep(2)
-        let two = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        two.name = "book-two-pages"; two.lifetime = .keepAlways; add(two)
-        app.buttons["book-layout-continuous"].tap()
-        XCTAssertTrue(app.descendants(matching: .any)["book-view"].waitForExistence(timeout: 20))
-        sleep(2)
-        let strip = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        strip.name = "book-continuous"; strip.lifetime = .keepAlways; add(strip)
-        app.buttons["book-layout-page"].tap()
+        // -- 4. Tunes and Extract, on the bar.
         app.buttons["book-tunes"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["book-tunes-panel"].waitForExistence(timeout: 10))
         let tunes = XCTAttachment(screenshot: XCUIScreen.main.screenshot())

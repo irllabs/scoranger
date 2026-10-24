@@ -28,13 +28,10 @@ final class PlaybackCrash: XCTestCase {
         app.launchArguments = ["-resetLibrary", "-seedTestLibrary"]
         app.launch()
         _ = app.descendants(matching: .any)["library-search"].waitForExistence(timeout: 240)
-        let row = app.descendants(matching: .any)["row-sous-le-ciel-de-paris"]
-        guard row.waitForExistence(timeout: 180) else { return XCTFail("no piece") }
+        let row = waitForTheSeededPiece(app, timeout: 180)
+        guard row.exists else { return XCTFail("no piece") }
         row.tap()
-        let choice = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "identifier BEGINSWITH %@",
-                                  "arrangement-choice-")).firstMatch
-        if choice.waitForExistence(timeout: 60) { settle(choice); choice.tap() }
+        openWhicheverArrives(app)
         guard app.buttons["score-title"].waitForExistence(timeout: 300) else {
             return XCTFail("the score never opened")
         }
@@ -130,12 +127,17 @@ final class PlaybackCrash: XCTestCase {
             if chip.exists, chip.isHittable {
                 chip.tap()
                 snap(app, "sound-picker-while-playing")
-                let choice = app.descendants(matching: .any)
-                    .matching(NSPredicate(format: "identifier BEGINSWITH %@",
-                                          "sound-")).firstMatch
-                if choice.waitForExistence(timeout: 10), choice.isHittable {
-                    choice.tap()
-                }
+                // The picker's rows are `picker-family-N` and
+                // `picker-instrument-…`; this looked for "sound-", which
+                // matches nothing, waited 10 s and never swapped a patch.
+                let family = app.descendants(matching: .any)["picker-family-0"].firstMatch
+                XCTAssertTrue(family.waitForExistence(timeout: 10), "the sound list did not open")
+                family.tap()
+                let choice = app.descendants(matching: .any)["picker-instrument-melodic-0"]
+                    .firstMatch
+                XCTAssertTrue(choice.waitForExistence(timeout: 10),
+                              "the piano family does not list the plain piano")
+                choice.tap()
             }
             // The picker is a popover; put it away before the scrubbing.
             let close = app.descendants(matching: .any)["mixer-picker-close"].firstMatch
@@ -150,26 +152,37 @@ final class PlaybackCrash: XCTestCase {
         // The scrubber moves the PAGE while the play head is moving the music,
         // so the two are competing to say what the canvas shows -- and page
         // follow is watching both.
+        //
+        // The scrubber is the COMPACT-width control (PageScrubber); a regular
+        // width has the thumbnail rail down the left instead, which jumps the
+        // page the same way. This stage waited 20 s for the scrubber on the
+        // gate's iPads, found none, and skipped itself without a word -- so it
+        // now scrubs with whichever the width has, and fails if neither is up.
         let scrubber = app.descendants(matching: .any)["page-scrubber"].firstMatch
-        if scrubber.waitForExistence(timeout: 20) {
-            for dx in [0.9, 0.1, 0.55, 0.99, 0.01] {
-                guard app.state == .runningForeground else {
-                    snap(app, "crashed-scrubbing")
-                    return XCTFail("the app died scrubbing to dx=\(dx) while playing")
-                }
-                scrubber.coordinate(withNormalizedOffset: CGVector(dx: dx, dy: 0.5)).tap()
-            }
-            snap(app, "scrubbed-while-playing")
+        let rail = app.descendants(matching: .any)["thumbnail-rail"].firstMatch
+        XCTAssertTrue(waitUntil("a page scrubber or the thumbnail rail", timeout: 20) {
+            scrubber.exists || rail.exists
+        }, "neither the page scrubber nor the thumbnail rail is on screen")
+        let horizontal = scrubber.exists
+        let mover = horizontal ? scrubber : rail
+        func scrub(_ at: Double) {
+            let point = horizontal ? CGVector(dx: at, dy: 0.5) : CGVector(dx: 0.5, dy: at)
+            mover.coordinate(withNormalizedOffset: point).tap()
         }
+        for at in [0.9, 0.1, 0.55, 0.99, 0.01] {
+            guard app.state == .runningForeground else {
+                snap(app, "crashed-scrubbing")
+                return XCTFail("the app died scrubbing to \(at) while playing")
+            }
+            scrub(at)
+        }
+        snap(app, "scrubbed-while-playing")
 
         // STAGE 6: all of it at once -- tap the music, hold the loupe, scrub,
         // with the mixer open and the performance still running.
         for round in 0..<3 {
             canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.4, dy: 0.4)).tap()
-            if scrubber.exists {
-                scrubber.coordinate(withNormalizedOffset:
-                    CGVector(dx: 0.3 + 0.2 * Double(round), dy: 0.5)).tap()
-            }
+            if mover.exists { scrub(0.3 + 0.2 * Double(round)) }
             canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0.6))
                 .press(forDuration: 1.0)
             guard app.state == .runningForeground else {

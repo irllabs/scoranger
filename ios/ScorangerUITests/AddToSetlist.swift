@@ -19,7 +19,7 @@ final class AddToSetlist: XCTestCase {
     override func setUp() {
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchArguments = ["-seedTestLibrary"]
+        app.launchArguments = ["-resetViewPreferences", "-seedTestLibrary"]
         app.launch()
     }
 
@@ -44,12 +44,7 @@ final class AddToSetlist: XCTestCase {
                                   "row-", "Sous le ciel")).firstMatch
         guard row.waitForExistence(timeout: 120) else { return false }
         row.tap()
-        if app.buttons["score-title"].waitForExistence(timeout: 5) == false {
-            let choice = app.descendants(matching: .any)
-                .matching(NSPredicate(format: "identifier BEGINSWITH %@",
-                                      "arrangement-choice-")).firstMatch
-            if choice.waitForExistence(timeout: 30) { settle(choice); choice.tap() }
-        }
+        openWhicheverArrives(app, timeout: 30)
         guard app.buttons["score-title"].waitForExistence(timeout: 240) else { return false }
         _ = engravedPage().waitForExistence(timeout: 180)
         settle(engravedPage(), still: 0.6)
@@ -65,7 +60,11 @@ final class AddToSetlist: XCTestCase {
             .firstMatch
     }
 
-    func testThePlusOpensAChecklistOfSetlistsAndTogglesMembership() {
+    /// The + opens a checklist, a tap toggles membership and back, and then
+    /// the version count switches the band to its own list. One launch: the
+    /// second half starts with the checklist open, which is where the first
+    /// half leaves it.
+    func testThePlusOpensAChecklistOfSetlistsAndTogglesMembership() throws {
         guard openAScore() else { return XCTFail("no score opened") }
 
         let plus = app.buttons["score-add-setlist"]
@@ -114,20 +113,12 @@ final class AddToSetlist: XCTestCase {
         }
         XCTAssertEqual(flipped.value as? String, before,
                        "the box would not uncheck")
-    }
 
-    /// The + and the version count are different controls opening different
-    /// halves of the same band. Tapping one after the other must SWITCH what
-    /// the band shows rather than leaving the first one's list on screen.
-    func testThePlusAndTheVersionCountOpenDifferentLists() throws {
-        guard openAScore() else { return XCTFail("no score opened") }
-        let plus = app.buttons["score-add-setlist"]
-        guard plus.waitForExistence(timeout: 30) else {
-            return XCTFail("the + is not on the score bar")
-        }
-        plus.tap()
-        _ = aCheckbox().waitForExistence(timeout: 180)
-
+        // The + and the version count are different controls opening
+        // different halves of the same band. Tapping one after the other must
+        // SWITCH what the band shows rather than leaving the first one's list
+        // on screen. The checklist is still open from above, which is where
+        // this started when it was a test of its own.
         let versions = app.buttons["score-versions"]
         guard versions.exists else {
             throw XCTSkip("this width does not seat the version count")

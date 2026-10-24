@@ -21,17 +21,15 @@ import XCTest
 final class SetlistFromTheScore: XCTestCase {
 
     private func openScore(_ app: XCUIApplication) {
-        app.launchArguments += ["-ScorangerUITest", "1"]
+        // -seedTestLibrary: this ran on whatever library the simulator's
+        // previous test left, and on a fresh simulator there was no row to open.
+        app.launchArguments += ["-resetViewPreferences", "-seedTestLibrary",
+                                "-ScorangerUITest", "1"]
         app.launch()
         let row = Self.libraryRow(app)
         XCTAssertTrue(row.waitForExistence(timeout: 120), "no library row to open")
         row.tap()
-        if app.buttons["score-title"].waitForExistence(timeout: 5) == false {
-            let choice = app.descendants(matching: .any)
-                .matching(NSPredicate(format: "identifier BEGINSWITH %@",
-                                      "arrangement-choice-")).firstMatch
-            if choice.waitForExistence(timeout: 60) { choice.tap() }
-        }
+        openWhicheverArrives(app)
         XCTAssertTrue(app.buttons["score-title"].waitForExistence(timeout: 240),
                       "score never opened")
     }
@@ -57,8 +55,14 @@ final class SetlistFromTheScore: XCTestCase {
             .firstMatch
     }
 
-    // 1 — the row itself
-    func testTheRowSaysWhereTheArrangementSitsAndLeadsOn() {
+    // 1 — the row itself, 2 — where it goes, 3 — the ruling's catch.
+    //
+    // One launch for the three: each goes ⋯ → Set lists from the same score,
+    // and the order is chosen so none reads state an earlier one changed. The
+    // fourth (both entrances) stays its own test: it compares the checklist's
+    // label across two entrances, and a toggle or a new set list still
+    // landing through the engine would make that comparison race.
+    func testTheRowLeadsToThePiecesListsOwnScreenAndEmptyHasAnExit() {
         let app = XCUIApplication()
         openScore(app)
 
@@ -85,14 +89,9 @@ final class SetlistFromTheScore: XCTestCase {
         // separate `value` to look at.
         XCTAssertNotEqual(row.label.trimmingCharacters(in: .whitespaces), "Set lists",
                           "the row should state its membership too, got \(row.label)")
-    }
 
-    // 2 — where it goes
-    func testItPushesThePiecesListsOwnScreen() {
-        let app = XCUIApplication()
-        openScore(app)
-        openOptions(app)
-        setlistsRow(app).tap()
+        // 2 — where it goes
+        row.tap()
 
         // the pieces list's own identifiers, because it is the same screen
         let chooser = app.descendants(matching: .any)
@@ -114,13 +113,10 @@ final class SetlistFromTheScore: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["more-details"]
                         .waitForExistence(timeout: 20),
                       "back from the set lists should land on More")
-    }
 
-    // 3 — the ruling's catch
-    func testEmptyHasAnExit() {
-        let app = XCUIApplication()
-        openScore(app)
-        openOptions(app)
+        // 3 — the ruling's catch. In again from More, so this starts where a
+        // fresh entrance would: the toggle above has been made, and nothing
+        // here reads which set lists the arrangement is in.
         setlistsRow(app).tap()
 
         let make = app.descendants(matching: .any)["setlists-new"]

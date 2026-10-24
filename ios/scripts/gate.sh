@@ -12,8 +12,13 @@
 # latency budget for it to assert against, and inventing one to make it a gate
 # would be inventing a requirement.
 #
-# RenderShot and ReorgShot are NOT sweeps and are NOT skipped: they photograph
-# too, but they also assert -- three and six assertions -- so they can fail.
+# RenderShot.testPaginationSurvivesAVisitToContinuous is NOT skipped: it
+# photographs too, but it asserts the page count survives a visit to
+# continuous, and it is the plain-quartet control PaginationAfterAnOp relies
+# on. RenderShot's two STRIP tests and ReorgShot are skipped (see SKIP): their
+# assertions only say the harness reached the screen it was photographing, and
+# what they photograph is asserted by ContinuousFollows, TempoKnobTurnsBothWays
+# and the tray tests.
 #
 # They are NOT deleted and NOT unrunnable. To take a set of sweeps:
 #   xcodebuild test -project Scoranger.xcodeproj -scheme Scoranger \
@@ -107,6 +112,23 @@ SKIP=(
   -skip-testing:ScorangerUITests/MarkAdjustShot
   # MixerShot photographs the tray for a person to judge; it asserts nothing.
   -skip-testing:ScorangerUITests/MixerShot
+  # ChromeShot says so in its own header: it "asserts nothing about the
+  # product and cannot fail a build". 124 s a gate.
+  -skip-testing:ScorangerUITests/ChromeShot
+  # PhoneShot photographs the phone's pages and says to run it on a phone:
+  # on an iPad, which is every worker here, each frame is the regular layout.
+  -skip-testing:ScorangerUITests/PhoneShot
+  # ReorgShot is "untracked QA scaffolding" for 0.6.3 (its own header). Its
+  # asserts check that it reached the picture -- the score opened, the picker
+  # opened, the tempo moved -- and each is asserted for its own sake by
+  # TempoKnobTurnsBothWays and testTheMixerChoosesTheSoundAChannelIsPlayedWith.
+  # It was 660 s of the 0.23.2 gate, most of it a discarded 180 s wait.
+  -skip-testing:ScorangerUITests/ReorgShot
+  # The strip photographs: no assertion in one, "a judgement a person has to
+  # make by looking" in the other. ContinuousFollows asserts the strip's real
+  # property, the line parked and the music moving under it.
+  -skip-testing:ScorangerUITests/RenderShot/testTheStripScrollsUnderTheLine
+  -skip-testing:ScorangerUITests/RenderShot/testTheStripKeepsItsSizeWhenTheVersionBandOpens
   # DictationShot photographs what the chat field says when on-device speech
   # is unavailable. It asserts nothing, and which of the three messages it
   # catches depends on what the host's Speech stack answers about permission
@@ -367,6 +389,9 @@ PHONE_LANE=(
   # 0.23.0: a row held at the bottom edge scrolls the page under it. Only a
   # phone held sideways has a piece long enough to cross.
   "ScorangerUITests/PhoneRowGestures/testHoldingARowAtTheBottomEdgeScrollsThePageUnderIt()"
+  # Ran on an iPad, where the action row has room to spare. The phone is the
+  # width it is about.
+  "ScorangerUITests/LibraryToolbarFits/testTheActionRowFitsThePhone()"
 )
 
 DEVTYPE="${GATE_DEVICE_TYPE:-com.apple.CoreSimulator.SimDeviceType.iPad-Pro-11-inch-M5-12GB}"

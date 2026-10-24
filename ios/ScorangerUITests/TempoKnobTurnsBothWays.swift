@@ -25,11 +25,7 @@ final class TempoKnobTurnsBothWays: XCTestCase {
             NSPredicate(format: "identifier BEGINSWITH %@", "row-")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 240))
         row.tap()
-        if !app.buttons["score-title"].waitForExistence(timeout: 5) {
-            let open = app.buttons.matching(
-                NSPredicate(format: "identifier BEGINSWITH %@", "arrangement-")).firstMatch
-            if open.waitForExistence(timeout: 8) { open.tap() }
-        }
+        openWhicheverArrives(app)
         let knob = app.descendants(matching: .any)["transport-tempo"].firstMatch
         XCTAssertTrue(knob.waitForExistence(timeout: 120), "no tempo knob")
         let start = tempo(knob)

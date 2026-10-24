@@ -36,7 +36,7 @@ final class MixerOnAlisCase: XCTestCase {
         let app = XCUIApplication()
         // NORMAL text. Named explicitly rather than left to the machine, so
         // this test cannot silently inherit a large size from a previous run.
-        app.launchArguments = ["-seedTestLibrary",
+        app.launchArguments = ["-resetViewPreferences", "-seedTestLibrary",
                                "-UIPreferredContentSizeCategoryName",
                                "UICTContentSizeCategoryL"]
         app.launch()
@@ -62,14 +62,8 @@ final class MixerOnAlisCase: XCTestCase {
 
     // MARK: - Is it cut off at normal text?
 
-    func testTheMixerFitsInPortraitAtNormalText() {
-        let app = launched()
-        guard let tray = openTray(app, step: &step) else { return XCTFail(step) }
-        snap("alis-case-portrait")
-        report("portrait", app)
-        assertInside(tray.frame, app.windows.firstMatch.frame, "portrait")
-        assertControlsReachable("portrait", app)
-    }
+    // Portrait at normal text is MixerFitsAnyTextSize's "large" pass: the same
+    // size, the tray inside the window, and the same controls hittable.
 
     /// The orientation no mixer test had ever run in.
     func testTheMixerFitsInLandscapeAtNormalText() {
@@ -135,5 +129,21 @@ final class MixerOnAlisCase: XCTestCase {
         print("the readout moved the tray \(byReadout)pt")
         XCTAssertLessThan(byReadout, 2, "dragging the readout moved the tray \(byReadout)pt")
         snap("grab-points")
+
+        // Shoved past the screen's corner, it is still where it was and still
+        // wholly on screen. The window this replaced borrowed the ink bar's
+        // clamp and could park most of itself in the bezel (was
+        // TrayVisibility.testTheTrayCannotBeDraggedAway).
+        let window = app.windows.firstMatch
+        let before = tray.frame
+        readout.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.2,
+                   thenDragTo: window.coordinate(withNormalizedOffset: CGVector(dx: 1.6, dy: 1.6)),
+                   withVelocity: .default, thenHoldForDuration: 0.3)
+        settle(tray)
+        let after = app.otherElements["transport"].firstMatch.frame
+        XCTAssertEqual(after.origin, before.origin,
+                       "the tray moved from \(before.origin) to \(after.origin): it has a drag")
+        assertInside(after, window.frame, "tray after the shove")
     }
 }

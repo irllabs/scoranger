@@ -22,13 +22,10 @@ final class PhoneTapSelection: XCTestCase {
 
     private func openAScore() -> Bool {
         _ = app.descendants(matching: .any)["library-search"].waitForExistence(timeout: 240)
-        let row = app.descendants(matching: .any)["row-sous-le-ciel-de-paris"]
-        guard row.waitForExistence(timeout: 180) else { return false }
+        let row = waitForTheSeededPiece(app, timeout: 180)
+        guard row.exists else { return false }
         row.tap()
-        let choice = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "identifier BEGINSWITH %@",
-                                  "arrangement-choice-")).firstMatch
-        if choice.waitForExistence(timeout: 60) { settle(choice); choice.tap() }
+        openWhicheverArrives(app)
         return app.buttons["score-title"].waitForExistence(timeout: 300)
     }
 
@@ -63,6 +60,12 @@ final class PhoneTapSelection: XCTestCase {
         let page = canvas()
         XCTAssertTrue(page.waitForExistence(timeout: 240), "no engraved canvas")
         settle(page, still: 0.8)
+        // The counter reads "p. 1" until the engraving has counted its pages
+        // and "p. 1 / 9" after; read before that, the comparison below says
+        // the page turned when the engraving only finished.
+        expect("the page counter to carry a total", timeout: 120) {
+            counter().exists && counter().label.contains("/")
+        }
 
         // 1. A TAP IN THE MIDDLE SELECTS. At fit that means the bar under the
         // finger (§9.1), and the chip naming it is the proof the address

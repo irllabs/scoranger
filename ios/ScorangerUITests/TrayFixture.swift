@@ -25,19 +25,50 @@ extension XCTestCase {
         }
     }
 
+    /// The seeded piece's row, once BOTH samples are filed under it.
+    ///
+    /// The row appears when the FIRST import lands, and a piece holding one
+    /// arrangement opens it on a tap instead of pushing the piece screen. So a
+    /// test that tapped the row as soon as it existed opened the quartet
+    /// (imported first, alphabetically) and then waited 60 s for a choice
+    /// screen that never came -- five times in the 0.23.2 gate -- and a test
+    /// that meant the accordion solo measured the quartet instead.
+    /// `ScorangerUITests.waitForTheSeedToFinish` is the same wait.
+    @discardableResult
+    func waitForTheSeededPiece(_ app: XCUIApplication, timeout: TimeInterval = 240,
+                               file: StaticString = #filePath,
+                               line: UInt = #line) -> XCUIElement {
+        let row = app.descendants(matching: .any)["row-sous-le-ciel-de-paris"]
+        XCTAssertTrue(row.waitForExistence(timeout: timeout),
+                      "the seeded library never listed its piece", file: file, line: line)
+        expect("both samples filed under the piece", timeout: timeout,
+               file: file, line: line) { row.label.contains("2 arrangements") }
+        return row
+    }
+
+    /// After a piece row is tapped: either the score opened, or the piece
+    /// screen asks which arrangement. One wait on whichever comes first; the
+    /// suite used to spend 5 s probing for the score before looking for the
+    /// choice, and the choice is the usual answer.
+    func openWhicheverArrives(_ app: XCUIApplication, timeout: TimeInterval = 60) {
+        let title = app.buttons["score-title"]
+        let choice = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@",
+                                  "arrangement-choice-")).firstMatch
+        waitUntil("the score or the piece screen", timeout: timeout) {
+            title.exists || choice.exists
+        }
+        if !title.exists, choice.exists { settle(choice); choice.tap() }
+    }
+
     /// The tray, with its first knob on it, or nil with `step` naming where
     /// the open failed. `nil` arrangement opens whichever the library offers
     /// first (the quartet); a slug opens that one.
     func openTray(_ app: XCUIApplication, arrangement: String? = nil,
                   step: inout String) -> XCUIElement? {
         _ = app.descendants(matching: .any)["library-search"].waitForExistence(timeout: 90)
-        let rows = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "row-"))
-        if rows.count == 0 { waitForTheLibraryToSettle(app) }
-        let row = app.descendants(matching: .any)["row-sous-le-ciel-de-paris"]
-        guard row.waitForExistence(timeout: 120) else {
-            step = "the piece row never appeared"; return nil
-        }
+        let row = waitForTheSeededPiece(app)
+        guard row.exists else { step = "the piece row never appeared"; return nil }
         row.tap()
         let choice = arrangement.map { app.descendants(matching: .any)["arrangement-choice-\($0)"] }
             ?? app.descendants(matching: .any)
@@ -49,7 +80,14 @@ extension XCTestCase {
         }
         let page = app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier BEGINSWITH %@", "canvas-")).firstMatch
-        _ = page.waitForExistence(timeout: 180)
+        // Asserted, not waited on and passed over. A launch that inherited the
+        // continuous layout has no page canvas at all, and this sat out its
+        // whole 180 s and carried on to measure a strip: five times, 900 s,
+        // in the 0.23.2 gate, and the test measured whichever layout the
+        // shard's previous test had left.
+        guard page.waitForExistence(timeout: 180) else {
+            step = "no engraved page: the score is not in page layout"; return nil
+        }
         settle(page, still: 0.6)
         let tray = app.otherElements["transport"].firstMatch
         guard tray.waitForExistence(timeout: 60) else {

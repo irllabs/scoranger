@@ -51,8 +51,11 @@ final class AccountDeletion: XCTestCase {
     }
 
     /// A destructive row, last, under Careful -- the idiom Delete piece and
-    /// Delete arrangement already use, and NOT a hidden setting.
-    func testDeletingTheAccountIsOfferedUnderCareful() {
+    /// Delete arrangement already use, and NOT a hidden setting -- and what
+    /// will NOT be deleted, said before the question is even asked.
+    ///
+    /// One launch for both: they read the same screen and change nothing.
+    func testDeletingTheAccountIsOfferedUnderCarefulAndTheLibraryStays() {
         XCTAssertTrue(openAccount(), "the Account section never appeared")
 
         let row = app.descendants(matching: .any)["account-delete"]
@@ -63,11 +66,8 @@ final class AccountDeletion: XCTestCase {
         XCTAssertTrue(app.staticTexts["Careful"].exists,
                       "a destructive action must sit under Careful")
         snap("account-delete-row")
-    }
 
-    /// What will NOT be deleted, said before the question is even asked.
-    func testItSaysTheLibraryStaysOnThisIPad() {
-        XCTAssertTrue(openAccount(), "the Account section never appeared")
+        // What will NOT be deleted, said before the question is even asked.
         let keeps = app.descendants(matching: .any)["account-delete-keeps"]
         XCTAssertTrue(keeps.waitForExistence(timeout: 20),
                       "nothing tells the reader their music is not going too")
@@ -77,8 +77,12 @@ final class AccountDeletion: XCTestCase {
     }
 
     /// TWO STEPS. One tap opens the question; a second confirms. The first tap
-    /// must not delete anything.
-    func testTheConfirmIsTwoStepsAndKeepBacksOut() {
+    /// must not delete anything, Keep backs out, and confirming without a
+    /// configuration says so rather than doing nothing.
+    ///
+    /// One launch: backing out and then confirming is also the order a reader
+    /// who changed their mind back would take.
+    func testTheConfirmIsTwoStepsKeepBacksOutAndConfirmingSaysNothingWasDeleted() {
         XCTAssertTrue(openAccount(), "the Account section never appeared")
 
         app.descendants(matching: .any)["account-delete"].tap()
@@ -118,19 +122,17 @@ final class AccountDeletion: XCTestCase {
                       "backing out lost the row")
         XCTAssertTrue(app.descendants(matching: .any)["account-identity"].exists,
                       "Keep signed the account out")
-    }
 
-    /// Confirming with no live Firebase session must SAY so.
-    ///
-    /// A destructive action that quietly does nothing is the worst outcome
-    /// available here: the reader believes their account is gone and it is
-    /// not. This is the path `-pretendSignedIn` can actually reach, and it is
-    /// the same error branch a misconfigured real build would take.
-    func testConfirmingWithoutAConfigurationSaysSoRatherThanDoingNothing() {
-        XCTAssertTrue(openAccount(), "the Account section never appeared")
-
+        // Then the second time through, CONFIRMED. With no live Firebase
+        // session that must SAY so.
+        //
+        // A destructive action that quietly does nothing is the worst outcome
+        // available here: the reader believes their account is gone and it is
+        // not. This is the path `-pretendSignedIn` can actually reach, and it
+        // is the same error branch a misconfigured real build would take.
+        // Keep left nothing behind (asserted above), so this starts from the
+        // same row a fresh launch would.
         app.descendants(matching: .any)["account-delete"].tap()
-        let confirm = app.descendants(matching: .any)["confirm-delete-account"]
         XCTAssertTrue(confirm.waitForExistence(timeout: 15), "no confirm")
         confirm.tap()
 

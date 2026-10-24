@@ -33,7 +33,7 @@ final class LandscapeFits: XCTestCase {
 
     private func launched() -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments += ["-seedTestLibrary"]
+        app.launchArguments += ["-resetViewPreferences", "-seedTestLibrary"]
         app.launch()
         return app
     }

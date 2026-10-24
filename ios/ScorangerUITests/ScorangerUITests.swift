@@ -135,8 +135,8 @@ final class ScorangerUITests: XCTestCase {
         // An arrangement is not a top-level row: a PIECE is, and a piece is not
         // openable (§2). Opening one means opening one of its arrangements, so
         // this goes the way a person does -- the piece row, then the choice.
-        let direct = app.buttons["row-\(slug)"]
-        if direct.waitForExistence(timeout: 5) { direct.tap(); return }
+        // (A 5 s probe for a `row-<slug>` button stood here first. No such row
+        // exists, so it expired on every call: 53 times, 265 s, per gate.)
 
         // A piece with several arrangements pushes its screen; the arrangement
         // is chosen there. A piece is not openable -- opening one means opening
@@ -1060,61 +1060,6 @@ final class ScorangerUITests: XCTestCase {
             "✕ left the score but landed nowhere")
     }
 
-    /// #62: version switching has to be reachable FROM THE SCORE BAR at
-    /// whatever width the bar happens to be, or it is dead on that device.
-    ///
-    /// Runs at whatever width the destination gives it: pointed at an iPhone it
-    /// guards the compact case, and on an iPad it guards the wide one.
-    ///
-    /// It used to tap the title block, on `ScoreBarLayout`'s stated invariant
-    /// that "the title block opens the same dropdown, so versions stay
-    /// REACHABLE" when the version count yields. 0.6.3 #8 ended that: the title
-    /// opens the ARRANGEMENTS now. So this asks the question the invariant was
-    /// making a promise about — is there ANY route from this bar to the
-    /// versions — and takes whichever control offers it. On a bar too narrow to
-    /// seat the version count there is currently no answer, and this fails
-    /// saying exactly that rather than reporting a missing element.
-    func testTheTitleOpensTheVersionsAndJumps() {
-        // opened by launch argument rather than by tapping a library row: the
-        // row-tap path is unreliable on a phone-sized simulator, and what is
-        // under test here is the score bar, not navigation
-        app.terminate()
-        app.launchArguments = ["-seedTestLibrary", "-openFirstScoreSpread"]
-        app.launch()
-        XCTAssertTrue(app.scrollViews["score-canvas"].waitForExistence(timeout: 240),
-                      "the score never finished engraving")
-
-        let versions = app.buttons["score-versions"]
-        let title = app.buttons["score-title"]
-        XCTAssertTrue(title.waitForExistence(timeout: 20), "no title block")
-
-        // Whichever control this width offers. The version count is the route
-        // #8 made; the title block is the route #62 relied on.
-        let route: XCUIElement
-        if versions.exists, versions.isHittable {
-            route = versions
-        } else {
-            XCTAssertTrue(title.isHittable,
-                          "the version count has yielded at this width and the "
-                          + "title cannot be tapped either: \(title.frame)")
-            route = title
-        }
-        route.tap()
-
-        let first = app.buttons["menu-version-v001"]
-        XCTAssertTrue(first.waitForExistence(timeout: 10),
-                      "no route from the score bar to the versions at this width. "
-                      + "The version count is \(versions.exists ? "present" : "yielded") "
-                      + "and the title block opens the arrangements since 0.6.3 #8 — "
-                      + "so version switching is unreachable while reading. "
-                      + "ScoreBarLayout still documents the opposite.")
-        first.tap()
-        XCTAssertTrue(waitForLabel(app.buttons["score-title"], contains: "v001",
-                                   timeout: 60),
-                      "tapping a version did not jump the canvas to it")
-        shot("title-opens-versions")
-    }
-
     /// A PDF arrangement opens, reads, and is honest about what it cannot do.
     ///
     /// This is the Newzik migration's shape: the library arrives as scans, they
@@ -1130,12 +1075,7 @@ final class ScorangerUITests: XCTestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 120),
                       "the scan never reached the library")
         row.tap()
-        if app.buttons["score-title"].waitForExistence(timeout: 5) == false {
-            let choice = app.descendants(matching: .any)
-                .matching(NSPredicate(format: "identifier BEGINSWITH %@",
-                                      "arrangement-choice-")).firstMatch
-            if choice.waitForExistence(timeout: 20) { choice.tap() }
-        }
+        openWhicheverArrives(app, timeout: 20)
         let canvas = app.scrollViews["score-canvas"]
         XCTAssertTrue(canvas.waitForExistence(timeout: 120),
                       "the scan did not open — a PDF needs no engraving, so this "
@@ -1253,49 +1193,76 @@ final class ScorangerUITests: XCTestCase {
     /// or a pushed screen, and the band showed the last FOUR with the rest
     /// behind an "All N versions" push -- a menu that gave information about
     /// versions without switching to one.
+    ///
+    /// #62: and it has to be reachable FROM THE SCORE BAR at whatever width
+    /// the bar happens to be, or it is dead on that device. It used to tap the
+    /// title block, on `ScoreBarLayout`'s stated invariant that "the title
+    /// block opens the same dropdown, so versions stay REACHABLE" when the
+    /// version count yields. 0.6.3 #8 ended that: the title opens the
+    /// ARRANGEMENTS now. So this asks the question the invariant was making a
+    /// promise about -- is there ANY route from this bar to the versions --
+    /// and takes whichever control offers it. On a bar too narrow to seat the
+    /// version count there is currently no answer, and this fails saying
+    /// exactly that rather than reporting a missing element.
+    ///
+    /// Then the same two taps in performance mode, which had no route to
+    /// versions at all -- its bar is the way out and the mode, and nothing
+    /// else.
+    ///
+    /// One test, where there were three (with testTheTitleOpensTheVersionsAndJumps
+    /// and testVersionsAreReachableInPerformanceMode): on an iPad all three
+    /// took the version count and tapped v001, each after its own launch,
+    /// engrave and transpose.
     func testTheVersionCountOpensTheVersionsAndJumpsToOne() {
         openArrangement(firstArrangement)
         XCTAssertTrue(app.scrollViews["score-canvas"].waitForExistence(timeout: 180),
                       "the score never finished engraving")
         ensureASecondVersion()
 
-        let trigger = app.buttons["score-versions"]
-        XCTAssertTrue(trigger.waitForExistence(timeout: 20),
-                      "no version count at the top of the canvas")
-        XCTAssertTrue(trigger.label.contains("version"),
-                      "the trigger should say how many: got \(trigger.label)")
-        trigger.tap()
+        let versions = app.buttons["score-versions"]
+        let title = app.buttons["score-title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 20), "no title block")
+        // Whichever control this width offers. The version count is the route
+        // #8 made; the title block is the route #62 relied on.
+        let route: XCUIElement
+        if versions.waitForExistence(timeout: 20), versions.isHittable {
+            XCTAssertTrue(versions.label.contains("version"),
+                          "the trigger should say how many: got \(versions.label)")
+            route = versions
+        } else {
+            XCTAssertTrue(title.isHittable,
+                          "the version count has yielded at this width and the "
+                          + "title cannot be tapped either: \(title.frame)")
+            route = title
+        }
+        route.tap()
 
         let first = app.buttons["menu-version-v001"]
         XCTAssertTrue(first.waitForExistence(timeout: 10),
-                      "the versions did not drop down")
+                      "no route from the score bar to the versions at this width. "
+                      + "The version count is \(versions.exists ? "present" : "yielded") "
+                      + "and the title block opens the arrangements since 0.6.3 #8 -- "
+                      + "so version switching is unreachable while reading. "
+                      + "ScoreBarLayout still documents the opposite.")
         first.tap()
         // the canvas re-engraves at that version, and the bar says so
-        XCTAssertTrue(waitForLabel(app.buttons["score-title"], contains: "v001",
-                                   timeout: 60),
-                      "tapping a version did not jump the canvas to it: "
-                      + "\(app.buttons["score-title"].label)")
+        XCTAssertTrue(waitForLabel(title, contains: "v001", timeout: 60),
+                      "tapping a version did not jump the canvas to it: \(title.label)")
         shot("version-jumped")
-    }
 
-    /// The same two taps in performance mode, which had no route to versions at
-    /// all -- its bar is the way out and the mode, and nothing else.
-    func testVersionsAreReachableInPerformanceMode() {
-        openArrangement(firstArrangement)
-        XCTAssertTrue(app.scrollViews["score-canvas"].waitForExistence(timeout: 180))
-        ensureASecondVersion()
+        // PERFORMANCE MODE, and back to a version other than the one showing.
         enterPerformanceMode()
-
-        let trigger = app.buttons["score-versions"]
-        XCTAssertTrue(trigger.waitForExistence(timeout: 20),
+        XCTAssertTrue(versions.waitForExistence(timeout: 20),
                       "performance mode has no way to reach the versions")
-        trigger.tap()
-        let first = app.buttons["menu-version-v001"]
-        XCTAssertTrue(first.waitForExistence(timeout: 10),
+        versions.tap()
+        let other = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@ AND identifier != %@",
+                        "menu-version-", "menu-version-v001")).firstMatch
+        XCTAssertTrue(other.waitForExistence(timeout: 10),
                       "the versions did not drop down in performance mode")
-        first.tap()
+        other.tap()
         expect("the version dropdown to close on the switch", timeout: 30) {
-            !first.exists
+            !other.exists
         }
         XCTAssertTrue(app.otherElements["performance-bar"].exists,
                       "switching version dropped out of performance mode")
@@ -1429,42 +1396,76 @@ final class ScorangerUITests: XCTestCase {
         // reach the extreme" depend on how many flicks land before the
         // deceleration ends, which is not something to assert on.
         //
-        // And SHORT drags, in steps, rather than one long one. This test wants
-        // to PAN; one 640pt drag is a swipe, and a swipe against the edge of a
-        // zoomed page is the deliberate second gesture that turns it
-        // (`PagedCanvas.swipeMayTurn`). Reading it as a swipe is correct
+        // And no long drag that STARTS at a limit. A swipe that begins with
+        // the canvas hard against either horizontal limit is the deliberate
+        // second gesture that turns the page (`PagedCanvas.swipeMayTurn`,
+        // `Coordinator.atHorizontalLimit`). Reading it as a swipe is correct
         // behaviour that this test does not mean to ask for -- it turned the
         // page seven times and then failed looking for a first page that was
-        // no longer on screen. Each step stays under
-        // `TurnTapRecognizer.swipeDistance`, so it is a pan and only a pan.
-        func pan(from: CGFloat, to: CGFloat) {
-            let step: CGFloat = 0.05
-            var at = from
-            while abs(at - to) > step {
-                let next = at < to ? at + step : at - step
-                let a = score.coordinate(withNormalizedOffset: CGVector(dx: at, dy: 0.5))
-                let b = score.coordinate(withNormalizedOffset: CGVector(dx: next, dy: 0.5))
-                a.press(forDuration: 0.05, thenDragTo: b)
-                at = next
+        // no longer on screen.
+        //
+        // This used to stay out of that by panning ONLY in steps under
+        // `TurnTapRecognizer.swipeDistance`: 360 drags, 440 s of the gate's
+        // most expensive test, to cross about one canvas width. A long drag is
+        // a pan too, as long as it begins away from the limit. So: one short
+        // step off the limit, one long drag that stops about 45 pt short of
+        // the edge (the edge can rest up to 30 pt inside the canvas, which the
+        // assertions allow), then short steps until the page stops moving.
+        // The last of those may begin at the limit, and is short, so it pans.
+        func drag(_ points: CGFloat) {
+            // positive moves the finger RIGHT, which brings the page's left
+            // edge in
+            let half = points / score.frame.width / 2
+            let a = score.coordinate(withNormalizedOffset: CGVector(dx: 0.5 - half, dy: 0.5))
+            let b = score.coordinate(withNormalizedOffset: CGVector(dx: 0.5 + half, dy: 0.5))
+            // held before the lift, so there is no deceleration to wait out
+            a.press(forDuration: 0.05, thenDragTo: b, withVelocity: .slow,
+                    thenHoldForDuration: 0.2)
+            settle(page, still: 0.3)
+        }
+        func panToEdge(left: Bool) {
+            let sign: CGFloat = left ? 1 : -1
+            // Under TurnTapRecognizer.swipeDistance (60), so a step that
+            // begins at the limit still pans; and well over the touch slop,
+            // which ate most of a 0.05-of-the-canvas step once chat had
+            // narrowed the canvas to 380 pt.
+            let short: CGFloat = 45
+            func remaining() -> CGFloat {
+                left ? score.frame.minX - page.frame.minX
+                     : page.frame.maxX - score.frame.maxX
+            }
+            drag(sign * short)
+            for _ in 0..<3 {
+                let far = remaining() - 45
+                guard far > 60 else { break }
+                drag(sign * min(far, score.frame.width * 0.8))
+            }
+            var still = 0
+            for _ in 0..<12 where remaining() > 0.5 && still < 2 {
+                let before = page.frame
+                drag(sign * short)
+                still = abs(page.frame.minX - before.minX) < 1 ? still + 1 : 0
             }
         }
 
         func checkRegion(_ what: String) {
             let z = zoom(toAtLeast: 1.8)
             XCTAssertGreaterThanOrEqual(z, 1.8, "could not zoom in (\(what))")
+            XCTAssertTrue(app.buttons["score-close"].exists,
+                          "the top bar should survive a zoom (\(what))")
             let canvas = score.frame
             XCTAssertGreaterThan(page.frame.width, canvas.width,
                                  "at \(z)x the page (\(page.frame.width)) is still "
                                  + "narrower than the canvas (\(canvas.width)) (\(what))")
             // pan to the left extreme: the left of the page has to come to rest
             // at the canvas's own left edge, not at some inner limit
-            for _ in 0..<4 { pan(from: 0.1, to: 0.9) }
+            panToEdge(left: true)
             settle(page, still: 0.5)
             XCTAssertEqual(page.frame.minX, canvas.minX, accuracy: 30,
                            "at \(z)x the left of the page stops at "
                            + "\(page.frame.minX), canvas starts at \(canvas.minX) (\(what))")
             shot("zoom-left-edge-\(what)")
-            for _ in 0..<8 { pan(from: 0.9, to: 0.1) }
+            panToEdge(left: false)
             settle(page, still: 0.5)
             XCTAssertEqual(page.frame.maxX, canvas.maxX, accuracy: 30,
                            "at \(z)x the right of the page stops at "
@@ -1611,25 +1612,10 @@ final class ScorangerUITests: XCTestCase {
         XCTAssertTrue(waitForDisappearance(of: app.staticTexts["Scored for"], timeout: 5))
     }
 
-    func testRenameArrangementFromTheSheet() {
-
-        openArrangementScreen(firstArrangement)
-        app.buttons["row-details-\(firstArrangement)"].tap()
-        let field = app.textFields["arrangement-title"]
-        XCTAssertTrue(field.waitForExistence(timeout: 10), "title field missing")
-        replaceText(field, with: "Renamed arrangement")
-        let save = app.buttons["save-metadata"]
-        XCTAssertTrue(save.waitForExistence(timeout: 5),
-                      "Save should appear once the title differs")
-        save.tap()
-        XCTAssertTrue(waitForDisappearance(of: save, timeout: 60),
-                      "Save still offered after a successful write")
-        // Done closes the panel; the piece screen is still the page.
-        app.buttons["panel-done"].firstMatch.tap()
-        XCTAssertTrue(app.buttons["arrangement-choice-\(firstArrangement)"]
-                        .waitForExistence(timeout: 20),
-                      "the slug-based identifier must survive a rename")
-    }
+    // Renaming from the sheet -- Save offered once the title differs, gone
+    // once written, the row's slug-based identifier surviving -- is every
+    // step of testTitleAndCreditsAreEditableAndReachTheNotation below, which
+    // goes on to the composer and reads both back out of the notation.
 
     /// Ali's build-121 report: the title at the top of the score, the title in
     /// the sidebar and the title in the sheet were three different values, and
@@ -1695,42 +1681,12 @@ final class ScorangerUITests: XCTestCase {
         goBack()
     }
 
-    /// The point of the whole change, seen on the page: the title engraved at
-    /// the top of the score is the arrangement's title. Screenshots before and
-    /// after, so the engraving itself can be read (the page is a bitmap, so no
-    /// assertion can look at it — the values either side are asserted instead).
-    func testTheEngravedTitleFollowsTheArrangementTitle() {
-
-        openArrangement(firstArrangement)
-        waitForEngraving(of: firstArrangement)
-        shot("engraved-title-before")
-
-        openArrangementScreen(firstArrangement)
-        app.buttons["row-details-\(firstArrangement)"].tap()
-        let title = app.textFields["arrangement-title"]
-        XCTAssertTrue(title.waitForExistence(timeout: 10))
-        replaceText(title, with: "Sous le ciel de Paris \u{2014} String Quartet")
-        replaceText(app.textFields["arrangement-composer"], with: "Hubert Giraud")
-        replaceText(app.textFields["arrangement-arranger"], with: "Gheorghe Branici")
-        app.buttons["save-metadata"].tap()
-        XCTAssertTrue(waitForDisappearance(of: app.buttons["save-metadata"], timeout: 90))
-        goBack()
-
-        // the canvas re-engraves the new version by itself, and the screen
-        // this photograph is of is the one carrying the new title
-        expect("the new title to reach the screen", timeout: 90) {
-            app.descendants(matching: .any)
-                .matching(NSPredicate(format: "label CONTAINS %@", "String Quartet"))
-                .count > 0
-        }
-        shot("engraved-title-after")
-        goBack()            // arrangement screen -> the piece it belongs to
-        let row = app.buttons["arrangement-choice-\(firstArrangement)"]
-        XCTAssertTrue(row.waitForExistence(timeout: 20),
-                      "the arrangement is not listed under its piece")
-        XCTAssertTrue(row.label.contains("String Quartet"),
-                      "sidebar out of step with the engraved title: \(row.label)")
-    }
+    // testTheEngravedTitleFollowsTheArrangementTitle photographed the page
+    // before and after a retitle and asserted the values either side: the
+    // sheet's fields and the row under the piece. Those are asserted by
+    // testTitleAndCreditsAreEditableAndReachTheNotation, which also reads the
+    // credits back out of the engraved file and checks the sheet no longer
+    // says the page "still engraves" another title.
 
     /// Part names are the staff labels engraved on every system, so they are
     /// metadata the user can edit too.
@@ -2325,9 +2281,35 @@ final class ScorangerUITests: XCTestCase {
         let headline = chip.label
         XCTAssertTrue(headline.contains("element") && headline.contains("bar"),
                       "the chip should say how many elements and which bar: \(headline)")
-        XCTAssertFalse(app.buttons["combine-replace"].exists,
-                       "the Replace/Add/Subtract modes should be gone")
-        XCTAssertFalse(app.buttons["combine-subtract"].exists)
+        // The Replace/Add/Subtract modes are gone: adding is a held finger
+        // now, and the modes were a trap (Subtract emptied the selection,
+        // which hid the chip, which was the only way out of Subtract).
+        for mode in ["combine-replace", "combine-add", "combine-subtract"] {
+            XCTAssertFalse(app.buttons[mode].exists, "\(mode) is still on the chip")
+        }
+
+        // Staff and voice, which were in every address and never shown.
+        //
+        // Staff is always there. Voice is not asserted here, and deliberately:
+        // layer 0 is the parser's "not layer-specific" marker, and elements
+        // that live under the <measure> rather than inside a <layer> -- chord
+        // symbols, dynamics -- legitimately have no voice. A lasso can catch
+        // only those, and did on this arrangement. That the voice is FORMATTED
+        // correctly when there is one is settled by SelectionCombineTests,
+        // which can state the addresses exactly instead of hoping a stroke
+        // catches the right kind of thing.
+        XCTAssertTrue(app.staticTexts["selection-place"].exists,
+                      "the chip should say where the selection is")
+        let place = app.staticTexts["selection-place"].label
+        XCTAssertTrue(place.contains("staff") || place.contains("staves"),
+                      "no staff in the chip: \(place)")
+        if place.contains("voice") {
+            // "staves 3, 4 · voice 1" -- the plural does not contain "staff"
+            XCTAssertTrue((place.contains("staff") || place.contains("staves"))
+                            && place.contains("·"),
+                          "the place line is malformed: \(place)")
+        }
+        shot("selection-chip-redesigned")
 
         // hand it over deliberately
         let confirm = app.buttons["selection-confirm"]
@@ -2514,59 +2496,10 @@ final class ScorangerUITests: XCTestCase {
         shot("two-finger-undo-outside-markup")
     }
 
-    /// The chip describes the selection in the user's terms and hands it over
-    /// only when asked. The Replace/Add/Subtract modes are gone: adding is a
-    /// held finger now, and the modes were a trap (Subtract emptied the
-    /// selection, which hid the chip, which was the only way out of Subtract).
-    func testTheChipNamesTheSelectionAndHasNoModes() {
-        withPencilStandIn()
-        openArrangement(firstArrangement)
-        let canvas = waitForEngraving(of: firstArrangement)
-
-        var caught = false
-        for y in [0.30, 0.20, 0.42] where !caught {
-            canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.30, dy: y))
-                .press(forDuration: 0.6,
-                       thenDragTo: canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.62, dy: y)))
-            caught = app.staticTexts["selection-chip"].waitForExistence(timeout: 8)
-        }
-        guard caught else { return XCTFail("nothing was selected") }
-
-        let headline = app.staticTexts["selection-chip"].label
-        XCTAssertTrue(headline.contains("element"),
-                      "the chip should count what was caught: \(headline)")
-        XCTAssertTrue(headline.lowercased().contains("bar"),
-                      "the chip should name the bar: \(headline)")
-
-        // Staff and voice, which were in every address and never shown.
-        //
-        // Staff is always there. Voice is not asserted here, and deliberately:
-        // layer 0 is the parser's "not layer-specific" marker, and elements
-        // that live under the <measure> rather than inside a <layer> -- chord
-        // symbols, dynamics -- legitimately have no voice. A lasso can catch
-        // only those, and did on this arrangement. That the voice is FORMATTED
-        // correctly when there is one is settled by SelectionCombineTests,
-        // which can state the addresses exactly instead of hoping a stroke
-        // catches the right kind of thing.
-        XCTAssertTrue(app.staticTexts["selection-place"].exists,
-                      "the chip should say where the selection is")
-        let place = app.staticTexts["selection-place"].label
-        XCTAssertTrue(place.contains("staff") || place.contains("staves"),
-                      "no staff in the chip: \(place)")
-        if place.contains("voice") {
-            // "staves 3, 4 · voice 1" -- the plural does not contain "staff",
-            // which is what my own first version of this assertion assumed
-            XCTAssertTrue((place.contains("staff") || place.contains("staves"))
-                            && place.contains("·"),
-                          "the place line is malformed: \(place)")
-        }
-
-        // the modes are gone, and with them the trap
-        for mode in ["combine-replace", "combine-add", "combine-subtract"] {
-            XCTAssertFalse(app.buttons[mode].exists, "\(mode) is still on the chip")
-        }
-        shot("selection-chip-redesigned")
-    }
+    // testTheChipNamesTheSelectionAndHasNoModes made the same lasso as
+    // testLassoSelectsElementsAndHandsThemToChat and asserted the same
+    // headline and the same missing modes. Its one assertion of its own, the
+    // staff in the place line, is in that test now.
 
     /// A lasso must select in BOTH layouts.
     ///
@@ -2829,6 +2762,13 @@ final class ScorangerUITests: XCTestCase {
     /// treat that exactly like opening a different arrangement -- blanking the
     /// canvas, resetting to page 1, and clearing the selection the op had just
     /// been run on.
+    ///
+    /// And the other half of the same rule: SWITCHING to another version is
+    /// not an op on the selection, and must not leave a stale selection
+    /// pointing at bars of a different score. It was its own test,
+    /// testSwitchingVersionClearsAStaleSelection, after the same relaunch,
+    /// lasso and transform. The rule is SelectionCombineTests'
+    /// (`testASelectionSurvivesANewVersionOfTheSameScore`); this is its wiring.
     func testATransformKeepsTheSelectionAndThePage() {
         openArrangement(firstArrangement)
         withPencilStandIn()
@@ -2869,25 +2809,6 @@ final class ScorangerUITests: XCTestCase {
                        + "(\(pageBefore) -> \(app.staticTexts["counter-pages"].label))")
         XCTAssertTrue(canvas.exists, "the canvas did not come back")
         shot("transform-selection-after")
-    }
-
-    /// must not leave a stale selection pointing at bars of a different score.
-    func testSwitchingVersionClearsAStaleSelection() {
-        openArrangement(firstArrangement)
-        withPencilStandIn()
-        openArrangement(firstArrangement)
-        let canvas = waitForEngraving(of: firstArrangement)
-        ensureASecondVersion()
-
-        var caught = false
-        for y in [0.30, 0.20, 0.42] where !caught {
-            let start = canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.30, dy: y))
-            start.press(forDuration: 0.6,
-                        thenDragTo: canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.62, dy: y)))
-            caught = app.staticTexts["selection-chip"].waitForExistence(timeout: 8)
-        }
-        guard caught else { return XCTFail("nothing was selected on the page") }
-        if app.buttons["Close chat"].exists { app.buttons["Close chat"].tap() }
 
         // the version count, not the title: they open different columns since
         // 0.6.3 #8. openVersionsBand waits for the band before returning, so
@@ -2896,8 +2817,7 @@ final class ScorangerUITests: XCTestCase {
         let rows = versionRows
         guard rows.count > 1 else { return XCTFail("need two versions in the dropdown") }
         rows.element(boundBy: rows.count - 1).tap()
-
-        XCTAssertTrue(waitForDisappearance(of: app.staticTexts["selection-chip"], timeout: 40),
+        XCTAssertTrue(waitForDisappearance(of: chip, timeout: 40),
                       "the selection from the previous version is still showing")
         shot("journey-selection-cleared-on-version-switch")
     }
@@ -3074,20 +2994,9 @@ final class ScorangerUITests: XCTestCase {
         return Int(ns.substring(with: match.range(at: 1)))
     }
 
-    /// The lasso must never cost the gestures that were already there.
-    func testPinchStillZoomsWithTheLassoInstalled() {
-        openArrangement(firstArrangement)
-        let canvas = app.scrollViews["score-canvas"]
-        XCTAssertTrue(canvas.waitForExistence(timeout: 180))
-        let before = CGFloat(Double((canvas.value as? String)?
-            .replacingOccurrences(of: "zoom ", with: "") ?? "1") ?? 1)
-        for _ in 0..<6 { canvas.pinch(withScale: 3.0, velocity: 2.0) }
-        let after = CGFloat(Double((canvas.value as? String)?
-            .replacingOccurrences(of: "zoom ", with: "") ?? "1") ?? 1)
-        XCTAssertGreaterThan(after, before,
-                             "pinch-zoom stopped working with the lasso installed")
-        shot("lasso-installed-zoom")
-    }
+    // The lasso must never cost the gestures that were already there: pinch
+    // zoom under this class's own setUp is testTheZoomedPageUsesTheWholeCanvas,
+    // which zooms to at least 1.8 twice and pans to both edges.
 
     /// The piece is metadata as well, and its name was editable nowhere.
     func testPieceIsRenamedByTappingItsName() {
@@ -3372,19 +3281,8 @@ final class ScorangerUITests: XCTestCase {
         app.buttons["Finish annotating"].tap()
     }
 
-    func testPinchZoomKeepsScoreUsable() {
-        openArrangement(firstArrangement)
-        // named, not firstMatch: the library panel hosts a scroll view too, and
-        // firstMatch was pinching that instead of the score
-        let score = app.scrollViews["score-canvas"]
-        guard score.waitForExistence(timeout: 180) else {
-            return XCTFail("no score canvas")
-        }
-        score.pinch(withScale: 2.2, velocity: 2.0)
-        XCTAssertTrue(app.buttons["score-close"].exists, "the top bar should survive a zoom")
-        score.pinch(withScale: 0.5, velocity: -2.0)
-        XCTAssertTrue(app.buttons["score-close"].exists)
-    }
+    // testPinchZoomKeepsScoreUsable zoomed and checked the bar survived it;
+    // testTheZoomedPageUsesTheWholeCanvas zooms further and checks the same.
 
     // MARK: - Adding
 
@@ -3427,101 +3325,11 @@ final class ScorangerUITests: XCTestCase {
 
 extension ScorangerUITests {
 
-    /// The transport, end to end in the running app.
-    ///
-    /// Everything else about playback is tested without a device -- the bar
-    /// map, the mutes, the follow geometry, the sequencer's track order. What
-    /// none of that can show is that the feature is REACHABLE: the transport
-    /// is drawn only when `showTransport` says so, and a build where nothing
-    /// turns that on leaves the whole thing shipped and invisible -- which is
-    /// what 0.6 did. `revealTransport` walks whichever of its routes this
-    /// width offers.
-    ///
-    /// The assertion at the end is the product rule: every voice off is a
-    /// destination, not an error, and the app says the metronome is what is
-    /// left.
-    ///
-    /// It walks the TRAY now (0.8). The inline voice list went in 0.6.6 and
-    /// the mixer window in 0.8; every control they had is on the tray: the
-    /// per-staff switch is the LED at a knob's centre, All on / All off is
-    /// the one glyph at the right under whichever identifier says what it
-    /// will do, and the summary that used to be the transport button's label
-    /// is that glyph's value. Retargeted rather than deleted, because the
-    /// journey is the same journey -- reach playback, silence every voice,
-    /// find the app still telling the truth about what will sound.
-    func testTheTransportIsReachableAndEveryVoiceCanBeSwitchedOff() {
-        openArrangement(firstArrangement)
-        XCTAssertTrue(app.scrollViews["score-canvas"].waitForExistence(timeout: 180),
-                      "the score never finished engraving")
-
-        revealTransport()
-
-        let transport = app.otherElements["transport"]
-        XCTAssertTrue(transport.waitForExistence(timeout: 30),
-                      "the switch is on and the transport is still not on screen")
-        XCTAssertTrue(app.buttons["transport-play"].waitForExistence(timeout: 60),
-                      "the transport has no play button")
-
-        // The dropdown must be GONE, not merely unused. It was crossed out on
-        // a screenshot and the mixer is where voice control lives now; leaving
-        // it standing would put the mutes in two places again.
-        XCTAssertFalse(app.buttons["transport-voices"].exists,
-                       "the voice dropdown is still on the transport")
-
-        // Preparing writes the MIDI with music21 on-device, which takes a
-        // moment. The tray has no knobs until it lands, so this waits for
-        // one rather than for a fixed number of seconds.
-        let firstVoice = app.descendants(matching: .any)["strip-mute-0"].firstMatch
-        if !firstVoice.waitForExistence(timeout: 180) {
-            shot("transport-no-voices")
-            XCTFail("the tray never grew a knob."
-                    + " notice=\(app.staticTexts["notice-text"].exists ? app.staticTexts["notice-text"].label : "-")")
-        }
-        XCTAssertFalse(voicesSummary(app).isEmpty, "the tray does not say what will be heard")
-
-        // Start from a known state: an earlier tap in this session may have
-        // left a voice off.
-        turnEveryVoiceOn(app)
-
-        XCTAssertEqual(firstVoice.value as? String, "off",
-                       "a part starts sounding, so its MUTE is off")
-        firstVoice.tap()
-        XCTAssertEqual(firstVoice.value as? String, "on",
-                       "tapping a mute did not silence the part")
-
-        // The practice case. With the metronome ON, every voice off is
-        // "metronome only" -- and with it off it says "silent", because
-        // claiming a click that is not playing sends a reader hunting for a
-        // broken speaker.
-        app.buttons["transport-metronome"].tap()
-        turnEveryVoiceOff(app)
-        XCTAssertTrue(waitForVoices(app, contains: "metronome only"),
-                      "every voice off with the click on is metronome only, "
-                      + "and the tray said: \(voicesSummary(app))")
-        app.buttons["transport-metronome"].tap()
-        XCTAssertTrue(waitForVoices(app, contains: "silent"),
-                      "every voice off with the click off is silence, "
-                      + "and the tray said: \(voicesSummary(app))")
-        shot("transport-all-voices-off")
-
-        app.descendants(matching: .any)["voices-all-on"].firstMatch.tap()
-        XCTAssertTrue(waitForVoices(app, contains: "all voices"),
-                      "All on did not bring them back: \(voicesSummary(app))")
-
-        // And it PLAYS. The strongest evidence there is without a listener in
-        // the room: the bar readout stops being a dash, which happens only
-        // when the sequencer's play head is actually moving through the
-        // timeline. A play button that starts nothing would leave it a dash.
-        let play = app.buttons["transport-play"]
-        play.tap()
-        expectation(for: NSPredicate(format: "label BEGINSWITH %@", "bar "),
-                    evaluatedWith: app.staticTexts["transport-bar"], handler: nil)
-        waitForExpectations(timeout: 30)
-        XCTAssertEqual(play.label, "Stop", "playing, but the button still says Play")
-        shot("transport-playing")
-        play.tap()
-        XCTAssertEqual(play.label, "Play", "Stop did not stop it")
-    }
+    // testTheTransportIsReachableAndEveryVoiceCanBeSwitchedOff walked the tray
+    // to every voice off and back, then played and stopped. Every step of it
+    // is in testTheTrayHasAKnobPerStaff, on the same quartet, with the music
+    // running: the dropdown gone, a mute, metronome only against silent, All
+    // on, Stop back to Play. One open and one timeline instead of two.
 }
 
 extension ScorangerUITests {
@@ -3857,6 +3665,10 @@ extension ScorangerUITests {
                 (led.value as? String) == "yes"
             }, "muting a channel put its activity lamp out for good")
             shot("mixer-muted-still-lit")
+            // and the music did not stop for it (Ali, 2026-09-10: "When I
+            // open the mixer transport, playback stops"; was MixerKeepsPlaying)
+            XCTAssertEqual(app.buttons["transport-play"].label, "Stop",
+                           "muting a part stopped playback")
             mute.tap()
         }
 
@@ -3876,10 +3688,21 @@ extension ScorangerUITests {
 
         // All off, then All on: the two things a row of knobs cannot do
         // between them, and the reason the glyph is there.
+        //
+        // And every voice off is a destination, not an error. With the
+        // metronome ON it is "metronome only", and with it off it says
+        // "silent", because claiming a click that is not playing sends a
+        // reader hunting for a broken speaker.
+        app.buttons["transport-metronome"].tap()
         turnEveryVoiceOff(app)
-        XCTAssertTrue(waitForVoices(app, contains: "silent")
-                        || waitForVoices(app, contains: "metronome only", timeout: 1),
-                      "All off did not silence the row: \(voicesSummary(app))")
+        XCTAssertTrue(waitForVoices(app, contains: "metronome only"),
+                      "every voice off with the click on is metronome only, "
+                      + "and the tray said: \(voicesSummary(app))")
+        app.buttons["transport-metronome"].tap()
+        XCTAssertTrue(waitForVoices(app, contains: "silent"),
+                      "every voice off with the click off is silence, "
+                      + "and the tray said: \(voicesSummary(app))")
+        shot("transport-all-voices-off")
         app.descendants(matching: .any)["voices-all-on"].firstMatch.tap()
         XCTAssertTrue(waitForVoices(app, contains: "all voices"),
                       "All on did not bring them back: \(voicesSummary(app))")
@@ -3920,6 +3743,13 @@ extension ScorangerUITests {
         XCTAssertLessThanOrEqual(tray.frame.maxY, window.maxY + 0.5,
                                  "the tray hangs off the bottom of the screen")
         shot("tray-after-its-knobs-were-worked")
+
+        // Still playing after all of it, and Stop stops it.
+        let play = app.buttons["transport-play"]
+        XCTAssertEqual(play.label, "Stop", "working the tray stopped playback")
+        play.tap()
+        XCTAssertTrue(waitUntil("the button to say Play", timeout: 10) { play.label == "Play" },
+                      "Stop did not stop it")
     }
 
     /// The sound each channel is played with: guessed, changed, heard at once,
@@ -3936,7 +3766,8 @@ extension ScorangerUITests {
         openArrangement(firstArrangement)
         XCTAssertTrue(app.scrollViews["score-canvas"].waitForExistence(timeout: 180),
                       "the score never finished engraving")
-        sleep(12)
+        // The timeline, rather than twelve seconds of hoping it had arrived.
+        _ = app.descendants(matching: .any)["strip-sound-0"].waitForExistence(timeout: 180)
         let versionsBefore = app.buttons["score-versions"].label
         revealTransport()
         startPlaying()
@@ -3968,6 +3799,13 @@ extension ScorangerUITests {
             .firstMatch
         XCTAssertTrue(grand.waitForExistence(timeout: 10),
                       "the piano family does not list the plain piano")
+        // The largest thing the tray puts up, wholly on screen (was
+        // TrayVisibility.testTheSoundPickerIsWhollyOnScreen).
+        settle(picker)
+        assertInside(picker.frame, app.windows.firstMatch.frame, "picker")
+        // Open, the music runs on (was MixerKeepsPlaying).
+        XCTAssertEqual(app.buttons["transport-play"].label, "Stop",
+                       "opening the sound picker stopped playback")
         shot("mixer-sound-picker-open")
         grand.tap()
 
@@ -3979,6 +3817,8 @@ extension ScorangerUITests {
         app.descendants(matching: .any)["picker-all-staves"].firstMatch.tap()
         app.descendants(matching: .any)["mixer-picker-close"].firstMatch.tap()
         XCTAssertTrue(chip(0).waitForExistence(timeout: 10), "the strips did not come back")
+        XCTAssertEqual(app.buttons["transport-play"].label, "Stop",
+                       "closing the sound picker stopped playback")
         for index in 0..<4 {
             let value = chip(index).value as? String ?? ""
             XCTAssertTrue(value.hasPrefix("Acoustic Grand Piano"),
